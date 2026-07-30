@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     API_V1_PREFIX: str = "/api/v1"
+    FATSECRET_CLIENT_ID: str = ""
+    FATSECRET_CLIENT_SECRET: str = ""
 
     class Config:
         env_file = ".env"
