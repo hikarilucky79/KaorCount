@@ -1,6 +1,16 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app.core.config import settings
+from app.core.exceptions import (
+    http_exception_handler,
+    validation_exception_handler,
+    integrity_error_handler,
+    data_error_handler,
+    operational_error_handler,
+)
 from app.api.auth_router import router as auth_router
 from app.api.usuario_router import router as usuario_router
 from app.api.alimento_router import router as alimento_router
@@ -27,6 +37,12 @@ app.include_router(meta_nutri_router, prefix=settings.API_V1_PREFIX)
 app.include_router(registro_agua_router, prefix=settings.API_V1_PREFIX)
 app.include_router(refeicao_router, prefix=settings.API_V1_PREFIX)
 app.include_router(historico_router, prefix=settings.API_V1_PREFIX)
+
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(IntegrityError, integrity_error_handler)
+app.add_exception_handler(DataError, data_error_handler)
+app.add_exception_handler(OperationalError, operational_error_handler)
 
 
 @app.get("/")
