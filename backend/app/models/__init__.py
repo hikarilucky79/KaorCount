@@ -5,15 +5,19 @@ from app.models.meta_nutri import MetaNutri
 from app.models.perfil_nutri import PerfilNutri
 from app.models.refeicao import Refeicao
 from app.models.registro_agua import RegistroAgua
+from app.models.sugestao_refeicao import SugestaoRefeicao
+from app.models.lembrete_config import LembreteConfig
 from app.models.usuario import Usuario
 
 __all__ = [
     "Alimento",
     "HistoricoProgresso",
     "ItemRefeicao",
+    "LembreteConfig",
     "MetaNutri",
     "PerfilNutri",
     "Refeicao",
     "RegistroAgua",
+    "SugestaoRefeicao",
     "Usuario",
 ]
