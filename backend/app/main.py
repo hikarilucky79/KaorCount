@@ -21,6 +21,8 @@ from app.api.registro_agua_router import router as registro_agua_router
 from app.api.refeicao_router import router as refeicao_router
 from app.api.historico_progresso_router import router as historico_router
 from app.api.fatsecret_router import router as fatsecret_router
+from app.api.sugestao_router import router as sugestao_router
+from app.api.lembrete_router import router as lembrete_router
 
 app = FastAPI(
     title="KaorCount API",
@@ -48,6 +50,8 @@ app.include_router(registro_agua_router, prefix=settings.API_V1_PREFIX)
 app.include_router(refeicao_router, prefix=settings.API_V1_PREFIX)
 app.include_router(historico_router, prefix=settings.API_V1_PREFIX)
 app.include_router(fatsecret_router, prefix=settings.API_V1_PREFIX)
+app.include_router(sugestao_router, prefix=settings.API_V1_PREFIX)
+app.include_router(lembrete_router, prefix=settings.API_V1_PREFIX)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
