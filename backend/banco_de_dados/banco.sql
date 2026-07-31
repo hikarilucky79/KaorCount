@@ -1,7 +1,6 @@
 /*Cria e usa a database*/
-
-CREATE DATABASE IF NOT EXISTS KaourCount;
-USE KaourCount;
+CREATE DATABASE IF NOT EXISTS KaorCount;
+USE KaorCount;
 
   /* CRIA AS TABELAS */
 
@@ -61,4 +60,17 @@ CREATE TABLE IF NOT EXISTS HISTORICO_PROGRESSO (
   id_user INT NOT NULL,
 
   FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS REFEICOES (
+  id_refeicao INT PRIMARY KEY AUTO_INCREMENT,
+
+  data_refeicao DATE NOT NULL,
+  tipo_refeicao CHAR(1) NOT NULL,
+
+  id_user INT NOT NULL,
+
+  FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user) ON DELETE CASCADE,
+
+  CONSTRAINT chk_tipo_refeicao CHECK (tipo_refeicao IN ('C', 'A', 'J'))
 );
