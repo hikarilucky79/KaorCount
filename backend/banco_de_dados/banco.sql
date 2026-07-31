@@ -12,13 +12,13 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
   sobrenome VARCHAR(225) NOT NULL,
   altura DECIMAL(3,2) NOT NULL, 
   data_nascimento DATE NOT NULL, 
-  sexo CHAR NOT NULL,
-  objetivo CHAR DEFAULT('P'),
-  nivel_atv CHAR NOT NULL,
+  sexo CHAR(1) NOT NULL,
+  objetivo CHAR(1) DEFAULT 'P',
+  nivel_atv CHAR(1) NOT NULL,
   email VARCHAR(225) NOT NULL UNIQUE,
   senha VARCHAR(225) NOT NULL, 
   data_cadastro DATE NOT NULL,
-  status_conta CHAR DEFAULT('D') ,
+  status_conta CHAR(1) DEFAULT 'D',
 
   CONSTRAINT chk_email CHECK (email LIKE '%@%'),
   CONSTRAINT chk_sexo CHECK (sexo IN ('F', 'M')), /*feminino, masculino*/
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS META_NUTRI (
 
   id_user INT NOT NULL,
 
-  FOREIGN KEY(id_user) REFERENCES USUARIOS
+  FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user)
 );
 
 CREATE TABLE IF NOT EXISTS REGISTRO_AGUA (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS REGISTRO_AGUA (
 
   id_user INT NOT NULL,
 
-  FOREIGN KEY(id_user) REFERENCES USUARIOS
+  FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user)
 );
 
 CREATE TABLE IF NOT EXISTS HISTORICO_PROGRESSO (
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS HISTORICO_PROGRESSO (
   peso_atual DECIMAL(5,2) NOT NULL, /*Em kilos*/
   altura_atual DECIMAL(3,2) NOT NULL, /*Em METROS*/
 
-  id_user INT,
+  id_user INT NOT NULL,
 
-  FOREIGN KEY(id_user) REFERENCES USUARIOS
+  FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user)
 );
