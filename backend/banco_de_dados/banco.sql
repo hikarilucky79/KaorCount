@@ -75,6 +75,18 @@ CREATE TABLE IF NOT EXISTS REFEICOES (
   CONSTRAINT chk_tipo_refeicao CHECK (tipo_refeicao IN ('C', 'A', 'L', 'J')) /* Café da manhã, Almoço, Lanche da tarde, Jantar*/
 );
 
+CREATE TABLE IF NOT EXISTS ALIMENTOS (
+  id_alimento INT PRIMARY KEY AUTO_INCREMENT,
+
+  nome_alimento VARCHAR(225) NOT NULL,
+  porcao_padrao INT NOT NULL,
+  calorias INT NOT NULL,
+  carboidratos INT NOT NULL,
+  proteinas INT NOT NULL,
+  gorduras INT NOT NULL,
+  origem_dados VARCHAR(225)
+);
+
 CREATE TABLE IF NOT EXISTS ITEM_REFEICAO (
   id_refeicao INT NOT NULL,
   id_alimento INT NOT NULL,
@@ -85,3 +97,4 @@ CREATE TABLE IF NOT EXISTS ITEM_REFEICAO (
   FOREIGN KEY(id_refeicao) REFERENCES REFEICOES(id_refeicao) ON DELETE CASCADE,
   FOREIGN KEY(id_alimento) REFERENCES ALIMENTOS(id_alimento) ON DELETE CASCADE
 );
+
