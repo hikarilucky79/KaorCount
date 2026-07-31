@@ -72,5 +72,16 @@ CREATE TABLE IF NOT EXISTS REFEICOES (
 
   FOREIGN KEY(id_user) REFERENCES USUARIOS(id_user) ON DELETE CASCADE,
 
-  CONSTRAINT chk_tipo_refeicao CHECK (tipo_refeicao IN ('C', 'A', 'J'))
+  CONSTRAINT chk_tipo_refeicao CHECK (tipo_refeicao IN ('C', 'A', 'L', 'J')) /* Café da manhã, Almoço, Lanche da tarde, Jantar*/
+);
+
+CREATE TABLE IF NOT EXISTS ITEM_REFEICAO (
+  id_refeicao INT NOT NULL,
+  id_alimento INT NOT NULL,
+  PRIMARY KEY (id_refeicao, id_alimento),
+
+  qtd_alimento INT NOT NULL, /*Em gramas(g)*/
+
+  FOREIGN KEY(id_refeicao) REFERENCES REFEICOES(id_refeicao) ON DELETE CASCADE,
+  FOREIGN KEY(id_alimento) REFERENCES ALIMENTOS(id_alimento) ON DELETE CASCADE
 );
