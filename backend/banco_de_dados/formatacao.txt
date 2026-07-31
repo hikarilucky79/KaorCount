@@ -1,0 +1,7 @@
+REGRAS DE SINTAXE
+
+    - Nomes de tabelas em maiúsculo 
+    - Nomes de atributos em minúsculo 
+    - Nomes sem ascento 
+    - Segue a ordem de: PK, atributos, FK, Constrains 
+    - Quantidade de CHAR é definido pela métrica comum das empresas (225)
