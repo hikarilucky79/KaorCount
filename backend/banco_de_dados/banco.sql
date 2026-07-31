@@ -43,10 +43,22 @@ CREATE TABLE IF NOT EXISTS META_NUTRI (
 CREATE TABLE IF NOT EXISTS REGISTRO_AGUA (
   id_registro INT PRIMARY KEY AUTO_INCREMENT,
 
-  data_registro DATE NOT NULL
-  qtd_ml DECIMAL(7,2)
+  data_registro DATE NOT NULL,
+  qtd_ml DECIMAL(7,2),
 
-  id_user INT
+  id_user INT NOT NULL,
+
+  FOREIGN KEY(id_user) REFERENCES USUARIOS
+);
+
+CREATE TABLE IF NOT EXISTS HISTORICO_PROGRESSO (
+  id_progresso INT PRIMARY KEY AUTO_INCREMENT,
+
+  data_registro DATE NOT NULL,
+  peso_atual DECIMAL(5,2) NOT NULL, /*Em kilos*/
+  altura_atual DECIMAL(3,2) NOT NULL, /*Em METROS*/
+
+  id_user INT,
 
   FOREIGN KEY(id_user) REFERENCES USUARIOS
 );
