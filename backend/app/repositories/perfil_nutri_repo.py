@@ -14,12 +14,3 @@ class PerfilNutriRepository(BaseRepository[PerfilNutri]):
 
     def get_by_usuario(self, id_usuario: UUID | str) -> PerfilNutri | None:
         return self.db.query(PerfilNutri).filter(PerfilNutri.id_usuario == str(id_usuario)).first()
-
-    def create(self, obj_data: dict) -> PerfilNutri:
-        return super().create(obj_data)
-
-    def update(self, db_obj: PerfilNutri, obj_data: dict) -> PerfilNutri:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: PerfilNutri) -> None:
-        super().delete(db_obj)

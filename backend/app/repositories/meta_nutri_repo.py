@@ -23,12 +23,3 @@ class MetaNutriRepository(BaseRepository[MetaNutri]):
             .order_by(MetaNutri.data_inicio.desc())
             .first()
         )
-
-    def create(self, obj_data: dict) -> MetaNutri:
-        return super().create(obj_data)
-
-    def update(self, db_obj: MetaNutri, obj_data: dict) -> MetaNutri:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: MetaNutri) -> None:
-        super().delete(db_obj)

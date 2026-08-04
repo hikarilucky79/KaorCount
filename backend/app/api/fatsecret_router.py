@@ -18,8 +18,7 @@ def buscar_alimentos(
     max_resultados: int = Query(20, ge=1, le=50),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
-    resultado = FatSecretService.buscar_alimentos(nome, pagina, max_resultados)
-    return resultado
+    return FatSecretService.buscar_alimentos(nome, pagina, max_resultados)
 
 
 @router.get("/alimento/{food_id}")
@@ -38,11 +37,6 @@ def importar_alimento(
 ):
     dados_import = FatSecretService.importar_alimento(food_id)
     service = AlimentoService(db)
-    existente = service.buscar_por_nome(dados_import["nome_alimento"], limit=1)
-    if existente:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Alimento já cadastrado na base local",
-        )
-    schema = AlimentoCreate(**dados_import)
-    return service.criar(schema)
+    if service.buscar_por_nome(dados_import["nome_alimento"], limit=1):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Alimento já cadastrado na base local")
+    return service.criar(AlimentoCreate(**dados_import))

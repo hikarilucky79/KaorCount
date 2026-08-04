@@ -36,21 +36,8 @@ class RegistroAguaRepository(BaseRepository[RegistroAgua]):
         )
 
     def get_total_dia(self, id_usuario: UUID | str, data: date) -> float:
-        registros = (
-            self.db.query(RegistroAgua)
-            .filter(
-                RegistroAgua.id_usuario == str(id_usuario),
-                RegistroAgua.data_registro == data,
-            )
-            .all()
-        )
+        registros = self.db.query(RegistroAgua).filter(
+            RegistroAgua.id_usuario == str(id_usuario),
+            RegistroAgua.data_registro == data,
+        ).all()
         return sum(r.quantidade_ml for r in registros)
-
-    def create(self, obj_data: dict) -> RegistroAgua:
-        return super().create(obj_data)
-
-    def update(self, db_obj: RegistroAgua, obj_data: dict) -> RegistroAgua:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: RegistroAgua) -> None:
-        super().delete(db_obj)

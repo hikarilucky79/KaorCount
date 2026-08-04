@@ -6,7 +6,6 @@ from app.core.config import settings
 
 class FatAuthService:
     TOKEN_URL = "https://oauth.fatsecret.com/connect/token"
-    API_BASE = "https://platform.fatsecret.com/rest/server.api"
 
     _token: str | None = None
     _expira_em: float = 0

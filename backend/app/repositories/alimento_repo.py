@@ -20,12 +20,3 @@ class AlimentoRepository(BaseRepository[Alimento]):
             .limit(limit)
             .all()
         )
-
-    def create(self, obj_data: dict) -> Alimento:
-        return super().create(obj_data)
-
-    def update(self, db_obj: Alimento, obj_data: dict) -> Alimento:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: Alimento) -> None:
-        super().delete(db_obj)
