@@ -3,6 +3,20 @@ import httpx
 from app.services.fatsecret_auth_service import FatAuthService
 
 
+def _as_list(val) -> list:
+    """FatSecret às vezes retorna um dict quando há apenas 1 item; normaliza para lista."""
+    if isinstance(val, dict):
+        return [val]
+    return val or []
+
+
+def _float(val, default: float = 0.0) -> float:
+    try:
+        return float(val) if val is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
 class FatSecretService:
 
     API_URL = "https://platform.fatsecret.com/rest/server.api"
@@ -11,14 +25,10 @@ class FatSecretService:
     def _request(cls, params: dict) -> dict:
         token = FatAuthService.get_token()
         params["format"] = "json"
-
         response = httpx.post(
             cls.API_URL,
             data=params,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded"},
             timeout=15,
         )
         response.raise_for_status()
@@ -26,18 +36,14 @@ class FatSecretService:
 
     @classmethod
     def buscar_alimentos(cls, nome: str, pagina: int = 0, max_resultados: int = 20) -> dict:
-        params = {
+        resultado = cls._request({
             "method": "foods.search",
             "search_expression": nome,
             "page_number": pagina,
             "max_results": max_resultados,
-        }
-        resultado = cls._request(params)
-
+        })
         foods_data = resultado.get("foods", {})
-        foods = foods_data.get("food", [])
-        if isinstance(foods, dict):
-            foods = [foods]
+        foods = _as_list(foods_data.get("food", []))
 
         return {
             "alimentos": [
@@ -58,18 +64,14 @@ class FatSecretService:
 
     @classmethod
     def buscar_alimento_por_id(cls, food_id: str) -> dict:
-        params = {
-            "method": "food.get.v4",
-            "food_id": food_id,
-        }
-        resultado = cls._request(params)
+        resultado = cls._request({"method": "food.get.v4", "food_id": food_id})
         food = resultado.get("food", {})
 
-        servings = food.get("servings", {}).get("serving", [])
-        if isinstance(servings, dict):
-            servings = [servings]
-
-        serving_default = next((s for s in servings if s.get("is_default") in ("1", True)), servings[0] if servings else {})
+        servings = _as_list(food.get("servings", {}).get("serving", []))
+        serving_default = next(
+            (s for s in servings if s.get("is_default") in ("1", True)),
+            servings[0] if servings else {},
+        )
 
         return {
             "food_id": food.get("food_id"),
@@ -81,28 +83,28 @@ class FatSecretService:
                 {
                     "serving_id": s.get("serving_id"),
                     "descricao": s.get("serving_description"),
-                    "quantidade_metrica": float(s.get("metric_serving_amount", 0) or 0),
+                    "quantidade_metrica": _float(s.get("metric_serving_amount")),
                     "unidade_metrica": s.get("metric_serving_unit", "g"),
-                    "calorias": float(s.get("calories", 0) or 0),
-                    "carboidratos": float(s.get("carbohydrate", 0) or 0),
-                    "proteinas": float(s.get("protein", 0) or 0),
-                    "gorduras": float(s.get("fat", 0) or 0),
-                    "gordura_saturada": float(s.get("saturated_fat", 0) or 0),
-                    "fibra": float(s.get("fiber", 0) or 0),
-                    "acucar": float(s.get("sugar", 0) or 0),
-                    "sodio": float(s.get("sodium", 0) or 0),
+                    "calorias": _float(s.get("calories")),
+                    "carboidratos": _float(s.get("carbohydrate")),
+                    "proteinas": _float(s.get("protein")),
+                    "gorduras": _float(s.get("fat")),
+                    "gordura_saturada": _float(s.get("saturated_fat")),
+                    "fibra": _float(s.get("fiber")),
+                    "acucar": _float(s.get("sugar")),
+                    "sodio": _float(s.get("sodium")),
                 }
                 for s in servings
             ],
             "porcao_padrao": {
                 "serving_id": serving_default.get("serving_id"),
                 "descricao": serving_default.get("serving_description"),
-                "quantidade_metrica": float(serving_default.get("metric_serving_amount", 0) or 0),
+                "quantidade_metrica": _float(serving_default.get("metric_serving_amount")),
                 "unidade_metrica": serving_default.get("metric_serving_unit", "g"),
-                "calorias": float(serving_default.get("calories", 0) or 0),
-                "carboidratos": float(serving_default.get("carbohydrate", 0) or 0),
-                "proteinas": float(serving_default.get("protein", 0) or 0),
-                "gorduras": float(serving_default.get("fat", 0) or 0),
+                "calorias": _float(serving_default.get("calories")),
+                "carboidratos": _float(serving_default.get("carbohydrate")),
+                "proteinas": _float(serving_default.get("protein")),
+                "gorduras": _float(serving_default.get("fat")),
             },
         }
 

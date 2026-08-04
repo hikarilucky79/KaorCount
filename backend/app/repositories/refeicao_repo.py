@@ -38,19 +38,7 @@ class RefeicaoRepository(BaseRepository[Refeicao]):
     def get_by_dia(self, id_usuario: UUID | str, data: date) -> list[Refeicao]:
         return (
             self.db.query(Refeicao)
-            .filter(
-                Refeicao.id_usuario == str(id_usuario),
-                Refeicao.data_refeicao == data,
-            )
+            .filter(Refeicao.id_usuario == str(id_usuario), Refeicao.data_refeicao == data)
             .order_by(Refeicao.data_refeicao.desc())
             .all()
         )
-
-    def create(self, obj_data: dict) -> Refeicao:
-        return super().create(obj_data)
-
-    def update(self, db_obj: Refeicao, obj_data: dict) -> Refeicao:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: Refeicao) -> None:
-        super().delete(db_obj)
