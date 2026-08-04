@@ -12,17 +12,9 @@ from app.core.exceptions import (
     data_error_handler,
     operational_error_handler,
 )
-from app.api.auth_router import router as auth_router
-from app.api.usuario_router import router as usuario_router
-from app.api.alimento_router import router as alimento_router
-from app.api.perfil_nutri_router import router as perfil_nutri_router
-from app.api.meta_nutri_router import router as meta_nutri_router
-from app.api.registro_agua_router import router as registro_agua_router
-from app.api.refeicao_router import router as refeicao_router
-from app.api.historico_progresso_router import router as historico_router
-from app.api.fatsecret_router import router as fatsecret_router
-from app.api.sugestao_router import router as sugestao_router
-from app.api.lembrete_router import router as lembrete_router
+from app.api import auth_router, usuario_router, alimento_router, perfil_nutri_router
+from app.api import meta_nutri_router, registro_agua_router, refeicao_router
+from app.api import historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router
 
 app = FastAPI(
     title="KaorCount API",
@@ -41,17 +33,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
-app.include_router(usuario_router, prefix=settings.API_V1_PREFIX)
-app.include_router(alimento_router, prefix=settings.API_V1_PREFIX)
-app.include_router(perfil_nutri_router, prefix=settings.API_V1_PREFIX)
-app.include_router(meta_nutri_router, prefix=settings.API_V1_PREFIX)
-app.include_router(registro_agua_router, prefix=settings.API_V1_PREFIX)
-app.include_router(refeicao_router, prefix=settings.API_V1_PREFIX)
-app.include_router(historico_router, prefix=settings.API_V1_PREFIX)
-app.include_router(fatsecret_router, prefix=settings.API_V1_PREFIX)
-app.include_router(sugestao_router, prefix=settings.API_V1_PREFIX)
-app.include_router(lembrete_router, prefix=settings.API_V1_PREFIX)
+for router in [
+    auth_router, usuario_router, alimento_router, perfil_nutri_router,
+    meta_nutri_router, registro_agua_router, refeicao_router,
+    historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router,
+]:
+    app.include_router(router, prefix=settings.API_V1_PREFIX)
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
@@ -62,12 +49,7 @@ app.add_exception_handler(OperationalError, operational_error_handler)
 
 @app.get("/")
 def root():
-    return {
-        "projeto": "KaorCount",
-        "versao": "1.0.0",
-        "documentacao": "/docs",
-        "prefixo_api": settings.API_V1_PREFIX,
-    }
+    return {"projeto": "KaorCount", "versao": "1.0.0", "documentacao": "/docs", "prefixo_api": settings.API_V1_PREFIX}
 
 
 @app.get("/health")

@@ -34,12 +34,3 @@ class HistoricoProgressoRepository(BaseRepository[HistoricoProgresso]):
             .order_by(HistoricoProgresso.data_registro.desc())
             .all()
         )
-
-    def create(self, obj_data: dict) -> HistoricoProgresso:
-        return super().create(obj_data)
-
-    def update(self, db_obj: HistoricoProgresso, obj_data: dict) -> HistoricoProgresso:
-        return super().update(db_obj, obj_data)
-
-    def delete(self, db_obj: HistoricoProgresso) -> None:
-        super().delete(db_obj)

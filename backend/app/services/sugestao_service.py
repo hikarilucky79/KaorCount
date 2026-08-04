@@ -6,18 +6,12 @@ from sqlalchemy.orm import Session
 from app.models.sugestao_refeicao import SugestaoRefeicao
 from app.repositories.perfil_nutri_repo import PerfilNutriRepository
 from app.repositories.meta_nutri_repo import MetaNutriRepository
-
 from fastapi import HTTPException, status
 
 
 class SugestaoService:
 
-    REFEICOES_CONFIG = [
-        ("Café da manhã", 0.25),
-        ("Almoço", 0.35),
-        ("Jantar", 0.30),
-        ("Lanche", 0.10),
-    ]
+    REFEICOES_CONFIG = [("Café da manhã", 0.25), ("Almoço", 0.35), ("Jantar", 0.30), ("Lanche", 0.10)]
 
     SUGESTOES_EXTERNAS = {
         "Café da manhã": [
@@ -54,10 +48,7 @@ class SugestaoService:
     def gerar_todas(self, id_usuario: UUID | str) -> list[SugestaoRefeicao]:
         meta = self.meta_repo.get_meta_atual(id_usuario)
         if not meta:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Defina suas metas nutricionais antes de gerar sugestões",
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Defina suas metas nutricionais antes de gerar sugestões")
 
         perfil = self.perfil_repo.get_by_usuario(id_usuario)
         objetivo = perfil.objetivo_nutricional if perfil else "manter_peso"
@@ -70,22 +61,16 @@ class SugestaoService:
 
         sugestoes = []
         for tipo, pct in self.REFEICOES_CONFIG:
-            kcal = round(meta.calorias_diarias * pct)
-            carb = round(meta.carboidrato_g * pct)
-            prot = round(meta.proteina_g * pct)
-            gord = round(meta.gordura_g * pct)
-
             externas = self.SUGESTOES_EXTERNAS.get(tipo, [])
-
             sugestao = SugestaoRefeicao(
                 id_usuario=str(id_usuario),
-                nome=f"{tipo} sugerido • {kcal} kcal",
+                nome=f"{tipo} sugerido • {round(meta.calorias_diarias * pct)} kcal",
                 descricao=externas[0] if externas else f"Sugestão {tipo.lower()} para objetivo {objetivo}",
                 tipo_refeicao=tipo,
-                calorias=kcal,
-                carboidratos=carb,
-                proteinas=prot,
-                gorduras=gord,
+                calorias=round(meta.calorias_diarias * pct),
+                carboidratos=round(meta.carboidrato_g * pct),
+                proteinas=round(meta.proteina_g * pct),
+                gorduras=round(meta.gordura_g * pct),
                 alimentos_sugeridos=json.dumps(externas, ensure_ascii=False),
                 aceita=False,
                 data_geracao=hoje,
@@ -96,25 +81,35 @@ class SugestaoService:
         self.db.commit()
         return sugestoes
 
+    def listar_por_usuario(self, id_usuario: UUID | str, skip: int = 0, limit: int = 50) -> list[dict]:
+        lista = (
+            self.db.query(SugestaoRefeicao)
+            .filter(SugestaoRefeicao.id_usuario == str(id_usuario))
+            .order_by(SugestaoRefeicao.data_geracao.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        return [
+            {"id_sugestao": s.id_sugestao, "nome": s.nome, "tipo_refeicao": s.tipo_refeicao,
+             "calorias": s.calorias, "carboidratos": s.carboidratos, "proteinas": s.proteinas,
+             "gorduras": s.gorduras, "aceita": s.aceita, "data_geracao": s.data_geracao}
+            for s in lista
+        ]
 
-def aceitar_sugestao(db: Session, id_sugestao: UUID | str) -> dict:
-    sugestao = db.query(SugestaoRefeicao).filter(
-        SugestaoRefeicao.id_sugestao == str(id_sugestao)
-    ).first()
-    if not sugestao:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sugestão não encontrada")
-    sugestao.aceita = True
-    db.commit()
-    db.refresh(sugestao)
-
-    return {
-        "id_sugestao": sugestao.id_sugestao,
-        "nome": sugestao.nome,
-        "tipo_refeicao": sugestao.tipo_refeicao,
-        "calorias": sugestao.calorias,
-        "carboidratos": sugestao.carboidratos,
-        "proteinas": sugestao.proteinas,
-        "gorduras": sugestao.gorduras,
-        "aceita": sugestao.aceita,
-        "alimentos_sugeridos": json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else [],
-    }
+    def aceitar(self, id_sugestao: UUID | str) -> dict:
+        sugestao = self.db.query(SugestaoRefeicao).filter(
+            SugestaoRefeicao.id_sugestao == str(id_sugestao)
+        ).first()
+        if not sugestao:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sugestão não encontrada")
+        sugestao.aceita = True
+        self.db.commit()
+        self.db.refresh(sugestao)
+        return {
+            "id_sugestao": sugestao.id_sugestao, "nome": sugestao.nome,
+            "tipo_refeicao": sugestao.tipo_refeicao, "calorias": sugestao.calorias,
+            "carboidratos": sugestao.carboidratos, "proteinas": sugestao.proteinas,
+            "gorduras": sugestao.gorduras, "aceita": sugestao.aceita,
+            "alimentos_sugeridos": json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else [],
+        }

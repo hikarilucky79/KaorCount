@@ -2,7 +2,6 @@ from typing import Generic, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import Select
 
 from app.core.database import Base
 
@@ -38,6 +37,3 @@ class BaseRepository(Generic[ModelType]):
     def delete(self, db_obj: ModelType) -> None:
         self.db.delete(db_obj)
         self.db.commit()
-
-    def filter(self, query: Select) -> list[ModelType]:
-        return self.db.execute(query).scalars().all()
