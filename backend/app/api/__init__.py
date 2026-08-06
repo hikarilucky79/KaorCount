@@ -9,3 +9,4 @@ from app.api.historico_progresso_router import router as historico_progresso_rou
 from app.api.fatsecret_router import router as fatsecret_router
 from app.api.sugestao_router import router as sugestao_router
 from app.api.lembrete_router import router as lembrete_router
+from app.api.dashboard_router import router as dashboard_router
