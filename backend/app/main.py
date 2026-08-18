@@ -16,6 +16,7 @@ from app.api import auth_router, usuario_router, alimento_router, perfil_nutri_r
 from app.api import meta_nutri_router, registro_agua_router, refeicao_router
 from app.api import historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router
 from app.api import dashboard_router
+from app.api import relatorio_router
 
 app = FastAPI(
     title="KaorCount API",
@@ -38,7 +39,7 @@ for router in [
     auth_router, usuario_router, alimento_router, perfil_nutri_router,
     meta_nutri_router, registro_agua_router, refeicao_router,
     historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router,
-    dashboard_router,
+    dashboard_router, relatorio_router,
 ]:
     app.include_router(router, prefix=settings.API_V1_PREFIX)
 
