@@ -20,3 +20,11 @@ class AlimentoRepository(BaseRepository[Alimento]):
             .limit(limit)
             .all()
         )
+
+    def buscar_por_origem(self, origem: str, food_id: str) -> Alimento | None:
+        return (
+            self.db.query(Alimento)
+            .filter(Alimento.origem_dados == origem)
+            .filter(Alimento.nome_alimento.like(f"%{food_id}%"))
+            .first()
+        )
