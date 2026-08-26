@@ -1,0 +1,13 @@
+from app.api.auth_router import router as auth_router
+from app.api.usuario_router import router as usuario_router
+from app.api.alimento_router import router as alimento_router
+from app.api.perfil_nutri_router import router as perfil_nutri_router
+from app.api.meta_nutri_router import router as meta_nutri_router
+from app.api.registro_agua_router import router as registro_agua_router
+from app.api.refeicao_router import router as refeicao_router
+from app.api.historico_progresso_router import router as historico_progresso_router
+from app.api.fatsecret_router import router as fatsecret_router
+from app.api.sugestao_router import router as sugestao_router
+from app.api.lembrete_router import router as lembrete_router
+from app.api.dashboard_router import router as dashboard_router
+from app.api.relatorio_router import router as relatorio_router
