@@ -1,12 +1,22 @@
+// ───────────────────────────────────────────────────────────────
+// src/constants/Cores.js
+// Paleta de cores claras oficial do KaorCount
+// ───────────────────────────────────────────────────────────────
 export const CORES = {
-  primaria: '#D08744',       // ← O marrom/laranja dos botões principais
-  fundo: '#F4EAE0',          // ← O bege claro de fundo das telas
-  fundoInput: '#F9F3EB',     // ← O tom levemente mais claro interno dos inputs
-  textoEscuro: '#1F1105',    // ← Marrom quase preto para títulos importantes
-  textoSuave: '#5C4E43',     // ← Cinza/marrom para legendas e textos secundários
-  branco: '#FFFFFF',         // ← Fundo dos blocos de conteúdo e cards
-  sucesso: '#00A86B',        // ← Verde das barras de progresso e metas
-  carboidrato: '#E07A2F',    // ← Cor laranja para a barra de carboidratos
-  gordura: '#9B51E0',        // ← Roxo para a barra de gorduras
-  borda: '#EADCC9',          // ← Cor sutil para contornos de botões inativos
+  primaria: '#C88242',       // Laranja caramelo / marrom quente oficial
+  fundo: '#F4E6D6',          // Bege claro suave acolhedor para fundo das telas
+  fundoInput: '#FAF3EC',     // Bege ultra claro para caixas de texto e inputs
+  textoEscuro: '#2D1E12',    // Marrom café escuro para títulos e textos com alta legibilidade
+  textoSuave: '#6C584A',     // Marrom neutro suave para legendas, placeholders e descrições
+  branco: '#FFFFFF',         // Branco puro para cards, modais e botões destacados
+  sucesso: '#00A86B',        // Verde vibrante para metas atingidas e sucesso
+  agua: '#2F80ED',           // Azul água
+  carboidrato: '#E07B39',    // Laranja para carboidratos
+  proteina: '#C88242',       // Caramelo para proteínas
+  gordura: '#9B59B6',        // Roxo suave para gorduras
+  borda: '#E1D5C7',          // Borda suave e clara
+  mutado: '#EDD9C3',         // Bege claro para botões secundários/demo
+  erro: '#D94F4F',           // Vermelho para erros e avisos
 };
+
+export default CORES;
