@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, TouchableWithoutFeedback } from 'react-native';
-import { CORES } from '../src/constants/Cores'; // ← Verifique se o caminho da importação está correto
+import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
+import { CORES } from '../constants/Cores';
 
 export default function DropdownGenerico({ 
   valorSelecionado, 
@@ -29,7 +30,11 @@ export default function DropdownGenerico({
         <Text style={opcaoAtual ? styles.textoSelecionado : styles.textoPlaceholder}>
           {opcaoAtual ? opcaoAtual.label : placeholder}
         </Text>
-        <Text style={styles.seta}>{visivel ? '▲' : '▼'}</Text>
+        {visivel ? (
+          <ChevronUp size={16} color="#64748b" />
+        ) : (
+          <ChevronDown size={16} color="#64748b" />
+        )}
       </TouchableOpacity>
 
       {/* Lista Suspensa Modal */}
@@ -48,6 +53,9 @@ export default function DropdownGenerico({
                     <Text style={[styles.textoOpcao, valorSelecionado === item.id && styles.textoOpcaoAtiva]}>
                       {item.label}
                     </Text>
+                    {valorSelecionado === item.id && (
+                      <Check size={16} color={CORES.primaria} />
+                    )}
                   </TouchableOpacity>
                 )}
               />
