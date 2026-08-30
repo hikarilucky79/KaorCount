@@ -1,3 +1,4 @@
+import re
 import httpx
 
 from app.services.fatsecret_auth_service import FatAuthService
@@ -15,6 +16,33 @@ def _float(val, default: float = 0.0) -> float:
         return float(val) if val is not None else default
     except (TypeError, ValueError):
         return default
+
+
+def _parse_food_description(desc: str) -> dict:
+    if not desc:
+        return {"calorias": 0.0, "proteinas": 0.0, "carboidratos": 0.0, "gorduras": 0.0, "porcao_padrao_g": 100.0}
+    
+    cal_match = re.search(r'(?:Calories|Calorias):\s*([\d\.,]+)', desc, re.I)
+    fat_match = re.search(r'(?:Fat|Gordura|Gorduras):\s*([\d\.,]+)', desc, re.I)
+    carb_match = re.search(r'(?:Carbs|Carboidratos):\s*([\d\.,]+)', desc, re.I)
+    prot_match = re.search(r'(?:Protein|Prote[íi]na|Prot):\s*([\d\.,]+)', desc, re.I)
+    portion_match = re.search(r'(?:Per|Por)\s*([\d\.,]+)\s*g', desc, re.I)
+
+    def _to_float(m, default=0.0):
+        if not m:
+            return default
+        try:
+            return float(m.group(1).replace(',', '.'))
+        except (ValueError, TypeError):
+            return default
+
+    return {
+        "calorias": round(_to_float(cal_match)),
+        "gorduras": _to_float(fat_match),
+        "carboidratos": _to_float(carb_match),
+        "proteinas": _to_float(prot_match),
+        "porcao_padrao_g": _to_float(portion_match, 100.0) or 100.0,
+    }
 
 
 class FatSecretService:
@@ -45,18 +73,30 @@ class FatSecretService:
         foods_data = resultado.get("foods", {})
         foods = _as_list(foods_data.get("food", []))
 
+        alimentos_formatados = []
+        for f in foods:
+            desc = f.get("food_description") or ""
+            macros = _parse_food_description(desc)
+            alimentos_formatados.append({
+                "food_id": f.get("food_id"),
+                "id_alimento": f.get("food_id"),
+                "id": f.get("food_id"),
+                "nome": f.get("food_name"),
+                "nome_alimento": f.get("food_name"),
+                "marca": f.get("brand_name", ""),
+                "tipo": f.get("food_type"),
+                "url": f.get("food_url"),
+                "descricao": desc,
+                "calorias": macros["calorias"],
+                "proteinas": macros["proteinas"],
+                "carboidratos": macros["carboidratos"],
+                "gorduras": macros["gorduras"],
+                "porcao_padrao_g": macros["porcao_padrao_g"],
+                "origem_dados": "FatSecret",
+            })
+
         return {
-            "alimentos": [
-                {
-                    "food_id": f.get("food_id"),
-                    "nome": f.get("food_name"),
-                    "marca": f.get("brand_name", ""),
-                    "tipo": f.get("food_type"),
-                    "url": f.get("food_url"),
-                    "descricao": f.get("food_description"),
-                }
-                for f in foods
-            ],
+            "alimentos": alimentos_formatados,
             "total_resultados": int(foods_data.get("total_results", 0)),
             "pagina": int(foods_data.get("page_number", 0)),
             "max_resultados": int(foods_data.get("max_results", 20)),

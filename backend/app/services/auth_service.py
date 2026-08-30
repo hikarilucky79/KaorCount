@@ -7,6 +7,9 @@ from app.schemas.token import Token
 from fastapi import HTTPException, status
 
 
+from datetime import date
+from app.models.meta_nutri import MetaNutri
+
 class AuthService:
     def __init__(self, db: Session):
         self.repo = UsuarioRepository(db)
@@ -14,11 +17,25 @@ class AuthService:
     def registrar(self, dados: UsuarioCreate):
         if self.repo.get_by_email(dados.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já cadastrado")
-        return self.repo.create({
+        novo_usuario = self.repo.create({
             "nome": dados.nome,
             "email": dados.email,
             "senha_hash": hash_senha(dados.senha),
         })
+        try:
+            meta = MetaNutri(
+                id_usuario=novo_usuario.id_usuario,
+                calorias_diarias=1800.0,
+                proteina_g=140.0,
+                carboidrato_g=180.0,
+                gordura_g=55.0,
+                data_inicio=date.today(),
+            )
+            self.repo.db.add(meta)
+            self.repo.db.commit()
+        except Exception:
+            pass
+        return novo_usuario
 
     def login(self, dados: UsuarioLogin) -> Token:
         usuario = self.repo.get_by_email(dados.email)

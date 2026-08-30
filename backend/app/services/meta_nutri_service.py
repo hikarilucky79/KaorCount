@@ -19,5 +19,18 @@ class MetaNutriService(BaseService):
     def meta_atual(self, id_usuario: UUID | str) -> MetaNutri:
         meta = self.repo.get_meta_atual(id_usuario)
         if not meta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhuma meta nutricional encontrada")
+            from datetime import date
+            import uuid
+            meta = MetaNutri(
+                id_meta=str(uuid.uuid4()),
+                id_usuario=str(id_usuario),
+                calorias_diarias=1800.0,
+                proteina_g=140.0,
+                carboidrato_g=180.0,
+                gordura_g=55.0,
+                data_inicio=date.today(),
+            )
+            self.repo.db.add(meta)
+            self.repo.db.commit()
+            self.repo.db.refresh(meta)
         return meta

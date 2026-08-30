@@ -2,6 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
+from app.schemas.item_refeicao import ItemRefeicaoResponse
 
 
 class RefeicaoCreate(BaseModel):
@@ -22,3 +23,4 @@ class RefeicaoResponse(BaseModel):
     id_usuario: UUID
     data_refeicao: date
     tipo_refeicao: str
+    itens: list[ItemRefeicaoResponse] = []

@@ -1,10 +1,10 @@
 from uuid import UUID
-
 from pydantic import BaseModel, Field, ConfigDict
+from app.schemas.alimento import AlimentoResponse
 
 
 class ItemRefeicaoCreate(BaseModel):
-    id_refeicao: UUID
+    id_refeicao: UUID | None = None
     id_alimento: UUID
     quantidade_alimento_g: float = Field(..., gt=0)
 
@@ -20,3 +20,4 @@ class ItemRefeicaoResponse(BaseModel):
     id_refeicao: UUID
     id_alimento: UUID
     quantidade_alimento_g: float
+    alimento: AlimentoResponse | None = None
