@@ -96,8 +96,10 @@ const styles = StyleSheet.create({
   },
   menuOpcoes: {
     width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 8,
     ...Platform.select({
       web: {

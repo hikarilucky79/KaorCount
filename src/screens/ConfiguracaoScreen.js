@@ -6,10 +6,11 @@ import { CORES } from '../constants/Cores';
 import { DoorOpen, ChevronLeft, Check, Flame, Scale, Dumbbell, Info, Moon, Sun } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
+import useResponsive from '../hooks/useResponsive';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
-function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress }) {
+function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress, rf, moderateScale }) {
   const animScale = useRef(new Animated.Value(ativo ? 1.05 : 1)).current;
   const IconeComp = obj.icone;
 
@@ -32,7 +33,7 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress }) {
         ]).start();
         onPress();
       }}
-      style={{ flex: 1, marginHorizontal: 4 }}
+      style={{ flex: 1, marginHorizontal: 2 }}
     >
       <Animated.View
         style={[
@@ -45,8 +46,8 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress }) {
           },
         ]}
       >
-        <IconeComp size={20} color={ativo ? cores.primaria : cores.textoSuave} />
-        <Text style={[styles.txtObjetivo, { color: cores.textoSuave }, ativo && [styles.txtObjetivoAtivo, { color: cores.primaria }]]}>
+        <IconeComp size={moderateScale ? moderateScale(20, 0.3) : 20} color={ativo ? cores.primaria : cores.textoSuave} />
+        <Text style={[styles.txtObjetivo, { color: cores.textoSuave, fontSize: rf ? rf(12, 10, 14) : 12 }, ativo && [styles.txtObjetivoAtivo, { color: cores.primaria }]]}>
           {obj.nome}
         </Text>
       </Animated.View>
@@ -54,7 +55,7 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress }) {
   );
 }
 
-function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress }) {
+function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress, rf }) {
   const animScale = useRef(new Animated.Value(ativo ? 1.02 : 1)).current;
 
   useEffect(() => {
@@ -91,12 +92,12 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress }) {
         ]}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={[styles.txtAtividadeNome, { color: cores.textoEscuro }, ativo && { color: cores.primaria, fontWeight: 'bold' }]}>
+          <Text style={[styles.txtAtividadeNome, { color: cores.textoEscuro, fontSize: rf ? rf(14, 12, 16) : 14 }, ativo && { color: cores.primaria, fontWeight: 'bold' }]}>
             {nivel.nome}
           </Text>
           {ativo ? <Check size={18} color={cores.primaria} /> : null}
         </View>
-        <Text style={[styles.txtAtividadeSub, { color: cores.textoSuave }]}>{nivel.descricao}</Text>
+        <Text style={[styles.txtAtividadeSub, { color: cores.textoSuave, fontSize: rf ? rf(11, 10, 13) : 11 }]}>{nivel.descricao}</Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -105,6 +106,7 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress }) {
 export default function ConfiguracaoScreen({ navigation }) {
   const { usuario, logout } = useAuth();
   const { cores, isDark, toggleTema } = useTheme();
+  const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   const [pushAtivo, setPushAtivo] = useState(true);
   const [lembreteAtivo, setLembreteAtivo] = useState(true);
@@ -171,8 +173,9 @@ export default function ConfiguracaoScreen({ navigation }) {
     }, [carregarDados])
   );
 
+  const offsetSlide = Math.round(moderateScale(35, 0.3));
   const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [35, 0], extrapolate: 'clamp' });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [offsetSlide, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Atualizar nível de atividade via API
@@ -274,143 +277,147 @@ export default function ConfiguracaoScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-
-        {/* ↓ Cabeçalho com botão Voltar */}
-        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-        <View style={styles.headerConfig}>
-          <TouchableOpacity
-            style={[styles.btnVoltar, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                navigation.navigate('Início');
-              }
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ChevronLeft size={16} color={cores.textoEscuro} />
-              <Text style={[styles.txtVoltar, { color: cores.textoEscuro }]}>Voltar</Text>
-            </View>
-          </TouchableOpacity>
-          <Text style={[styles.tituloTela, { color: cores.textoEscuro }]}>Configurações</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        {/* ↓ Bloco Preferências & Aparência */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>PREFERÊNCIAS & APARÊNCIA</Text>
-        <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-
-          {/* Switch de Tema Escuro */}
-          <View style={styles.linhaSwitch}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
+        <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
+          {/* ↓ Cabeçalho com botão Voltar */}
+          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+          <View style={styles.headerConfig}>
+            <TouchableOpacity
+              style={[styles.btnVoltar, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Início');
+                }
+              }}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {isDark ? (
-                  <Moon size={18} color={cores.primaria} style={{ marginRight: 8 }} />
-                ) : (
-                  <Sun size={18} color={cores.primaria} style={{ marginRight: 8 }} />
-                )}
-                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Tema Escuro</Text>
+                <ChevronLeft size={16} color={cores.textoEscuro} />
+                <Text style={[styles.txtVoltar, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Voltar</Text>
               </View>
-              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Fundo escuro profundo para descanso visual</Text>
+            </TouchableOpacity>
+            <Text style={[styles.tituloTela, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Configurações</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          {/* ↓ Bloco Preferências & Aparência */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>PREFERÊNCIAS & APARÊNCIA</Text>
+          <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+
+            {/* Switch de Tema Escuro */}
+            <View style={styles.linhaSwitch}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {isDark ? (
+                    <Moon size={18} color={cores.primaria} style={{ marginRight: 8 }} />
+                  ) : (
+                    <Sun size={18} color={cores.primaria} style={{ marginRight: 8 }} />
+                  )}
+                  <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Tema Escuro</Text>
+                </View>
+                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Fundo escuro profundo para descanso visual</Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={toggleTema}
+                trackColor={{ false: cores.borda, true: cores.primaria }}
+                thumbColor={Platform.OS === 'android' ? (isDark ? cores.primaria : '#f4f3f4') : undefined}
+              />
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTema}
-              trackColor={{ false: cores.borda, true: cores.primaria }}
-              thumbColor={Platform.OS === 'android' ? (isDark ? cores.primaria : '#f4f3f4') : undefined}
-            />
-          </View>
 
-          <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Notificações push</Text>
-              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Alertas de metas e lembretes</Text>
+            <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Notificações push</Text>
+                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Alertas de metas e lembretes</Text>
+              </View>
+              <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} />
             </View>
-            <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} />
-          </View>
 
-          <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Lembrete de refeição</Text>
-              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Horários programados</Text>
+            <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Lembrete de refeição</Text>
+                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Horários programados</Text>
+              </View>
+              <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} />
             </View>
-            <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} />
           </View>
-        </View>
 
-        {/* ↓ Objetivo */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>OBJETIVO</Text>
-        <View style={styles.rowObjetivos}>
-          {objetivos.map((obj) => (
-            <BotaoObjetivoAnimado
-              key={obj.id}
-              obj={obj}
-              ativo={objetivo === obj.id}
-              cores={cores}
-              isDark={isDark}
-              onPress={() => alterarObjetivo(obj.id)}
-            />
-          ))}
-        </View>
-
-        {/* ↓ Nível de Atividade */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>NÍVEL DE ATIVIDADE</Text>
-
-        <View style={styles.containerAtividades}>
-          {niveisAtividade.map((nivel) => (
-            <BotaoAtividadeAnimado
-              key={nivel.id}
-              nivel={nivel}
-              ativo={nivelAtividade === nivel.id}
-              cores={cores}
-              isDark={isDark}
-              onPress={() => alterarNivelAtividade(nivel.id)}
-            />
-          ))}
-        </View>
-
-        {/* ↓ Informações do App */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>INFORMAÇÕES</Text>
-        <View style={[styles.cardConfig, { backgroundColor: cores.branco }]}>
-          <View style={styles.linhaInfo}>
-            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>App</Text>
-            <Text style={[styles.txtInfoValor, { color: cores.textoEscuro }]}>KaorCount v1.0</Text>
+          {/* ↓ Objetivo */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>OBJETIVO</Text>
+          <View style={styles.rowObjetivos}>
+            {objetivos.map((obj) => (
+              <BotaoObjetivoAnimado
+                key={obj.id}
+                obj={obj}
+                ativo={objetivo === obj.id}
+                cores={cores}
+                isDark={isDark}
+                onPress={() => alterarObjetivo(obj.id)}
+                rf={rf}
+                moderateScale={moderateScale}
+              />
+            ))}
           </View>
-          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
-            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>Banco de dados</Text>
-            <Text style={[styles.txtInfoValor, { color: cores.textoEscuro }]}>Catálogo Inteligente</Text>
-          </View>
-          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
-            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>Tema Ativo</Text>
-            <Text style={[styles.txtInfoValor, { color: cores.primaria }]}>{isDark ? 'Escuro (#121212)' : 'Claro'}</Text>
-          </View>
-        </View>
 
-        {/* Ação de Deslogar da Conta */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>CONTA</Text>
-        <TouchableOpacity
-          style={[
-            styles.botaoLogoutCard,
-            {
-              backgroundColor: isDark ? 'rgba(235, 87, 87, 0.12)' : '#FFF5F5',
-              borderColor: isDark ? 'rgba(235, 87, 87, 0.35)' : '#EB5757',
-            },
-            deslogando && { opacity: 0.6 }
-          ]}
-          onPress={handleLogout}
-          disabled={deslogando}
-        >
-          {deslogando ? (
-            <ActivityIndicator color="#EB5757" />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <DoorOpen color="#EB5757" size={20} style={{ marginRight: 8 }} />
-              <Text style={styles.botaoLogoutTexto}>Desconectar / Sair da Conta</Text>
+          {/* ↓ Nível de Atividade */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>NÍVEL DE ATIVIDADE</Text>
+
+          <View style={styles.containerAtividades}>
+            {niveisAtividade.map((nivel) => (
+              <BotaoAtividadeAnimado
+                key={nivel.id}
+                nivel={nivel}
+                ativo={nivelAtividade === nivel.id}
+                cores={cores}
+                isDark={isDark}
+                onPress={() => alterarNivelAtividade(nivel.id)}
+                rf={rf}
+              />
+            ))}
+          </View>
+
+          {/* ↓ Informações do App */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>INFORMAÇÕES</Text>
+          <View style={[styles.cardConfig, { backgroundColor: cores.branco }]}>
+            <View style={styles.linhaInfo}>
+              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>App</Text>
+              <Text style={[styles.txtInfoValor, { color: cores.textoEscuro, fontSize: rf(13, 11, 15) }]}>KaorCount v1.0</Text>
             </View>
-          )}
-        </TouchableOpacity>
-        </Animated.View>
+            <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
+              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Banco de dados</Text>
+              <Text style={[styles.txtInfoValor, { color: cores.textoEscuro, fontSize: rf(13, 11, 15) }]}>Catálogo Inteligente</Text>
+            </View>
+            <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
+              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Tema Ativo</Text>
+              <Text style={[styles.txtInfoValor, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>{isDark ? 'Escuro (#121212)' : 'Claro'}</Text>
+            </View>
+          </View>
+
+          {/* Ação de Deslogar da Conta */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>CONTA</Text>
+          <TouchableOpacity
+            style={[
+              styles.botaoLogoutCard,
+              {
+                backgroundColor: isDark ? 'rgba(235, 87, 87, 0.12)' : '#FFF5F5',
+                borderColor: isDark ? 'rgba(235, 87, 87, 0.35)' : '#EB5757',
+              },
+              deslogando && { opacity: 0.6 }
+            ]}
+            onPress={handleLogout}
+            disabled={deslogando}
+          >
+            {deslogando ? (
+              <ActivityIndicator color="#EB5757" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <DoorOpen color="#EB5757" size={20} style={{ marginRight: 8 }} />
+                <Text style={[styles.botaoLogoutTexto, { fontSize: rf(15, 13, 17) }]}>Desconectar / Sair da Conta</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          </Animated.View>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -418,6 +425,9 @@ export default function ConfiguracaoScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  responsivoWrapper: {
+    width: '100%',
+  },
   scrollContainer: {
     flexGrow: 1,
     padding: 20,

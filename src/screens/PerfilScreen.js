@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
 import useTheme from '../hooks/useTheme';
+import useResponsive from '../hooks/useResponsive';
 import { 
   PencilLine, 
   BookOpenText, 
@@ -49,6 +50,7 @@ import * as usuarioApi from '../api/usuarioApi';
 export default function PerfilScreen({ navigation }) {
   const { usuario, atualizarUsuario } = useAuth();
   const { cores, isDark, toggleTema } = useTheme();
+  const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados para dados da API
   const [carregando, setCarregando] = useState(true);
@@ -187,8 +189,9 @@ export default function PerfilScreen({ navigation }) {
     }, [carregarDados])
   );
 
+  const offsetSlide = Math.round(moderateScale(35, 0.3));
   const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Formatação de máscara simples para data DD/MM/AAAA
@@ -381,122 +384,125 @@ export default function PerfilScreen({ navigation }) {
           />
         }
       >
-        
-        {/* ↓ Cabeçalho do Perfil */}
-        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-        <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 }]}>
-          <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro }]}>Meu Perfil</Text>
-        </View>
-
-        {/* ↓ Loading (apenas no carregamento inicial) */}
-        {carregando && !perfilNutri ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <ActivityIndicator size="large" color={cores.primaria} />
+        <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
+          {/* ↓ Cabeçalho do Perfil */}
+          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+          <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 }]}>
+            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontSize: rf(24, 20, 28) }]}>Meu Perfil</Text>
           </View>
-        ) : null}
 
-        {/* ↓ Bloco do Usuário */}
-        <View style={[styles.cardPerfilSuperior, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={styles.avatarLetra}><Text style={styles.textoLetra}>{inicialNome}</Text></View>
-            <View style={{ marginLeft: 15, flex: 1 }}>
-              <Text style={[styles.nomePerfil, { color: cores.textoEscuro }]}>{nomeCompleto}</Text>
-              <Text style={[styles.emailPerfil, { color: cores.textoSuave }]}>{emailUsuario}</Text>
-              <Text style={[styles.subInfoPerfil, { color: cores.textoSuave }]}>{idadeTexto}  •  {objetivoTexto}</Text>
+          {/* ↓ Loading (apenas no carregamento inicial) */}
+          {carregando && !perfilNutri ? (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <ActivityIndicator size="large" color={cores.primaria} />
             </View>
-            
-            {/* Botão Editar funcional */}
+          ) : null}
+
+          {/* ↓ Bloco do Usuário */}
+          <View style={[styles.cardPerfilSuperior, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.avatarLetra, { width: moderateScale(64, 0.3), height: moderateScale(64, 0.3), borderRadius: moderateScale(16, 0.3) }]}>
+                <Text style={[styles.textoLetra, { fontSize: rf(26, 20, 30) }]}>{inicialNome}</Text>
+              </View>
+              <View style={{ marginLeft: 15, flex: 1 }}>
+                <Text style={[styles.nomePerfil, { color: cores.textoEscuro, fontSize: rf(20, 16, 24) }]}>{nomeCompleto}</Text>
+                <Text style={[styles.emailPerfil, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>{emailUsuario}</Text>
+                <Text style={[styles.subInfoPerfil, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>{idadeTexto}  •  {objetivoTexto}</Text>
+              </View>
+              
+              {/* Botão Editar funcional */}
+              <TouchableOpacity 
+                style={[styles.botaoEditar, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
+                onPress={abrirModalEdicao}
+                activeOpacity={0.7}
+              >
+                <PencilLine color={cores.primaria} size={14} style={{ marginRight: 5 }} />
+                <Text style={[styles.textoEditar, { color: cores.primaria, fontSize: rf(12, 11, 14) }]}>Editar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ↓ Grid de Medidas (Clicáveis para editar) */}
             <TouchableOpacity 
-              style={[styles.botaoEditar, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
+              style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}
               onPress={abrirModalEdicao}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <PencilLine color={cores.primaria} size={14} style={{ marginRight: 5 }} />
-              <Text style={[styles.textoEditar, { color: cores.primaria }]}>Editar</Text>
+              <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
+                <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Peso</Text>
+              </View>
+              <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <Text style={[styles.medidaValor, { color: '#2D9CDB', fontSize: rf(18, 14, 22) }]}>{alturaCm > 0 ? `${alturaCm}cm` : '—'}</Text>
+                <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Altura</Text>
+              </View>
+              <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <Text style={[styles.medidaValor, { color: statusIMC.cor, fontSize: rf(18, 14, 22) }]}>{alturaM > 0 && pesoKg > 0 ? imc : '—'}</Text>
+                <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>IMC</Text>
+              </View>
             </TouchableOpacity>
+
+            {/* ↓ Se o perfil estiver incompleto, exibe o botão/link de ação */}
+            {!perfilCompleto ? (
+              <TouchableOpacity 
+                onPress={abrirModalEdicao} 
+                activeOpacity={0.7}
+                style={[styles.btnCompletarPerfil, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
+              >
+                <Text style={[styles.txtCompletarPerfil, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Complete seu perfil</Text>
+                <ChevronRight size={15} color={cores.primaria} style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            ) : null}
+
+            {/* ↓ Se o perfil estiver completo, exibe a classificação do IMC */}
+            {perfilCompleto && statusIMC.texto ? (
+              <View style={styles.containerStatusImc}>
+                <View style={[styles.dotStatus, { backgroundColor: statusIMC.cor }]} />
+                <Text style={[styles.statusImc, { color: statusIMC.cor, fontSize: rf(12, 11, 14) }]}>
+                  {statusIMC.texto}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
-          {/* ↓ Grid de Medidas (Clicáveis para editar) */}
-          <TouchableOpacity 
-            style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}
-            onPress={abrirModalEdicao}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <Text style={[styles.medidaValor, { color: cores.textoEscuro }]}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
-              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>Peso</Text>
+          {/* ↓ Seção Estatísticas */}
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>ESTATÍSTICAS</Text>
+          <View style={[styles.cardEstatisticaContainer, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+            <View style={styles.rowGrid}>
+              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <BookOpenText color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Dias registrados</Text>
+                </View>
+                <Text style={[styles.estatisticaNumero, { color: cores.sucesso, fontSize: rf(18, 15, 22) }]}>{diasRegistrados}</Text>
+              </View>
+              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Flame color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Média calórica</Text>
+                </View>
+                <Text style={[styles.estatisticaNumero, { color: cores.primaria, fontSize: rf(18, 15, 22) }]}>{Math.round(mediaCalorica)} kcal</Text>
+              </View>
             </View>
-            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <Text style={[styles.medidaValor, { color: '#2D9CDB' }]}>{alturaCm > 0 ? `${alturaCm}cm` : '—'}</Text>
-              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>Altura</Text>
-            </View>
-            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <Text style={[styles.medidaValor, { color: statusIMC.cor }]}>{alturaM > 0 && pesoKg > 0 ? imc : '—'}</Text>
-              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>IMC</Text>
-            </View>
-          </TouchableOpacity>
 
-          {/* ↓ Se o perfil estiver incompleto, exibe o botão/link de ação */}
-          {!perfilCompleto ? (
-            <TouchableOpacity 
-              onPress={abrirModalEdicao} 
-              activeOpacity={0.7}
-              style={[styles.btnCompletarPerfil, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
-            >
-              <Text style={[styles.txtCompletarPerfil, { color: cores.primaria }]}>Complete seu perfil</Text>
-              <ChevronRight size={15} color={cores.primaria} style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
-          ) : null}
-
-          {/* ↓ Se o perfil estiver completo, exibe a classificação do IMC */}
-          {perfilCompleto && statusIMC.texto ? (
-            <View style={styles.containerStatusImc}>
-              <View style={[styles.dotStatus, { backgroundColor: statusIMC.cor }]} />
-              <Text style={[styles.statusImc, { color: statusIMC.cor }]}>
-                {statusIMC.texto}
-              </Text>
+            <View style={styles.rowGrid}>
+              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Target color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Meta calórica</Text>
+                </View>
+                <Text style={[styles.estatisticaNumero, { color: '#2D9CDB', fontSize: rf(18, 15, 22) }]}>{metaCalorica > 0 ? `${metaCalorica} kcal` : '—'}</Text>
+              </View>
+              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ChartNoAxesCombined color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Objetivo</Text>
+                </View>
+                <Text style={[styles.estatisticaNumero, { color: cores.primaria, fontSize: rf(15, 12, 18) }]}>{objetivoTexto}</Text>
+              </View>
             </View>
-          ) : null}
+          </View>
+          </Animated.View>
         </View>
-
-        {/* ↓ Seção Estatísticas */}
-        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>ESTATÍSTICAS</Text>
-        <View style={[styles.cardEstatisticaContainer, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-          <View style={styles.rowGrid}>
-            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <BookOpenText color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Dias registrados</Text>
-              </View>
-              <Text style={[styles.estatisticaNumero, { color: cores.sucesso }]}>{diasRegistrados}</Text>
-            </View>
-            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Flame color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Média calórica</Text>
-              </View>
-              <Text style={[styles.estatisticaNumero, { color: cores.primaria }]}>{Math.round(mediaCalorica)} kcal</Text>
-            </View>
-          </View>
-
-          <View style={styles.rowGrid}>
-            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Target color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Meta calórica</Text>
-              </View>
-              <Text style={[styles.estatisticaNumero, { color: '#2D9CDB' }]}>{metaCalorica > 0 ? `${metaCalorica} kcal` : '—'}</Text>
-            </View>
-            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ChartNoAxesCombined color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Objetivo</Text>
-              </View>
-              <Text style={[styles.estatisticaNumero, { color: cores.primaria }]}>{objetivoTexto}</Text>
-            </View>
-          </View>
-        </View>
-        </Animated.View>
 
       </ScrollView>
 
@@ -510,7 +516,7 @@ export default function PerfilScreen({ navigation }) {
         onRequestClose={() => setModalVisivel(false)}
       >
         <View style={styles.fundoModal}>
-          <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+          <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
             
             {/* Header do Modal */}
             <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
@@ -736,6 +742,9 @@ export default function PerfilScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  responsivoWrapper: {
+    width: '100%',
+  },
   row: { flexDirection: 'row' },
   tituloSecaoTop: { 
     fontSize: 24, 

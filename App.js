@@ -36,14 +36,16 @@ function AppTabs() {
         tabBarStyle: {
           backgroundColor: cores.branco,
           borderTopColor: cores.borda,
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'ios' ? 84 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: cores.primaria,
         tabBarInactiveTintColor: cores.textoSuave,
         tabBarLabelStyle: {
           fontWeight: 'bold',
-          fontSize: 10,
+          fontSize: 11,
+          marginTop: 2,
         },
       }}
     >

@@ -21,6 +21,7 @@ import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, S
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
+import useResponsive from '../hooks/useResponsive';
 import * as refeicaoApi from '../api/refeicaoApi';
 import * as registroAguaApi from '../api/registroAguaApi';
 import * as metaNutriApi from '../api/metaNutriApi';
@@ -40,6 +41,7 @@ const normalizarTexto = (txt) =>
 export default function DiarioAlimentar({ navigation }) {
   const { usuario } = useAuth();
   const { cores, isDark } = useTheme();
+  const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados da Tela
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
@@ -247,8 +249,9 @@ export default function DiarioAlimentar({ navigation }) {
     }, [carregarDados])
   );
 
+  const offsetSlide = Math.round(moderateScale(35, 0.3));
   const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Animação Direcional ao Mudar de Dia (< e >)
@@ -273,10 +276,9 @@ export default function DiarioAlimentar({ navigation }) {
 
     setAnimandoDia(true);
 
-    // Se clicar na seta esquerda (<), sai para a ESQUERDA (-50) e entra pela DIREITA (+50)
-    // Se clicar na seta direita (>), sai para a DIREITA (+50) e entra pela ESQUERDA (-50)
-    const direcaoSaida = diasOffset < 0 ? -50 : 50;
-    const direcaoEntrada = diasOffset < 0 ? 50 : -50;
+    const offsetDia = Math.round(moderateScale(50, 0.3));
+    const direcaoSaida = diasOffset < 0 ? -offsetDia : offsetDia;
+    const direcaoEntrada = diasOffset < 0 ? offsetDia : -offsetDia;
 
     Animated.parallel([
       Animated.timing(animSlideDia, {
@@ -651,109 +653,111 @@ export default function DiarioAlimentar({ navigation }) {
           />
         }
       >
-        {/* Cabeçalho Seletor de Data TOTALMENTE FIXO / ESTÁTICO */}
-        <View style={[styles.seletorDataContainer, { backgroundColor: '#85461e' }]}>
-          <TouchableOpacity 
-            style={[
-              styles.setaData, 
-              { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' }
-            ]} 
-            onPress={() => mudarData(-1)} 
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={18} color="#FFFFFF" strokeWidth={2.5} />
-          </TouchableOpacity>
-          
-          <View style={{ alignItems: 'center' }}>
-            <Text style={[styles.textoHoje, { color: '#FFFFFF' }]}>{ehHoje ? 'Hoje' : `${diaDoMes} ${mes}`}</Text>
-            <Text style={[styles.textoDataDetalhe, { color: '#FFE8D6' }]}>{`${diaDaSemana}, ${diaDoMes} de ${mes} de ${ano}`}</Text>
+        <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
+          {/* Cabeçalho Seletor de Data TOTALMENTE FIXO / ESTÁTICO */}
+          <View style={[styles.seletorDataContainer, { backgroundColor: '#85461e' }]}>
+            <TouchableOpacity 
+              style={[
+                styles.setaData, 
+                { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' }
+              ]} 
+              onPress={() => mudarData(-1)} 
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={18} color="#FFFFFF" strokeWidth={2.5} />
+            </TouchableOpacity>
+            
+            <View style={{ alignItems: 'center' }}>
+              <Text style={[styles.textoHoje, { color: '#FFFFFF', fontSize: rf(16, 14, 19) }]}>{ehHoje ? 'Hoje' : `${diaDoMes} ${mes}`}</Text>
+              <Text style={[styles.textoDataDetalhe, { color: '#FFE8D6', fontSize: rf(12, 10, 14) }]}>{`${diaDaSemana}, ${diaDoMes} de ${mes} de ${ano}`}</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={[
+                styles.setaData, 
+                { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' },
+                ehHoje && { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'transparent' }
+              ]} 
+              onPress={() => mudarData(1)} 
+              disabled={ehHoje}
+              activeOpacity={ehHoje ? 1 : 0.7}
+            >
+              <ChevronRight 
+                size={18} 
+                color={ehHoje ? 'rgba(255, 255, 255, 0.35)' : '#FFFFFF'} 
+                strokeWidth={2.5} 
+              />
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            style={[
-              styles.setaData, 
-              { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' },
-              ehHoje && { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'transparent' }
-            ]} 
-            onPress={() => mudarData(1)} 
-            disabled={ehHoje}
-            activeOpacity={ehHoje ? 1 : 0.7}
-          >
-            <ChevronRight 
-              size={18} 
-              color={ehHoje ? 'rgba(255, 255, 255, 0.35)' : '#FFFFFF'} 
-              strokeWidth={2.5} 
-            />
-          </TouchableOpacity>
-        </View>
 
-        {/* Animação de Entrada Geral da Aba Diário (Apenas para o conteúdo abaixo da barra fixa) */}
-        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-          {/* ↓ Conteúdo Diário Completo com Animação Direcional ao Mudar de Dia */}
-          <Animated.View style={{ opacity: animFadeDia, transform: [{ translateX: animSlideDia }] }}>
-            {/* Resumo Superior Expandido */}
-            <View style={[styles.cardResumo, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                <Text style={[styles.tituloResumo, { color: cores.textoSuave }]}>RESUMO</Text>
-                <Text style={[styles.caloriasResumoValor, { color: cores.textoEscuro }]}>{totais.calorias} <Text style={{fontSize:12, fontWeight:'normal', color: cores.textoSuave}}>kcal</Text></Text>
-              </View>
-              
-              <Text style={[styles.macroTextoDiario, { color: cores.textoEscuro }]}>PROTEÍNA <Text style={{color: cores.primaria}}>{totais.proteina}/{metaProteina}g</Text></Text>
-              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraProteina, backgroundColor: cores.primaria }]} /></View>
-
-              <Text style={[styles.macroTextoDiario, { color: cores.carboidrato }]}>CARBOS <Text style={{color: cores.carboidrato}}>{totais.carboidrato}/{metaCarboidrato}g</Text></Text>
-              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraCarboidrato, backgroundColor: cores.carboidrato }]} /></View>
-
-              <Text style={[styles.macroTextoDiario, { color: cores.gordura }]}>GORDURA <Text style={{color: cores.gordura}}>{totais.gordura}/{metaGordura}g</Text></Text>
-              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraGordura, backgroundColor: cores.gordura }]} /></View>
-            </View>
-
-            {/* Blocos de refeição com botão + e itens */}
-            <View>
-              {renderBlocoRefeicao('cafe_manha')}
-              {renderBlocoRefeicao('almoco')}
-              {renderBlocoRefeicao('janta')}
-              {renderBlocoRefeicao('lanche')}
-            </View>
-
-            {/* Bloco Hidratação com botões funcionais */}
-            <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Droplets size={20} color="#2F80ED" />
-                  <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro }]}>Hidratação</Text>
+          {/* Animação de Entrada Geral da Aba Diário (Apenas para o conteúdo abaixo da barra fixa) */}
+          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+            {/* ↓ Conteúdo Diário Completo com Animação Direcional ao Mudar de Dia */}
+            <Animated.View style={{ opacity: animFadeDia, transform: [{ translateX: animSlideDia }] }}>
+              {/* Resumo Superior Expandido */}
+              <View style={[styles.cardResumo, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={[styles.tituloResumo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>RESUMO</Text>
+                  <Text style={[styles.caloriasResumoValor, { color: cores.textoEscuro, fontSize: rf(20, 16, 24) }]}>{totais.calorias} <Text style={{fontSize:12, fontWeight:'normal', color: cores.textoSuave}}>kcal</Text></Text>
                 </View>
-                <Text style={[styles.volAguaText, { color: '#2F80ED' }]}>
-                  {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua} ml</Text>
-                </Text>
-              </View>
-              
-              <View style={[styles.barraFundoAgua, { backgroundColor: isDark ? '#262626' : '#EADCC9' }]}>
-                <Animated.View style={[styles.barraPreenchidaAgua, { width: larguraBarraAgua }]} />
+                
+                <Text style={[styles.macroTextoDiario, { color: cores.textoEscuro, fontSize: rf(11, 10, 13) }]}>PROTEÍNA <Text style={{color: cores.primaria}}>{totais.proteina}/{metaProteina}g</Text></Text>
+                <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraProteina, backgroundColor: cores.primaria }]} /></View>
+
+                <Text style={[styles.macroTextoDiario, { color: cores.carboidrato, fontSize: rf(11, 10, 13) }]}>CARBOS <Text style={{color: cores.carboidrato}}>{totais.carboidrato}/{metaCarboidrato}g</Text></Text>
+                <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraCarboidrato, backgroundColor: cores.carboidrato }]} /></View>
+
+                <Text style={[styles.macroTextoDiario, { color: cores.gordura, fontSize: rf(11, 10, 13) }]}>GORDURA <Text style={{color: cores.gordura}}>{totais.gordura}/{metaGordura}g</Text></Text>
+                <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraGordura, backgroundColor: cores.gordura }]} /></View>
               </View>
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, gap: 6 }}>
-                {[150, 250, 350, 500].map((qtd) => (
-                  <TouchableOpacity 
-                    key={qtd}
-                    style={[
-                      styles.btnQuickAgua, 
-                      { 
-                        backgroundColor: isDark ? '#16222F' : '#F0F6FF', 
-                        borderColor: isDark ? '#223B5A' : '#D0E4FF' 
-                      }
-                    ]} 
-                    onPress={() => adicionarAgua(qtd)} 
-                    disabled={adicionandoAgua}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED' }]}>+{qtd}ml</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* Blocos de refeição com botão + e itens */}
+              <View>
+                {renderBlocoRefeicao('cafe_manha')}
+                {renderBlocoRefeicao('almoco')}
+                {renderBlocoRefeicao('janta')}
+                {renderBlocoRefeicao('lanche')}
               </View>
-            </View>
+
+              {/* Bloco Hidratação com botões funcionais */}
+              <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Droplets size={20} color="#2F80ED" />
+                    <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro, fontSize: rf(14, 12, 17) }]}>Hidratação</Text>
+                  </View>
+                  <Text style={[styles.volAguaText, { color: '#2F80ED', fontSize: rf(16, 14, 19) }]}>
+                    {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua} ml</Text>
+                  </Text>
+                </View>
+                
+                <View style={[styles.barraFundoAgua, { backgroundColor: isDark ? '#262626' : '#EADCC9' }]}>
+                  <Animated.View style={[styles.barraPreenchidaAgua, { width: larguraBarraAgua }]} />
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, gap: 6 }}>
+                  {[150, 250, 350, 500].map((qtd) => (
+                    <TouchableOpacity 
+                      key={qtd}
+                      style={[
+                        styles.btnQuickAgua, 
+                        { 
+                          backgroundColor: isDark ? '#16222F' : '#F0F6FF', 
+                          borderColor: isDark ? '#223B5A' : '#D0E4FF' 
+                        }
+                      ]} 
+                      onPress={() => adicionarAgua(qtd)} 
+                      disabled={adicionandoAgua}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{qtd}ml</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
+        </View>
 
       </ScrollView>
 
@@ -769,7 +773,7 @@ export default function DiarioAlimentar({ navigation }) {
         onRequestClose={() => setModalVisivel(false)}
       >
         <View style={[styles.fundoModal, isDark && { backgroundColor: '#121212' }]}>
-          <View style={[styles.cardModal, { backgroundColor: cores.fundo }]}>
+          <View style={[styles.cardModal, { backgroundColor: cores.fundo }, getContainer(580)]}>
             
             {/* Header Colorido Marrom #85461E do Modal */}
             <View style={[styles.headerModalBrown, isDark && { backgroundColor: '#1F140E', borderBottomWidth: 1, borderBottomColor: cores.borda }]}>
@@ -1044,6 +1048,9 @@ export default function DiarioAlimentar({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  responsivoWrapper: {
+    width: '100%',
+  },
   seletorDataContainer: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 

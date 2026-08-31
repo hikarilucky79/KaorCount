@@ -30,17 +30,18 @@ import {
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
+import useResponsive from '../hooks/useResponsive';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const BANNER_WELCOME_ALTURA = 135;
-const BANNER_EXPANDIDO_ALTURA = SCREEN_HEIGHT || 800;
-
 export default function AuthScreen({ navigation }) {
   const { login, registrar, loginDemo } = useAuth();
   const { cores, isDark } = useTheme();
+  const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxAuthWidth } = useResponsive();
+
+  const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(105, height * 0.25) : Math.round(moderateScale(135, 0.3));
+  const BANNER_EXPANDIDO_ALTURA = height;
 
   // ↓ Estado para controlar a tela ativa: 'welcome' | 'login' | 'register'
   const [modo, setModo] = useState('welcome');
@@ -276,77 +277,81 @@ export default function AuthScreen({ navigation }) {
       {/* ─────────────────────────────────────────────────────────── */}
       {modo === 'welcome' && (
         <Animated.View style={[styles.areaCorpoFlex, { opacity: opacidadeCorpo }]}>
-          <ScrollView contentContainerStyle={styles.scrollWelcome} showsVerticalScrollIndicator={false}>
-            
-            {/* Conteúdo Central */}
-            <View style={styles.corpoWelcome}>
-              <View style={styles.centroHeader}>
-                <Text style={[styles.tituloBoasVindas, { color: cores.textoEscuro }]}>Bem-vindo ao KaorCount!</Text>
-                <Text style={[styles.subBoasVindas, { color: cores.textoSuave }]}>Controle suas calorias e macronutrientes com facilidade</Text>
+          <ScrollView 
+            contentContainerStyle={styles.scrollWelcome} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
+              {/* Conteúdo Central */}
+              <View style={styles.corpoWelcome}>
+                <View style={styles.centroHeader}>
+                  <Text style={[styles.tituloBoasVindas, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Bem-vindo ao KaorCount!</Text>
+                  <Text style={[styles.subBoasVindas, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Controle suas calorias e macronutrientes com facilidade</Text>
+                </View>
+
+                {/* Destaques de Funcionalidades */}
+                <View style={styles.listaFeatures}>
+                  <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                    <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
+                      <Flame size={rf(18, 16, 22)} color={cores.primaria} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.featureTitulo, { color: cores.textoEscuro, fontSize: rf(13, 12, 16) }]}>Contagem de Calorias</Text>
+                      <Text style={[styles.featureDesc, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Registre refeições e acompanhe seu consumo diário</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                    <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
+                      <Zap size={rf(18, 16, 22)} color={cores.primaria} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.featureTitulo, { color: cores.textoEscuro, fontSize: rf(13, 12, 16) }]}>Macronutrientes</Text>
+                      <Text style={[styles.featureDesc, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Proteínas, carbos e gorduras em tempo real</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                    <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#14253D' : '#EBF4FE' }]}>
+                      <Droplets size={rf(18, 16, 22)} color="#2F80ED" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.featureTitulo, { color: cores.textoEscuro, fontSize: rf(13, 12, 16) }]}>Hidratação</Text>
+                      <Text style={[styles.featureDesc, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Monitore sua ingestão de água diária</Text>
+                    </View>
+                  </View>
+                </View>
               </View>
 
-              {/* Destaques de Funcionalidades */}
-              <View style={styles.listaFeatures}>
-                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
-                    <Flame size={18} color={cores.primaria} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Contagem de Calorias</Text>
-                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Registre refeições e acompanhe seu consumo diário</Text>
-                  </View>
-                </View>
+              {/* Botões de Ação Inferiores */}
+              <View style={styles.rodapeAcoes}>
+                <TouchableOpacity 
+                  style={styles.btnPrincipal}
+                  onPress={() => transicionarPara('login')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 13, 17) }]}>Entrar na conta</Text>
+                  <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
 
-                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
-                    <Zap size={18} color={cores.primaria} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Macronutrientes</Text>
-                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Proteínas, carbos e gorduras em tempo real</Text>
-                  </View>
-                </View>
+                <TouchableOpacity 
+                  style={[styles.btnSecundario, { backgroundColor: cores.branco, borderColor: cores.primaria }]}
+                  onPress={() => transicionarPara('register')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.txtBtnSecundario, { color: cores.primaria, fontSize: rf(15, 13, 17) }]}>Criar conta grátis</Text>
+                </TouchableOpacity>
 
-                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#14253D' : '#EBF4FE' }]}>
-                    <Droplets size={18} color="#2F80ED" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Hidratação</Text>
-                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Monitore sua ingestão de água diária</Text>
-                  </View>
-                </View>
+                <TouchableOpacity 
+                  style={styles.btnDemo}
+                  onPress={handleEntrarDemo}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.txtBtnDemo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>Entrar como convidado (demo)</Text>
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Botões de Ação Inferiores */}
-            <View style={styles.rodapeAcoes}>
-              <TouchableOpacity 
-                style={styles.btnPrincipal}
-                onPress={() => transicionarPara('login')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.txtBtnPrincipal}>Entrar na conta</Text>
-                <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.btnSecundario, { backgroundColor: cores.branco, borderColor: cores.primaria }]}
-                onPress={() => transicionarPara('register')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.txtBtnSecundario, { color: cores.primaria }]}>Criar conta grátis</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.btnDemo}
-                onPress={handleEntrarDemo}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.txtBtnDemo, { color: cores.textoSuave }]}>Entrar como convidado (demo)</Text>
-              </TouchableOpacity>
-            </View>
-
           </ScrollView>
         </Animated.View>
       )}
@@ -356,119 +361,123 @@ export default function AuthScreen({ navigation }) {
       {/* ─────────────────────────────────────────────────────────── */}
       {modo === 'login' && (
         <Animated.View style={[styles.areaCorpoFlex, { opacity: opacidadeCorpo }]}>
-          <ScrollView contentContainerStyle={styles.scrollForm} showsVerticalScrollIndicator={false}>
-            
-            {/* Header de Voltar */}
-            <View style={styles.navBarTop}>
-              <TouchableOpacity 
-                style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-                onPress={() => transicionarPara('welcome')}
-                activeOpacity={0.7}
-              >
-                <ChevronLeft size={20} color={cores.textoEscuro} />
-              </TouchableOpacity>
-              <Text style={[styles.navBarTitulo, { color: cores.textoEscuro }]}>Entrar</Text>
-              <View style={{ width: 36 }} />
-            </View>
-
-            {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
-            <View style={styles.corpoFormCentro}>
-              
-              {/* Logo e Títulos */}
-              <View style={styles.headerCentro}>
-                <Image 
-                  source={require('../../assets/kaorcount1-removebg-preview.png')} 
-                  style={styles.logoForm}
-                  resizeMode="contain"
-                />
-                <Text style={[styles.tituloForm, { color: cores.textoEscuro }]}>Bem-vindo de volta!</Text>
-                <Text style={[styles.subtituloForm, { color: cores.textoSuave }]}>Entre com suas credenciais</Text>
+          <ScrollView 
+            contentContainerStyle={styles.scrollForm} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
+              {/* Header de Voltar */}
+              <View style={styles.navBarTop}>
+                <TouchableOpacity 
+                  style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+                  onPress={() => transicionarPara('welcome')}
+                  activeOpacity={0.7}
+                >
+                  <ChevronLeft size={20} color={cores.textoEscuro} />
+                </TouchableOpacity>
+                <Text style={[styles.navBarTitulo, { color: cores.textoEscuro, fontSize: rf(16, 14, 18) }]}>Entrar</Text>
+                <View style={{ width: 36 }} />
               </View>
 
-              {/* Card do Formulário */}
-              <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                {erroMsg ? (
-                  <View style={styles.bannerErro}>
-                    <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
-                    <Text style={styles.textoErro}>{erroMsg}</Text>
-                  </View>
-                ) : null}
-
-                {/* Input E-mail */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="E-mail"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={emailLogin}
-                    onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    editable={!carregandoReq}
+              {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
+              <View style={styles.corpoFormCentro}>
+                
+                {/* Logo e Títulos */}
+                <View style={styles.headerCentro}>
+                  <Image 
+                    source={require('../../assets/kaorcount1-removebg-preview.png')} 
+                    style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
+                    resizeMode="contain"
                   />
+                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Bem-vindo de volta!</Text>
+                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Entre com suas credenciais</Text>
                 </View>
 
-                {/* Input Senha */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="Senha"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={senhaLogin}
-                    onChangeText={(t) => { setSenhaLogin(t); setErroMsg(''); }}
-                    secureTextEntry={!mostrarSenhaLogin}
-                    editable={!carregandoReq}
-                  />
-                  <TouchableOpacity onPress={() => setMostrarSenhaLogin(!mostrarSenhaLogin)}>
-                    {mostrarSenhaLogin ? (
-                      <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                {/* Card do Formulário */}
+                <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  {erroMsg ? (
+                    <View style={styles.bannerErro}>
+                      <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.textoErro}>{erroMsg}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Input E-mail */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="E-mail"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={emailLogin}
+                      onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      editable={!carregandoReq}
+                    />
+                  </View>
+
+                  {/* Input Senha */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="Senha"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={senhaLogin}
+                      onChangeText={(t) => { setSenhaLogin(t); setErroMsg(''); }}
+                      secureTextEntry={!mostrarSenhaLogin}
+                      editable={!carregandoReq}
+                    />
+                    <TouchableOpacity onPress={() => setMostrarSenhaLogin(!mostrarSenhaLogin)}>
+                      {mostrarSenhaLogin ? (
+                        <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      ) : (
+                        <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Botão Entrar */}
+                  <TouchableOpacity 
+                    style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
+                    onPress={handleLogin}
+                    disabled={carregandoReq}
+                    activeOpacity={0.8}
+                  >
+                    {carregandoReq ? (
+                      <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      <>
+                        <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 13, 17) }]}>Entrar</Text>
+                        <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                      </>
                     )}
+                  </TouchableOpacity>
+
+                  <View style={[styles.divisorLinha, { backgroundColor: cores.borda }]} />
+
+                  {/* Botão Demo */}
+                  <TouchableOpacity 
+                    style={[styles.btnDemoCard, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: cores.borda }]}
+                    onPress={handleEntrarDemo}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.txtBtnDemoCard, { color: cores.primaria, fontSize: rf(12, 11, 14) }]}>Entrar com conta de demonstração</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Botão Entrar */}
-                <TouchableOpacity 
-                  style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
-                  onPress={handleLogin}
-                  disabled={carregandoReq}
-                  activeOpacity={0.8}
-                >
-                  {carregandoReq ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Text style={styles.txtBtnPrincipal}>Entrar</Text>
-                      <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                    </>
-                  )}
-                </TouchableOpacity>
+                {/* Link para Cadastro */}
+                <View style={styles.rodapeLink}>
+                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Não tem conta? </Text>
+                  <TouchableOpacity onPress={() => transicionarPara('register')}>
+                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Cadastre-se</Text>
+                  </TouchableOpacity>
+                </View>
 
-                <View style={[styles.divisorLinha, { backgroundColor: cores.borda }]} />
-
-                {/* Botão Demo */}
-                <TouchableOpacity 
-                  style={[styles.btnDemoCard, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: cores.borda }]}
-                  onPress={handleEntrarDemo}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.txtBtnDemoCard, { color: cores.primaria }]}>Entrar com conta de demonstração</Text>
-                </TouchableOpacity>
               </View>
-
-              {/* Link para Cadastro */}
-              <View style={styles.rodapeLink}>
-                <Text style={[styles.txtRodapeLink, { color: cores.textoSuave }]}>Não tem conta? </Text>
-                <TouchableOpacity onPress={() => transicionarPara('register')}>
-                  <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Cadastre-se</Text>
-                </TouchableOpacity>
-              </View>
-
             </View>
-
           </ScrollView>
         </Animated.View>
       )}
@@ -478,138 +487,136 @@ export default function AuthScreen({ navigation }) {
       {/* ─────────────────────────────────────────────────────────── */}
       {modo === 'register' && (
         <Animated.View style={[styles.areaCorpoFlex, { opacity: opacidadeCorpo }]}>
-          <ScrollView contentContainerStyle={styles.scrollForm} showsVerticalScrollIndicator={false}>
-            
-            {/* Header de Voltar */}
-            <View style={styles.navBarTop}>
-              <TouchableOpacity 
-                style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-                onPress={() => transicionarPara('welcome')}
-                activeOpacity={0.7}
-              >
-                <ChevronLeft size={20} color={cores.textoEscuro} />
-              </TouchableOpacity>
-              <Text style={[styles.navBarTitulo, { color: cores.textoEscuro }]}>Criar conta</Text>
-              <View style={{ width: 36 }} />
-            </View>
-
-            {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
-            <View style={styles.corpoFormCentro}>
-              
-              {/* Logo e Títulos */}
-              <View style={styles.headerCentro}>
-                <Image 
-                  source={require('../../assets/kaorcount1-removebg-preview.png')} 
-                  style={styles.logoForm}
-                  resizeMode="contain"
-                />
-                <Text style={[styles.tituloForm, { color: cores.textoEscuro }]}>Crie sua conta</Text>
-                <Text style={[styles.subtituloForm, { color: cores.textoSuave }]}>Comece sua jornada nutricional</Text>
+          <ScrollView 
+            contentContainerStyle={styles.scrollForm} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
+              {/* Header de Voltar */}
+              <View style={styles.navBarTop}>
+                <TouchableOpacity 
+                  style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+                  onPress={() => transicionarPara('welcome')}
+                  activeOpacity={0.7}
+                >
+                  <ChevronLeft size={20} color={cores.textoEscuro} />
+                </TouchableOpacity>
+                <Text style={[styles.navBarTitulo, { color: cores.textoEscuro, fontSize: rf(16, 14, 18) }]}>Criar conta</Text>
+                <View style={{ width: 36 }} />
               </View>
 
-              {/* Card do Formulário */}
-              <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                {erroMsg ? (
-                  <View style={styles.bannerErro}>
-                    <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
-                    <Text style={styles.textoErro}>{erroMsg}</Text>
+              {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
+              <View style={styles.corpoFormCentro}>
+                
+                {/* Logo e Títulos */}
+                <View style={styles.headerCentro}>
+                  <Image 
+                    source={require('../../assets/kaorcount1-removebg-preview.png')} 
+                    style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
+                    resizeMode="contain"
+                  />
+                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Crie sua conta</Text>
+                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Comece sua jornada nutricional</Text>
+                </View>
+
+                {/* Card do Formulário */}
+                <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  {erroMsg ? (
+                    <View style={styles.bannerErro}>
+                      <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.textoErro}>{erroMsg}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Input Nome */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="Seu nome completo"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={nome}
+                      onChangeText={(t) => { setNome(t); setErroMsg(''); }}
+                      editable={!carregandoReq}
+                    />
                   </View>
-                ) : null}
 
-                {/* Input Nome */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="Seu nome completo"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={nome}
-                    onChangeText={(t) => { setNome(t); setErroMsg(''); }}
-                    editable={!carregandoReq}
-                  />
-                </View>
+                  {/* Input E-mail */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="E-mail"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={email}
+                      onChangeText={(t) => { setEmail(t); setErroMsg(''); }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      editable={!carregandoReq}
+                    />
+                  </View>
 
-                {/* Input E-mail */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="E-mail"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={email}
-                    onChangeText={(t) => { setEmail(t); setErroMsg(''); }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    editable={!carregandoReq}
-                  />
-                </View>
+                  {/* Input Senha */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="Senha (mínimo 6 caracteres)"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={senha}
+                      onChangeText={(t) => { setSenha(t); setErroMsg(''); }}
+                      secureTextEntry={!mostrarSenhaCad}
+                      editable={!carregandoReq}
+                    />
+                    <TouchableOpacity onPress={() => setMostrarSenhaCad(!mostrarSenhaCad)}>
+                      {mostrarSenhaCad ? (
+                        <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      ) : (
+                        <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
 
-                {/* Input Senha */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="Senha (mínimo 6 caracteres)"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={senha}
-                    onChangeText={(t) => { setSenha(t); setErroMsg(''); }}
-                    secureTextEntry={!mostrarSenhaCad}
-                    editable={!carregandoReq}
-                  />
-                  <TouchableOpacity onPress={() => setMostrarSenhaCad(!mostrarSenhaCad)}>
-                    {mostrarSenhaCad ? (
-                      <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                  {/* Input Confirmar Senha */}
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                    <TextInput 
+                      style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                      placeholder="Confirmar senha"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      value={confirmarSenha}
+                      onChangeText={(t) => { setConfirmarSenha(t); setErroMsg(''); }}
+                      secureTextEntry={!mostrarSenhaCad}
+                      editable={!carregandoReq}
+                    />
+                  </View>
+
+                  {/* Botão Criar Conta */}
+                  <TouchableOpacity 
+                    style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
+                    onPress={handleCadastrar}
+                    disabled={carregandoReq}
+                    activeOpacity={0.8}
+                  >
+                    {carregandoReq ? (
+                      <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                      <>
+                        <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 13, 17) }]}>Criar conta</Text>
+                        <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                      </>
                     )}
                   </TouchableOpacity>
-                </View>
 
-                {/* Input Confirmar Senha */}
-                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
-                  <TextInput 
-                    style={[styles.inputText, { color: cores.textoEscuro }]}
-                    placeholder="Confirmar senha"
-                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                    value={confirmarSenha}
-                    onChangeText={(t) => { setConfirmarSenha(t); setErroMsg(''); }}
-                    secureTextEntry={!mostrarSenhaCad}
-                    editable={!carregandoReq}
-                  />
-                </View>
+                  {/* Link para Login */}
+                  <View style={styles.rodapeLink}>
+                    <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Já tem uma conta? </Text>
+                    <TouchableOpacity onPress={() => transicionarPara('login')}>
+                      <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Entrar</Text>
+                    </TouchableOpacity>
+                  </View>
 
-                {/* Botão Criar Conta */}
-                <TouchableOpacity 
-                  style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
-                  onPress={handleCadastrar}
-                  disabled={carregandoReq}
-                  activeOpacity={0.8}
-                >
-                  {carregandoReq ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Text style={styles.txtBtnPrincipal}>Criar conta</Text>
-                      <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {/* Link para Login */}
-                <View style={styles.rodapeLink}>
-                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave }]}>Já tem uma conta? </Text>
-                  <TouchableOpacity onPress={() => transicionarPara('login')}>
-                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Entrar</Text>
-                  </TouchableOpacity>
-                </View>
-
-              </View>
-
-            </View>
-
-          </ScrollView>
-        </Animated.View>
       )}
 
     </SafeAreaView>
@@ -620,6 +627,11 @@ const styles = StyleSheet.create({
   containerTela: {
     flex: 1,
     backgroundColor: CORES.fundo,
+  },
+  responsivoWrapper: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'space-between',
   },
   areaCorpoFlex: {
     flex: 1,
