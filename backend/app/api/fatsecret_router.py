@@ -13,12 +13,14 @@ router = APIRouter(prefix="/fatsecret", tags=["FatSecret - Base externa de alime
 
 @router.get("/buscar")
 def buscar_alimentos(
-    nome: str = Query(..., min_length=2),
+    nome: str = Query("", min_length=0),
     pagina: int = Query(0, ge=0),
-    max_resultados: int = Query(20, ge=1, le=50),
+    max_resultados: int = Query(25, ge=1, le=50),
+    categoria: str | None = Query(None),
+    somente_brasil: bool = Query(False),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
-    return FatSecretService.buscar_alimentos(nome, pagina, max_resultados)
+    return FatSecretService.buscar_alimentos(nome, pagina, max_resultados, categoria, somente_brasil)
 
 
 @router.get("/alimento/{food_id}")

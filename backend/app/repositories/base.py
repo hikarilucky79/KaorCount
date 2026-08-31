@@ -20,7 +20,8 @@ class BaseRepository(Generic[ModelType]):
         return self.db.query(self.model).offset(skip).limit(limit).all()
 
     def create(self, obj_data: dict) -> ModelType:
-        db_obj = self.model(**obj_data)
+        clean_data = {k: str(v) if isinstance(v, UUID) else v for k, v in obj_data.items()}
+        db_obj = self.model(**clean_data)
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
@@ -29,7 +30,8 @@ class BaseRepository(Generic[ModelType]):
     def update(self, db_obj: ModelType, obj_data: dict) -> ModelType:
         for field, value in obj_data.items():
             if value is not None:
-                setattr(db_obj, field, value)
+                val = str(value) if isinstance(value, UUID) else value
+                setattr(db_obj, field, val)
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj

@@ -8,10 +8,11 @@ import api from './client';
  * Buscar alimentos na base do FatSecret.
  * GET /fatsecret/buscar?nome=...&pagina=0&max_resultados=20
  */
-export const buscarAlimentos = async (nome, pagina = 0, maxResultados = 20) => {
-  const response = await api.get('/fatsecret/buscar', {
-    params: { nome, pagina, max_resultados: maxResultados },
-  });
+export const buscarAlimentos = async (nome, pagina = 0, maxResultados = 25, categoria = null, somenteBrasil = false) => {
+  const params = { nome, pagina, max_resultados: maxResultados };
+  if (categoria && categoria !== 'todos') params.categoria = categoria;
+  if (somenteBrasil) params.somente_brasil = true;
+  const response = await api.get('/fatsecret/buscar', { params });
   return response.data;
 };
 

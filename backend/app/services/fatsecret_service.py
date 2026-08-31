@@ -1,6 +1,11 @@
+# ───────────────────────────────────────────────────────────────
+# backend/app/services/fatsecret_service.py
+# Serviço de integração com FatSecret com Catálogo Híbrido/Fallback Offline
+# ───────────────────────────────────────────────────────────────
 import re
+import unicodedata
 import httpx
-
+from fastapi import HTTPException, status
 from app.services.fatsecret_auth_service import FatAuthService
 
 
@@ -16,6 +21,12 @@ def _float(val, default: float = 0.0) -> float:
         return float(val) if val is not None else default
     except (TypeError, ValueError):
         return default
+
+
+def _normalizar(txt: str) -> str:
+    if not txt:
+        return ""
+    return unicodedata.normalize("NFKD", txt).encode("ASCII", "ignore").decode("utf-8").lower().strip()
 
 
 def _parse_food_description(desc: str) -> dict:
@@ -45,6 +56,11 @@ def _parse_food_description(desc: str) -> dict:
     }
 
 
+# ───────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────
+# Catálogo Extenso Brasileiro & Tabela TACO / IBGE
+# (Permite testar e pesquisar alimentos típicos do Brasil com riqueza de detalhes)
+# ───────────────────────────────────────────────────────────────
 class FatSecretService:
 
     API_URL = "https://platform.fatsecret.com/rest/server.api"
@@ -60,47 +76,128 @@ class FatSecretService:
             timeout=15,
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        if isinstance(data, dict) and "error" in data:
+            err = data["error"]
+            code = err.get("code")
+            msg = err.get("message")
+            print(f"[FatSecret] Erro retornado pela API ({code}): {msg}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"FatSecret API Error [{code}]: {msg}",
+            )
+        return data
 
     @classmethod
-    def buscar_alimentos(cls, nome: str, pagina: int = 0, max_resultados: int = 20) -> dict:
-        resultado = cls._request({
+    def buscar_alimentos(cls, nome: str, pagina: int = 0, max_resultados: int = 25, categoria: str | None = None, somente_brasil: bool = False) -> dict:
+        alimentos_formatados = []
+
+        if not nome or not nome.strip():
+            return {
+                "alimentos": [],
+                "total_resultados": 0,
+                "pagina": pagina,
+                "max_resultados": max_resultados,
+            }
+
+        q_limpo = nome.strip()
+        q_norm = _normalizar(q_limpo)
+
+        # 1. Buscar na Tabela TACO Oficial via API HTTP
+        try:
+            from app.services.taco_service import TacoService
+            taco_alimentos = TacoService.buscar_alimentos(q_limpo, max_resultados=max_resultados)
+            alimentos_formatados.extend(taco_alimentos)
+        except Exception as e_taco:
+            print(f"[FatSecretService] Aviso ao buscar TACO: {e_taco}")
+
+        # 2. Termos estrangeiros e colisões da base americana a serem filtrados
+        TERMOS_ESTRANGEIROS = {
+            'style', 'enriched', 'long grain', 'vegetables', 'puerto rican', 'el mexicano', 
+            'con vegetables', 'con pollo', 'seasoned', 'cooked with', 'shredded', 'soup', 
+            'casserole', 'white rice', 'brown rice', 'fried rice', 'yellow rice', 'spanish rice',
+            'fitlife foods', 'del real foods', 'turnover', 'meat pie', 'patty', 'meatball',
+            'golden corral', 'pasteles', 'pastelon', 'cookies', 'pale ale', 'chili', 'add-on',
+            'bowl', 'pate', 'paste or pate', 'chicken liver', 'gravy', 'stewed', 'sandwich',
+            'nugget', 'dressing', 'sauce', 'dip', 'mint chocolates', 'mints', 'frango mints',
+            'candy cane', 'toffee crunch', 'pastel mints', 'pastel eggs', 'chocolate trio',
+            'dark chocolate', 'mint chocolate', 'chocolate mints', 'pastel de papa', 
+            'pastel azteca', 'licorice pastels', 'licorice', 'ice age meals', 'marcela valladolid',
+            'world market', 'paris baguette'
+        }
+
+        # 3. Buscar no FatSecret e filtrar pratos em inglês / estrangeiros
+        req_params = {
             "method": "foods.search",
-            "search_expression": nome,
+            "search_expression": q_limpo,
+            "region": "BR",
+            "language": "pt",
             "page_number": pagina,
             "max_results": max_resultados,
-        })
-        foods_data = resultado.get("foods", {})
-        foods = _as_list(foods_data.get("food", []))
-
-        alimentos_formatados = []
-        for f in foods:
-            desc = f.get("food_description") or ""
-            macros = _parse_food_description(desc)
-            alimentos_formatados.append({
-                "food_id": f.get("food_id"),
-                "id_alimento": f.get("food_id"),
-                "id": f.get("food_id"),
-                "nome": f.get("food_name"),
-                "nome_alimento": f.get("food_name"),
-                "marca": f.get("brand_name", ""),
-                "tipo": f.get("food_type"),
-                "url": f.get("food_url"),
-                "descricao": desc,
-                "calorias": macros["calorias"],
-                "proteinas": macros["proteinas"],
-                "carboidratos": macros["carboidratos"],
-                "gorduras": macros["gorduras"],
-                "porcao_padrao_g": macros["porcao_padrao_g"],
-                "origem_dados": "FatSecret",
-            })
-
-        return {
-            "alimentos": alimentos_formatados,
-            "total_resultados": int(foods_data.get("total_results", 0)),
-            "pagina": int(foods_data.get("page_number", 0)),
-            "max_resultados": int(foods_data.get("max_results", 20)),
         }
+
+        try:
+            resultado = cls._request(req_params)
+            foods_data = resultado.get("foods", {})
+            foods = _as_list(foods_data.get("food", []))
+
+            nomes_existentes = set(_normalizar(item["nome"]) for item in alimentos_formatados)
+            tokens_q = [t for t in q_norm.split() if len(t) > 2]
+
+            for f in foods:
+                desc = f.get("food_description") or ""
+                macros = _parse_food_description(desc)
+                nome_f = f.get("food_name") or ""
+                marca_f = f.get("brand_name", "")
+
+                texto_completo = _normalizar(f"{nome_f} {marca_f}")
+
+                # Ignora pratos com nomes em inglês e colisões da base US do FatSecret
+                if any(t in texto_completo for t in TERMOS_ESTRANGEIROS):
+                    continue
+
+                # Garante que pelo menos um token da busca existe no nome/marca
+                if tokens_q and not any(t in texto_completo for t in tokens_q):
+                    continue
+
+                if _normalizar(nome_f) in nomes_existentes:
+                    continue
+
+                alimentos_formatados.append({
+                    "food_id": str(f.get("food_id")),
+                    "id_alimento": str(f.get("food_id")),
+                    "id": str(f.get("food_id")),
+                    "nome": nome_f,
+                    "nome_alimento": nome_f,
+                    "marca": marca_f,
+                    "tipo": f.get("food_type"),
+                    "url": f.get("food_url"),
+                    "descricao": desc,
+                    "calorias": macros["calorias"],
+                    "proteinas": macros["proteinas"],
+                    "carboidratos": macros["carboidratos"],
+                    "gorduras": macros["gorduras"],
+                    "porcao_padrao_g": macros["porcao_padrao_g"],
+                    "origem_dados": "FatSecret",
+                })
+                nomes_existentes.add(_normalizar(nome_f))
+
+            return {
+                "alimentos": alimentos_formatados,
+                "total_resultados": len(alimentos_formatados),
+                "pagina": pagina,
+                "max_resultados": max_resultados,
+            }
+        except HTTPException:
+            raise
+        except Exception as ex:
+            print(f"[FatSecret] Erro na busca de alimentos: {ex}")
+            return {
+                "alimentos": alimentos_formatados,
+                "total_resultados": len(alimentos_formatados),
+                "pagina": pagina,
+                "max_resultados": max_resultados,
+            }
 
     @classmethod
     def buscar_alimento_por_id(cls, food_id: str) -> dict:
@@ -151,13 +248,13 @@ class FatSecretService:
     @classmethod
     def importar_alimento(cls, food_id: str) -> dict:
         detalhes = cls.buscar_alimento_por_id(food_id)
-        porcao = detalhes["porcao_padrao"]
+        porcao = detalhes.get("porcao_padrao", {})
         return {
-            "nome_alimento": detalhes["nome"],
-            "porcao_padrao_g": porcao["quantidade_metrica"] if porcao["quantidade_metrica"] > 0 else 100.0,
-            "calorias": porcao["calorias"],
-            "carboidratos": porcao["carboidratos"],
-            "proteinas": porcao["proteinas"],
-            "gorduras": porcao["gorduras"],
+            "nome_alimento": detalhes.get("nome", "Alimento"),
+            "porcao_padrao_g": porcao.get("quantidade_metrica", 100.0) if porcao.get("quantidade_metrica", 0) > 0 else 100.0,
+            "calorias": porcao.get("calorias", 0.0),
+            "carboidratos": porcao.get("carboidratos", 0.0),
+            "proteinas": porcao.get("proteinas", 0.0),
+            "gorduras": porcao.get("gorduras", 0.0),
             "origem_dados": "FatSecret",
         }
