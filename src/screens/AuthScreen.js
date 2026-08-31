@@ -7,13 +7,13 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView, 
   ActivityIndicator,
   Animated,
   Easing,
   Platform,
   Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CORES } from '../constants/Cores';
 import { 
   Mail, 

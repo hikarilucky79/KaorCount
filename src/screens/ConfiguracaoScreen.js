@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
 import { DoorOpen, ChevronLeft, Check, Flame, Scale, Dumbbell, Info, Moon, Sun } from 'lucide-react-native';
@@ -356,24 +357,18 @@ export default function ConfiguracaoScreen({ navigation }) {
         {/* ↓ Nível de Atividade */}
         <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>NÍVEL DE ATIVIDADE</Text>
 
-        {carregando ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <ActivityIndicator size="small" color={cores.primaria} />
-          </View>
-        ) : (
-          <View style={styles.containerAtividades}>
-            {niveisAtividade.map((nivel) => (
-              <BotaoAtividadeAnimado
-                key={nivel.id}
-                nivel={nivel}
-                ativo={nivelAtividade === nivel.id}
-                cores={cores}
-                isDark={isDark}
-                onPress={() => alterarNivelAtividade(nivel.id)}
-              />
-            ))}
-          </View>
-        )}
+        <View style={styles.containerAtividades}>
+          {niveisAtividade.map((nivel) => (
+            <BotaoAtividadeAnimado
+              key={nivel.id}
+              nivel={nivel}
+              ativo={nivelAtividade === nivel.id}
+              cores={cores}
+              isDark={isDark}
+              onPress={() => alterarNivelAtividade(nivel.id)}
+            />
+          ))}
+        </View>
 
         {/* ↓ Informações do App */}
         <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>INFORMAÇÕES</Text>

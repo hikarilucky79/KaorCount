@@ -6,7 +6,6 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  SafeAreaView, 
   ActivityIndicator, 
   Alert, 
   Modal, 
@@ -17,6 +16,7 @@ import {
   Animated,
   Easing
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, Search, Check, ChevronLeft, ChevronRight, Scale, Apple, Sun, Moon } from 'lucide-react-native';
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
@@ -691,13 +691,6 @@ export default function DiarioAlimentar({ navigation }) {
         <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
           {/* ↓ Conteúdo Diário Completo com Animação Direcional ao Mudar de Dia */}
           <Animated.View style={{ opacity: animFadeDia, transform: [{ translateX: animSlideDia }] }}>
-            {/* Loading (apenas no carregamento inicial) */}
-            {carregando && (!refeicoes || refeicoes.length === 0) && (
-              <View style={{ alignItems: 'center', padding: 12 }}>
-                <ActivityIndicator size="small" color={cores.primaria} />
-              </View>
-            )}
-
             {/* Resumo Superior Expandido */}
             <View style={[styles.cardResumo, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
