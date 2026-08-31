@@ -36,7 +36,7 @@ import * as metaNutriApi from '../api/metaNutriApi';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BANNER_WELCOME_ALTURA = 135;
-const BANNER_EXPANDIDO_ALTURA = (SCREEN_HEIGHT || 850) + 120;
+const BANNER_EXPANDIDO_ALTURA = SCREEN_HEIGHT || 800;
 
 export default function AuthScreen({ navigation }) {
   const { login, registrar, loginDemo } = useAuth();
@@ -232,6 +232,11 @@ export default function AuthScreen({ navigation }) {
     outputRange: [1, 0.2, 0],
   });
 
+  const borderBottomRadius = animCortina.interpolate({
+    inputRange: [0, 0.8, 1],
+    outputRange: [42, 20, 0],
+  });
+
   return (
     <SafeAreaView style={[styles.containerTela, { backgroundColor: cores.fundo }]}>
       
@@ -243,6 +248,8 @@ export default function AuthScreen({ navigation }) {
           styles.bannerSuperior,
           {
             height: alturaBanner,
+            borderBottomLeftRadius: borderBottomRadius,
+            borderBottomRightRadius: borderBottomRadius,
             overflow: 'hidden',
           }
         ]}
