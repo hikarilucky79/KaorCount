@@ -1,16 +1,61 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
-import { HandMetal, ChevronRight, Utensils } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, ActivityIndicator, TouchableOpacity, RefreshControl, Animated, Easing, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { HandMetal, ChevronRight, Utensils, Sun, Moon } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
+const SvgCircleWrapper = React.forwardRef(({ collapsable, ...props }, ref) => (
+  <Circle ref={ref} {...props} />
+));
+const AnimatedCircle = Animated.createAnimatedComponent(SvgCircleWrapper);
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
+import useTheme from '../hooks/useTheme';
 import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
+function BarraSemanalAnimada({ altura, cor, diaNome, corTexto, delay = 0 }) {
+  const animAltura = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.timing(animAltura, {
+        toValue: altura,
+        duration: 1500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [altura, delay]);
+
+  const heightInterpolada = animAltura.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View style={styles.colunaDia}>
+      <View style={styles.trilhoBarra}>
+        <Animated.View
+          style={{
+            height: heightInterpolada,
+            width: 14,
+            backgroundColor: cor,
+            borderRadius: 4,
+          }}
+        />
+      </View>
+      <Text style={[styles.labelDiaSemana, { color: corTexto }]}>{diaNome}</Text>
+    </View>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const { usuario } = useAuth();
+  const { cores, isDark, toggleTema } = useTheme();
 
-  // ↓ Estados para dados vindos da API.
+  // ↓ Estados para dados vindos da API
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [resumoDia, setResumoDia] = useState(null);
@@ -21,10 +66,10 @@ export default function HomeScreen({ navigation }) {
   const nomeUsuario = usuario?.nome?.split(' ')[0] || 'Usuário';
 
   // ↓ Metas nutricionais
-  const metaCalorias = resumoDia?.macros?.meta?.calorias || metaAtual?.calorias_meta || 1800;
-  const metaProteina = resumoDia?.macros?.meta?.proteinas || metaAtual?.proteina_meta_g || 140;
-  const metaCarboidrato = resumoDia?.macros?.meta?.carboidratos || metaAtual?.carboidrato_meta_g || 180;
-  const metaGordura = resumoDia?.macros?.meta?.gorduras || metaAtual?.gordura_meta_g || 55;
+  const metaCalorias = resumoDia?.macros?.meta?.calorias || metaAtual?.calorias_diarias || metaAtual?.calorias_meta || 1800;
+  const metaProteina = resumoDia?.macros?.meta?.proteinas || metaAtual?.proteina_g || metaAtual?.proteina_meta_g || 140;
+  const metaCarboidrato = resumoDia?.macros?.meta?.carboidratos || metaAtual?.carboidrato_g || metaAtual?.carboidrato_meta_g || 180;
+  const metaGordura = resumoDia?.macros?.meta?.gorduras || metaAtual?.gordura_g || metaAtual?.gordura_meta_g || 55;
 
   // ↓ Consumo do dia (dados reais da API)
   const caloriasConsumidas = Math.round(resumoDia?.macros?.consumido?.calorias || 0);
@@ -38,13 +83,46 @@ export default function HomeScreen({ navigation }) {
   const pctCarboidrato = metaCarboidrato > 0 ? Math.min((carboidratoConsumido / metaCarboidrato) * 100, 100) : 0;
   const pctGordura = metaGordura > 0 ? Math.min((gorduraConsumida / metaGordura) * 100, 100) : 0;
 
-  // ↓ Parâmetros para a Roda de Calorias (SVG Circular Progress)
+  // ↓ Animação das barras de macros
+  const animBarraProteina = useRef(new Animated.Value(0)).current;
+  const animBarraCarboidrato = useRef(new Animated.Value(0)).current;
+  const animBarraGordura = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]).start();
+  }, [pctProteina, pctCarboidrato, pctGordura]);
+
+  const larguraBarraProteina = animBarraProteina.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+  const larguraBarraCarboidrato = animBarraCarboidrato.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+  const larguraBarraGordura = animBarraGordura.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+
+  // ↓ Anel Circular de Calorias SVG
   const tamanhoAnel = 114;
   const espessuraAnel = 8;
   const raioAnel = (tamanhoAnel - espessuraAnel) / 2;
   const circunferenciaAnel = 2 * Math.PI * raioAnel;
   const progressoCalorias = metaCalorias > 0 ? Math.min(Math.max(caloriasConsumidas / metaCalorias, 0), 1) : 0;
-  const offsetAnel = circunferenciaAnel * (1 - progressoCalorias);
+
+  const animProgressoCalorias = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animProgressoCalorias, {
+      toValue: progressoCalorias,
+      duration: 1500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progressoCalorias]);
+
+  const offsetAnelAnimado = animProgressoCalorias.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circunferenciaAnel, 0],
+    extrapolate: 'clamp',
+  });
 
   // ↓ Distribuição de macros
   const totalMacrosG = proteinaConsumida + carboidratoConsumido + gorduraConsumida;
@@ -97,7 +175,7 @@ export default function HomeScreen({ navigation }) {
     try {
       if (isRefresh) {
         setAtualizando(true);
-      } else {
+      } else if (!resumoDia) {
         setCarregando(true);
       }
 
@@ -118,51 +196,80 @@ export default function HomeScreen({ navigation }) {
     }
   }, [usuario?.id_usuario]);
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+  // ───────────────────────────────────────────────────────────
+  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
+  // ───────────────────────────────────────────────────────────
+  const animEntrada = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+      animEntrada.setValue(0);
+      Animated.timing(animEntrada, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, [carregarDados])
+  );
+
+  const fadeHeader = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
+  const slideHeader = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
+
+  const fadeCard1 = animEntrada.interpolate({ inputRange: [0.1, 0.8], outputRange: [0, 1] });
+  const slideCard1 = animEntrada.interpolate({ inputRange: [0.1, 1], outputRange: [35, 0], extrapolate: 'clamp' });
+
+  const fadeCard2 = animEntrada.interpolate({ inputRange: [0.2, 0.9], outputRange: [0, 1] });
+  const slideCard2 = animEntrada.interpolate({ inputRange: [0.2, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
+
+  const fadeCard3 = animEntrada.interpolate({ inputRange: [0.3, 1], outputRange: [0, 1] });
+  const slideCard3 = animEntrada.interpolate({ inputRange: [0.3, 1], outputRange: [35, 0], extrapolate: 'clamp' });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: CORES.fundo }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView 
         contentContainerStyle={styles.containerScroll}
         refreshControl={
           <RefreshControl 
             refreshing={atualizando} 
             onRefresh={() => carregarDados(true)}
-            colors={[CORES.primaria]}
-            tintColor={CORES.primaria}
+            colors={[cores.primaria]}
+            tintColor={cores.primaria}
           />
         }
       >
         
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.textoOla}>Olá,</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.textoNome}>{nomeUsuario}</Text>
-            <HandMetal color={CORES.textoEscuro} size={26} style={{ marginLeft: 8 }} />
+        {/* Header com Saudação */}
+        <Animated.View style={[styles.header, { opacity: fadeHeader, transform: [{ translateX: slideHeader }] }]}>
+          <View>
+            <Text style={[styles.textoOla, { color: cores.textoEscuro }]}>Olá,</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.textoNome, { color: cores.textoEscuro }]}>{nomeUsuario}</Text>
+              <HandMetal color={cores.textoEscuro} size={26} style={{ marginLeft: 8 }} />
+            </View>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Loading inicial */}
-        {carregando && (
+        {/* Loading inicial (apenas quando não há dados em memória) */}
+        {carregando && !resumoDia && (
           <View style={{ alignItems: 'center', padding: 16 }}>
-            <ActivityIndicator size="small" color={CORES.primaria} />
+            <ActivityIndicator size="small" color={cores.primaria} />
           </View>
         )}
 
         {/* Card do Resumo de Hoje (clicável -> vai para Diário) */}
+        <Animated.View style={{ opacity: fadeCard1, transform: [{ translateX: slideCard1 }] }}>
         <TouchableOpacity 
-          style={styles.cardGeral} 
+          style={[styles.cardGeral, { backgroundColor: cores.branco, borderColor: cores.borda }]} 
           activeOpacity={0.85}
           onPress={() => navigation?.navigate('Diário')}
         >
           <View style={styles.rowMeta}>
-            <Text style={styles.subMeta}>HOJE</Text>
+            <Text style={[styles.subMeta, { color: cores.textoSuave }]}>HOJE</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.subMeta}>Meta <Text style={{fontWeight:'bold', color: CORES.primaria}}>{metaCalorias} kcal</Text></Text>
-              <ChevronRight size={14} color={CORES.textoSuave} style={{ marginLeft: 4 }} />
+              <Text style={[styles.subMeta, { color: cores.textoSuave }]}>Meta <Text style={{fontWeight:'bold', color: cores.primaria}}>{metaCalorias} kcal</Text></Text>
+              <ChevronRight size={14} color={cores.textoSuave} style={{ marginLeft: 4 }} />
             </View>
           </View>
 
@@ -178,48 +285,46 @@ export default function HomeScreen({ navigation }) {
                   cx={tamanhoAnel / 2}
                   cy={tamanhoAnel / 2}
                   r={raioAnel}
-                  stroke="rgba(255, 255, 255, 0.12)"
+                  stroke={isDark ? '#2C2C2C' : '#F0E4D4'}
                   strokeWidth={espessuraAnel}
                   fill="none"
                 />
-                {/* Arco de progresso dinâmico */}
-                {progressoCalorias > 0 && (
-                  <Circle
-                    cx={tamanhoAnel / 2}
-                    cy={tamanhoAnel / 2}
-                    r={raioAnel}
-                    stroke={CORES.primaria}
-                    strokeWidth={espessuraAnel}
-                    strokeDasharray={`${circunferenciaAnel} ${circunferenciaAnel}`}
-                    strokeDashoffset={offsetAnel}
-                    strokeLinecap="round"
-                    fill="none"
-                    transform={`rotate(-90 ${tamanhoAnel / 2} ${tamanhoAnel / 2})`}
-                  />
-                )}
+                {/* Arco de progresso dinâmico animado */}
+                <AnimatedCircle
+                  cx={tamanhoAnel / 2}
+                  cy={tamanhoAnel / 2}
+                  r={raioAnel}
+                  stroke={cores.primaria}
+                  strokeWidth={espessuraAnel}
+                  strokeDasharray={`${circunferenciaAnel} ${circunferenciaAnel}`}
+                  strokeDashoffset={offsetAnelAnimado}
+                  strokeLinecap="round"
+                  fill="none"
+                  transform={`rotate(-90 ${tamanhoAnel / 2} ${tamanhoAnel / 2})`}
+                />
               </Svg>
 
               {/* Informações centrais */}
-              <Text style={styles.anelNumero}>{caloriasConsumidas}</Text>
-              <Text style={styles.anelLegenda}>kcal</Text>
-              <Text style={styles.anelSubText}>{caloriasRestantes} rest.</Text>
+              <Text style={[styles.anelNumero, { color: cores.textoEscuro }]}>{caloriasConsumidas}</Text>
+              <Text style={[styles.anelLegenda, { color: cores.textoSuave }]}>kcal</Text>
+              <Text style={[styles.anelSubText, { color: cores.textoSuave }]}>{caloriasRestantes} rest.</Text>
             </View>
 
             {/* Barras de Macro Horizontais */}
             <View style={{ flex: 1, marginLeft: 18 }}>
-              <Text style={styles.macroTitulo}>PROTEÍNA <Text style={{color: CORES.primaria}}>{proteinaConsumida}/{metaProteina}g</Text></Text>
-              <View style={styles.barraFundo}>
-                <View style={[styles.barraPreenchida, { width: `${pctProteina}%`, backgroundColor: CORES.primaria }]} />
+              <Text style={[styles.macroTitulo, { color: cores.textoEscuro }]}>PROTEÍNA <Text style={{color: cores.primaria}}>{proteinaConsumida}/{metaProteina}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}>
+                <Animated.View style={[styles.barraPreenchida, { width: larguraBarraProteina, backgroundColor: cores.primaria }]} />
               </View>
 
-              <Text style={styles.macroTitulo}>CARBOS <Text style={{color: CORES.carboidrato}}>{carboidratoConsumido}/{metaCarboidrato}g</Text></Text>
-              <View style={styles.barraFundo}>
-                <View style={[styles.barraPreenchida, { width: `${pctCarboidrato}%`, backgroundColor: CORES.carboidrato }]} />
+              <Text style={[styles.macroTitulo, { color: cores.textoEscuro }]}>CARBOS <Text style={{color: cores.carboidrato}}>{carboidratoConsumido}/{metaCarboidrato}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}>
+                <Animated.View style={[styles.barraPreenchida, { width: larguraBarraCarboidrato, backgroundColor: cores.carboidrato }]} />
               </View>
 
-              <Text style={styles.macroTitulo}>GORDURA <Text style={{color: CORES.gordura}}>{gorduraConsumida}/{metaGordura}g</Text></Text>
-              <View style={styles.barraFundo}>
-                <View style={[styles.barraPreenchida, { width: `${pctGordura}%`, backgroundColor: CORES.gordura }]} />
+              <Text style={[styles.macroTitulo, { color: cores.textoEscuro }]}>GORDURA <Text style={{color: cores.gordura}}>{gorduraConsumida}/{metaGordura}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}>
+                <Animated.View style={[styles.barraPreenchida, { width: larguraBarraGordura, backgroundColor: cores.gordura }]} />
               </View>
             </View>
 
@@ -227,17 +332,17 @@ export default function HomeScreen({ navigation }) {
 
           {/* Mini Cards Inline */}
           <View style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}>
-            <View style={styles.miniCardInfo}>
-              <Text style={styles.miniCardNumero}>{metaCalorias}</Text>
-              <Text style={styles.miniCardRotulo}>Meta</Text>
+            <View style={[styles.miniCardInfo, { backgroundColor: isDark ? '#252525' : '#FDF8F2' }]}>
+              <Text style={[styles.miniCardNumero, { color: cores.textoEscuro }]}>{metaCalorias}</Text>
+              <Text style={[styles.miniCardRotulo, { color: cores.textoSuave }]}>Meta</Text>
             </View>
-            <View style={styles.miniCardInfo}>
-              <Text style={styles.miniCardNumero}>{caloriasConsumidas}</Text>
-              <Text style={styles.miniCardRotulo}>Consumido</Text>
+            <View style={[styles.miniCardInfo, { backgroundColor: isDark ? '#252525' : '#FDF8F2' }]}>
+              <Text style={[styles.miniCardNumero, { color: cores.textoEscuro }]}>{caloriasConsumidas}</Text>
+              <Text style={[styles.miniCardRotulo, { color: cores.textoSuave }]}>Consumido</Text>
             </View>
-            <View style={styles.miniCardInfo}>
-              <Text style={styles.miniCardNumero}>{caloriasRestantes}</Text>
-              <Text style={styles.miniCardRotulo}>Restante</Text>
+            <View style={[styles.miniCardInfo, { backgroundColor: isDark ? '#252525' : '#FDF8F2' }]}>
+              <Text style={[styles.miniCardNumero, { color: cores.textoEscuro }]}>{caloriasRestantes}</Text>
+              <Text style={[styles.miniCardRotulo, { color: cores.textoSuave }]}>Restante</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -248,38 +353,42 @@ export default function HomeScreen({ navigation }) {
           onPress={() => navigation?.navigate('Diário')}
           activeOpacity={0.8}
         >
-          <Utensils size={18} color={CORES.branco} style={{ marginRight: 8 }} />
+          <Utensils size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
           <Text style={styles.botaoAcaoRapidaTexto}>Registrar no Diário Alimentar</Text>
         </TouchableOpacity>
+        </Animated.View>
 
         {/* Bloco Distribuição de Macros */}
-        <Text style={styles.secaoTitulo}>DISTRIBUIÇÃO DE MACROS</Text>
+        <Animated.View style={{ opacity: fadeCard2, transform: [{ translateX: slideCard2 }] }}>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>DISTRIBUIÇÃO DE MACROS</Text>
         <View style={[styles.row, { justifyContent: 'space-between' }]}>
-          <View style={styles.cardMacroItem}>
-            <View style={[styles.pontoIndicador, { backgroundColor: CORES.primaria }]} />
-            <Text style={styles.itemMacroValor}>{proteinaConsumida}g</Text>
-            <Text style={styles.itemMacroNome}>Proteína</Text>
-            <Text style={styles.itemMacroPorcentagem}>{distProteina}%</Text>
+          <View style={[styles.cardMacroItem, { backgroundColor: cores.branco }]}>
+            <View style={[styles.pontoIndicador, { backgroundColor: cores.primaria }]} />
+            <Text style={[styles.itemMacroValor, { color: cores.textoEscuro }]}>{proteinaConsumida}g</Text>
+            <Text style={[styles.itemMacroNome, { color: cores.textoSuave }]}>Proteína</Text>
+            <Text style={[styles.itemMacroPorcentagem, { color: cores.textoSuave }]}>{distProteina}%</Text>
           </View>
-          <View style={styles.cardMacroItem}>
-            <View style={[styles.pontoIndicador, { backgroundColor: CORES.carboidrato }]} />
-            <Text style={styles.itemMacroValor}>{carboidratoConsumido}g</Text>
-            <Text style={styles.itemMacroNome}>Carbos</Text>
-            <Text style={styles.itemMacroPorcentagem}>{distCarboidrato}%</Text>
+          <View style={[styles.cardMacroItem, { backgroundColor: cores.branco }]}>
+            <View style={[styles.pontoIndicador, { backgroundColor: cores.carboidrato }]} />
+            <Text style={[styles.itemMacroValor, { color: cores.textoEscuro }]}>{carboidratoConsumido}g</Text>
+            <Text style={[styles.itemMacroNome, { color: cores.textoSuave }]}>Carbos</Text>
+            <Text style={[styles.itemMacroPorcentagem, { color: cores.textoSuave }]}>{distCarboidrato}%</Text>
           </View>
-          <View style={styles.cardMacroItem}>
-            <View style={[styles.pontoIndicador, { backgroundColor: CORES.gordura }]} />
-            <Text style={styles.itemMacroValor}>{gorduraConsumida}g</Text>
-            <Text style={styles.itemMacroNome}>Gordura</Text>
-            <Text style={styles.itemMacroPorcentagem}>{distGordura}%</Text>
+          <View style={[styles.cardMacroItem, { backgroundColor: cores.branco }]}>
+            <View style={[styles.pontoIndicador, { backgroundColor: cores.gordura }]} />
+            <Text style={[styles.itemMacroValor, { color: cores.textoEscuro }]}>{gorduraConsumida}g</Text>
+            <Text style={[styles.itemMacroNome, { color: cores.textoSuave }]}>Gordura</Text>
+            <Text style={[styles.itemMacroPorcentagem, { color: cores.textoSuave }]}>{distGordura}%</Text>
           </View>
         </View>
+        </Animated.View>
 
         {/* Bloco Histórico Semanal */}
-        <Text style={styles.secaoTitulo}>HISTÓRICO SEMANAL</Text>
-        <View style={styles.cardGeral}>
+        <Animated.View style={{ opacity: fadeCard3, transform: [{ translateX: slideCard3 }] }}>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>HISTÓRICO SEMANAL</Text>
+        <View style={[styles.cardGeral, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
           <View style={styles.containerGrafico}>
-            <Text style={{color: CORES.textoSuave, fontStyle: 'italic', fontSize: 13}}> Gráfico Evolutivo (últimos 7 dias) </Text>
+            <Text style={{color: cores.textoSuave, fontStyle: 'italic', fontSize: 13}}> Gráfico Evolutivo (últimos 7 dias) </Text>
             
             <View style={styles.areaGraficoBarras}>
               <View style={styles.linhaGraficoBarras}>
@@ -288,33 +397,29 @@ export default function HomeScreen({ navigation }) {
                     ? Math.max(Math.min((item.calorias / metaCalorias) * 100, 100), 10)
                     : 4;
                   
-                  const corBarra = item.calorias > 0 ? CORES.primaria : 'rgba(255, 255, 255, 0.12)';
+                  const corBarra = item.calorias > 0 ? cores.primaria : (isDark ? '#2C2C2C' : '#F0E4D4');
 
                   return (
-                    <View key={index} style={styles.colunaDia}>
-                      <View style={styles.trilhoBarra}>
-                        <View 
-                          style={{
-                            height: `${alturaBarra}%`, 
-                            width: 14, 
-                            backgroundColor: corBarra, 
-                            borderRadius: 4
-                          }} 
-                        />
-                      </View>
-                      <Text style={styles.labelDiaSemana}>{item.diaNome}</Text>
-                    </View>
+                    <BarraSemanalAnimada
+                      key={item.data || index}
+                      altura={alturaBarra}
+                      cor={corBarra}
+                      diaNome={item.diaNome}
+                      corTexto={cores.textoSuave}
+                      delay={index * 110}
+                    />
                   );
                 })}
               </View>
             </View>
           </View>
 
-          <View style={[styles.row, { justifyContent: 'space-between', marginTop: 14, borderTopWidth: 1, borderColor: '#F5EAE0', paddingTop: 10 }]}>
-            <Text style={styles.legendaGrafico}>Meta: {metaCalorias} kcal/dia</Text>
-            <Text style={styles.legendaGrafico}>Média: <Text style={{color: CORES.primaria, fontWeight:'bold'}}>{mediaSemanal} kcal</Text></Text>
+          <View style={[styles.row, { justifyContent: 'space-between', marginTop: 14, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10 }]}>
+            <Text style={[styles.legendaGrafico, { color: cores.textoSuave }]}>Meta: {metaCalorias} kcal/dia</Text>
+            <Text style={[styles.legendaGrafico, { color: cores.textoSuave }]}>Média: <Text style={{color: cores.primaria, fontWeight:'bold'}}>{mediaSemanal} kcal</Text></Text>
           </View>
         </View>
+        </Animated.View>
 
       </ScrollView>
     </SafeAreaView>
@@ -325,7 +430,23 @@ const styles = StyleSheet.create({
   containerScroll: { padding: 20, paddingBottom: 40 },
   header: { 
     marginBottom: 20, 
-    marginTop: 10
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  btnTema: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  txtBtnTema: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   textoOla: { 
     fontSize: 18, 
@@ -340,7 +461,8 @@ const styles = StyleSheet.create({
     backgroundColor: CORES.branco, 
     borderRadius: 24, 
     padding: 16, 
-    marginBottom: 16 
+    marginBottom: 16,
+    borderWidth: 1,
   },
   rowMeta: { 
     flexDirection: 'row', 
@@ -391,13 +513,17 @@ const styles = StyleSheet.create({
     marginBottom: 4 
   },
   barraFundo: { 
-    height: 6, 
+    height: 7, 
     backgroundColor: '#F0E4D4', 
-    borderRadius: 3 
+    borderRadius: 4,
+    overflow: 'hidden',
+    width: '100%',
+    marginVertical: 2,
   },
   barraPreenchida: { 
     height: '100%', 
-    borderRadius: 3 
+    minHeight: 7,
+    borderRadius: 4,
   },
   miniCardInfo: { 
     flex: 1, 

@@ -1,13 +1,109 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
-import { DoorOpen, ChevronLeft, Check, Flame, Scale, Dumbbell, Info } from 'lucide-react-native';
+import { DoorOpen, ChevronLeft, Check, Flame, Scale, Dumbbell, Info, Moon, Sun } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
+import useTheme from '../hooks/useTheme';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
+function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress }) {
+  const animScale = useRef(new Animated.Value(ativo ? 1.05 : 1)).current;
+  const IconeComp = obj.icone;
+
+  useEffect(() => {
+    Animated.spring(animScale, {
+      toValue: ativo ? 1.05 : 1,
+      friction: 5,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [ativo]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => {
+        Animated.sequence([
+          Animated.timing(animScale, { toValue: 0.93, duration: 75, useNativeDriver: true }),
+          Animated.spring(animScale, { toValue: 1.05, friction: 4, tension: 160, useNativeDriver: true }),
+        ]).start();
+        onPress();
+      }}
+      style={{ flex: 1, marginHorizontal: 4 }}
+    >
+      <Animated.View
+        style={[
+          styles.cardObjetivo,
+          {
+            backgroundColor: ativo ? (isDark ? '#2A1D13' : '#FDF3E7') : cores.branco,
+            borderColor: ativo ? cores.primaria : cores.borda,
+            borderWidth: ativo ? 1.5 : 1,
+            transform: [{ scale: animScale }],
+          },
+        ]}
+      >
+        <IconeComp size={20} color={ativo ? cores.primaria : cores.textoSuave} />
+        <Text style={[styles.txtObjetivo, { color: cores.textoSuave }, ativo && [styles.txtObjetivoAtivo, { color: cores.primaria }]]}>
+          {obj.nome}
+        </Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress }) {
+  const animScale = useRef(new Animated.Value(ativo ? 1.02 : 1)).current;
+
+  useEffect(() => {
+    Animated.spring(animScale, {
+      toValue: ativo ? 1.02 : 1,
+      friction: 5,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [ativo]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => {
+        Animated.sequence([
+          Animated.timing(animScale, { toValue: 0.96, duration: 75, useNativeDriver: true }),
+          Animated.spring(animScale, { toValue: 1.02, friction: 4, tension: 160, useNativeDriver: true }),
+        ]).start();
+        onPress();
+      }}
+      style={{ marginBottom: 10 }}
+    >
+      <Animated.View
+        style={[
+          styles.boxAtividadeInativa,
+          {
+            backgroundColor: ativo ? (isDark ? '#2A1D13' : '#FDF3E7') : cores.branco,
+            borderColor: ativo ? cores.primaria : cores.borda,
+            borderWidth: ativo ? 1.5 : 1,
+            marginBottom: 0,
+            transform: [{ scale: animScale }],
+          },
+        ]}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={[styles.txtAtividadeNome, { color: cores.textoEscuro }, ativo && { color: cores.primaria, fontWeight: 'bold' }]}>
+            {nivel.nome}
+          </Text>
+          {ativo ? <Check size={18} color={cores.primaria} /> : null}
+        </View>
+        <Text style={[styles.txtAtividadeSub, { color: cores.textoSuave }]}>{nivel.descricao}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 export default function ConfiguracaoScreen({ navigation }) {
   const { usuario, logout } = useAuth();
+  const { cores, isDark, toggleTema } = useTheme();
 
   const [pushAtivo, setPushAtivo] = useState(true);
   const [lembreteAtivo, setLembreteAtivo] = useState(true);
@@ -56,9 +152,26 @@ export default function ConfiguracaoScreen({ navigation }) {
     }
   }, [usuario]);
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+  // ───────────────────────────────────────────────────────────
+  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
+  // ───────────────────────────────────────────────────────────
+  const animEntrada = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+      animEntrada.setValue(0);
+      Animated.timing(animEntrada, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, [carregarDados])
+  );
+
+  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [35, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Atualizar nível de atividade via API
@@ -158,13 +271,14 @@ export default function ConfiguracaoScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: CORES.fundo }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        
+
         {/* ↓ Cabeçalho com botão Voltar */}
+        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
         <View style={styles.headerConfig}>
-          <TouchableOpacity 
-            style={styles.btnVoltar} 
+          <TouchableOpacity
+            style={[styles.btnVoltar, { backgroundColor: cores.branco, borderColor: cores.borda }]}
             onPress={() => {
               if (navigation.canGoBack()) {
                 navigation.goBack();
@@ -174,107 +288,121 @@ export default function ConfiguracaoScreen({ navigation }) {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ChevronLeft size={16} color={CORES.textoEscuro} />
-              <Text style={styles.txtVoltar}>Voltar</Text>
+              <ChevronLeft size={16} color={cores.textoEscuro} />
+              <Text style={[styles.txtVoltar, { color: cores.textoEscuro }]}>Voltar</Text>
             </View>
           </TouchableOpacity>
-          <Text style={styles.tituloTela}>Configurações</Text>
+          <Text style={[styles.tituloTela, { color: cores.textoEscuro }]}>Configurações</Text>
           <View style={{ width: 60 }} />
         </View>
 
-        {/* ↓ Bloco Notificações */}
-        <Text style={styles.secaoTitulo}>PREFERÊNCIAS</Text>
-        <View style={styles.cardConfig}>
+        {/* ↓ Bloco Preferências & Aparência */}
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>PREFERÊNCIAS & APARÊNCIA</Text>
+        <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+
+          {/* Switch de Tema Escuro */}
           <View style={styles.linhaSwitch}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.tituloItemSwitch}>Notificações push</Text>
-              <Text style={styles.subItemSwitch}>Alertas de metas e lembretes</Text>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {isDark ? (
+                  <Moon size={18} color={cores.primaria} style={{ marginRight: 8 }} />
+                ) : (
+                  <Sun size={18} color={cores.primaria} style={{ marginRight: 8 }} />
+                )}
+                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Tema Escuro</Text>
+              </View>
+              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Fundo escuro profundo para descanso visual</Text>
             </View>
-            <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: CORES.primaria }} />
+            <Switch
+              value={isDark}
+              onValueChange={toggleTema}
+              trackColor={{ false: cores.borda, true: cores.primaria }}
+              thumbColor={Platform.OS === 'android' ? (isDark ? cores.primaria : '#f4f3f4') : undefined}
+            />
           </View>
 
-          <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: '#FDF8F2', paddingTop: 15 }]}>
+          <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.tituloItemSwitch}>Lembrete de refeição</Text>
-              <Text style={styles.subItemSwitch}>Horários programados</Text>
+              <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Notificações push</Text>
+              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Alertas de metas e lembretes</Text>
             </View>
-            <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: CORES.primaria }} />
+            <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} />
+          </View>
+
+          <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro }]}>Lembrete de refeição</Text>
+              <Text style={[styles.subItemSwitch, { color: cores.textoSuave }]}>Horários programados</Text>
+            </View>
+            <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} />
           </View>
         </View>
 
         {/* ↓ Objetivo */}
-        <Text style={styles.secaoTitulo}>OBJETIVO</Text>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>OBJETIVO</Text>
         <View style={styles.rowObjetivos}>
-          {objetivos.map((obj) => {
-            const IconeComp = obj.icone;
-            const ativo = objetivo === obj.id;
-            return (
-              <TouchableOpacity
-                key={obj.id}
-                style={[styles.cardObjetivo, ativo && styles.cardObjetivoAtivo]}
-                onPress={() => alterarObjetivo(obj.id)}
-                activeOpacity={0.7}
-              >
-                <IconeComp size={20} color={ativo ? CORES.primaria : CORES.textoSuave} />
-                <Text style={[styles.txtObjetivo, ativo && styles.txtObjetivoAtivo]}>
-                  {obj.nome}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {objetivos.map((obj) => (
+            <BotaoObjetivoAnimado
+              key={obj.id}
+              obj={obj}
+              ativo={objetivo === obj.id}
+              cores={cores}
+              isDark={isDark}
+              onPress={() => alterarObjetivo(obj.id)}
+            />
+          ))}
         </View>
 
         {/* ↓ Nível de Atividade */}
-        <Text style={styles.secaoTitulo}>NÍVEL DE ATIVIDADE</Text>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>NÍVEL DE ATIVIDADE</Text>
 
         {carregando ? (
           <View style={{ alignItems: 'center', padding: 20 }}>
-            <ActivityIndicator size="small" color={CORES.primaria} />
+            <ActivityIndicator size="small" color={cores.primaria} />
           </View>
         ) : (
           <View style={styles.containerAtividades}>
             {niveisAtividade.map((nivel) => (
-              <TouchableOpacity 
+              <BotaoAtividadeAnimado
                 key={nivel.id}
-                style={nivelAtividade === nivel.id ? styles.boxAtividadeAtiva : styles.boxAtividadeInativa}
+                nivel={nivel}
+                ativo={nivelAtividade === nivel.id}
+                cores={cores}
+                isDark={isDark}
                 onPress={() => alterarNivelAtividade(nivel.id)}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={[styles.txtAtividadeNome, nivelAtividade === nivel.id && { color: CORES.primaria }]}>
-                    {nivel.nome}
-                  </Text>
-                  {nivelAtividade === nivel.id ? (
-                    <Check size={18} color={CORES.primaria} />
-                  ) : null}
-                </View>
-                <Text style={styles.txtAtividadeSub}>{nivel.descricao}</Text>
-              </TouchableOpacity>
+              />
             ))}
           </View>
         )}
 
         {/* ↓ Informações do App */}
-        <Text style={styles.secaoTitulo}>INFORMAÇÕES</Text>
-        <View style={styles.cardConfig}>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>INFORMAÇÕES</Text>
+        <View style={[styles.cardConfig, { backgroundColor: cores.branco }]}>
           <View style={styles.linhaInfo}>
-            <Text style={styles.txtInfoLabel}>App</Text>
-            <Text style={styles.txtInfoValor}>KaorCount v1.0</Text>
+            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>App</Text>
+            <Text style={[styles.txtInfoValor, { color: cores.textoEscuro }]}>KaorCount v1.0</Text>
           </View>
-          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: '#FDF8F2', paddingTop: 10, marginTop: 10 }]}>
-            <Text style={styles.txtInfoLabel}>Banco de dados</Text>
-            <Text style={styles.txtInfoValor}>18 alimentos</Text>
+          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
+            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>Banco de dados</Text>
+            <Text style={[styles.txtInfoValor, { color: cores.textoEscuro }]}>Catálogo Inteligente</Text>
           </View>
-          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: '#FDF8F2', paddingTop: 10, marginTop: 10 }]}>
-            <Text style={styles.txtInfoLabel}>Sincronização</Text>
-            <Text style={styles.txtInfoValor}>Nuvem / Local</Text>
+          <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
+            <Text style={[styles.txtInfoLabel, { color: cores.textoSuave }]}>Tema Ativo</Text>
+            <Text style={[styles.txtInfoValor, { color: cores.primaria }]}>{isDark ? 'Escuro (#121212)' : 'Claro'}</Text>
           </View>
         </View>
 
         {/* Ação de Deslogar da Conta */}
-        <Text style={styles.secaoTitulo}>CONTA</Text>
-        <TouchableOpacity 
-          style={[styles.botaoLogoutCard, deslogando && { opacity: 0.6 }]} 
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>CONTA</Text>
+        <TouchableOpacity
+          style={[
+            styles.botaoLogoutCard,
+            {
+              backgroundColor: isDark ? 'rgba(235, 87, 87, 0.12)' : '#FFF5F5',
+              borderColor: isDark ? 'rgba(235, 87, 87, 0.35)' : '#EB5757',
+            },
+            deslogando && { opacity: 0.6 }
+          ]}
           onPress={handleLogout}
           disabled={deslogando}
         >
@@ -287,6 +415,7 @@ export default function ConfiguracaoScreen({ navigation }) {
             </View>
           )}
         </TouchableOpacity>
+        </Animated.View>
 
       </ScrollView>
     </SafeAreaView>
@@ -294,62 +423,62 @@ export default function ConfiguracaoScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: { 
-    flexGrow: 1, 
+  scrollContainer: {
+    flexGrow: 1,
     padding: 20,
-    paddingBottom: 40 
+    paddingBottom: 40
   },
-  headerConfig: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+  headerConfig: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 25,
     marginTop: 10
   },
-  btnVoltar: { 
-    backgroundColor: CORES.branco, 
-    paddingVertical: 8, 
-    paddingHorizontal: 14, 
-    borderRadius: 12, 
-    borderColor: CORES.borda, 
-    borderWidth: 1 
+  btnVoltar: {
+    backgroundColor: CORES.branco,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderColor: CORES.borda,
+    borderWidth: 1
   },
-  txtVoltar: { 
-    color: CORES.textoEscuro, 
-    fontWeight: 'bold', 
-    fontSize: 14 
+  txtVoltar: {
+    color: CORES.textoEscuro,
+    fontWeight: 'bold',
+    fontSize: 14
   },
-  tituloTela: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: CORES.textoEscuro 
+  tituloTela: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: CORES.textoEscuro
   },
-  cardConfig: { 
-    backgroundColor: CORES.branco, 
-    borderRadius: 24, 
-    padding: 16, 
-    marginBottom: 20 
+  cardConfig: {
+    backgroundColor: CORES.branco,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 20
   },
-  secaoTitulo: { 
-    fontSize: 12, 
-    fontWeight: 'bold', 
-    color: CORES.textoSuave, 
-    marginBottom: 12, 
-    letterSpacing: 1 
+  secaoTitulo: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: CORES.textoSuave,
+    marginBottom: 12,
+    letterSpacing: 1
   },
-  linhaSwitch: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
+  linhaSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
-  tituloItemSwitch: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: CORES.textoEscuro 
+  tituloItemSwitch: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: CORES.textoEscuro
   },
-  subItemSwitch: { 
-    fontSize: 11, 
-    color: CORES.textoSuave, 
-    marginTop: 2 
+  subItemSwitch: {
+    fontSize: 11,
+    color: CORES.textoSuave,
+    marginTop: 2
   },
   rowObjetivos: {
     flexDirection: 'row',
@@ -383,31 +512,31 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   containerAtividades: { marginBottom: 15 },
-  boxAtividadeInativa: { 
-    backgroundColor: CORES.branco, 
-    borderRadius: 16, 
-    padding: 14, 
+  boxAtividadeInativa: {
+    backgroundColor: CORES.branco,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: CORES.borda,
   },
-  boxAtividadeAtiva: { 
-    backgroundColor: '#FDF3E7', 
-    borderRadius: 16, 
-    padding: 14, 
-    marginBottom: 10, 
-    borderWidth: 1.5, 
-    borderColor: CORES.primaria 
+  boxAtividadeAtiva: {
+    backgroundColor: '#FDF3E7',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: CORES.primaria
   },
-  txtAtividadeNome: { 
-    fontSize: 14, 
-    fontWeight: 'bold', 
-    color: CORES.textoEscuro 
+  txtAtividadeNome: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: CORES.textoEscuro
   },
-  txtAtividadeSub: { 
-    fontSize: 11, 
-    color: CORES.textoSuave, 
-    marginTop: 2 
+  txtAtividadeSub: {
+    fontSize: 11,
+    color: CORES.textoSuave,
+    marginTop: 2
   },
   linhaInfo: {
     flexDirection: 'row',
@@ -423,20 +552,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: CORES.textoEscuro,
   },
-  botaoLogoutCard: { 
-    backgroundColor: '#FFF5F5', 
-    borderColor: '#EB5757', 
-    borderWidth: 1, 
-    borderRadius: 20, 
-    padding: 16, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  botaoLogoutCard: {
+    backgroundColor: '#FFF5F5',
+    borderColor: '#EB5757',
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 30,
     flexDirection: 'row'
   },
-  botaoLogoutTexto: { 
-    color: '#EB5757', 
-    fontWeight: 'bold', 
+  botaoLogoutTexto: {
+    color: '#EB5757',
+    fontWeight: 'bold',
     fontSize: 15
   }
 });

@@ -29,6 +29,7 @@ import {
   AlertCircle 
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
+import useTheme from '../hooks/useTheme';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
@@ -39,6 +40,7 @@ const BANNER_EXPANDIDO_ALTURA = (SCREEN_HEIGHT || 850) + 120;
 
 export default function AuthScreen({ navigation }) {
   const { login, registrar, loginDemo } = useAuth();
+  const { cores, isDark } = useTheme();
 
   // ↓ Estado para controlar a tela ativa: 'welcome' | 'login' | 'register'
   const [modo, setModo] = useState('welcome');
@@ -80,11 +82,11 @@ export default function AuthScreen({ navigation }) {
     setErroMsg('');
     setAnimando(true);
 
-    // 1. O banner marrom existente expande para baixo mantendo as bordas curvas
+    // 1. O banner marrom existente expande para baixo mantendo as bordas curvas com transição suave (1s)
     Animated.timing(animCortina, {
       toValue: 1,
-      duration: 600,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      duration: 1000,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
       useNativeDriver: false,
     }).start(() => {
       // 2. Quando a tela está 100% coberta pelo banner, troca o estado
@@ -95,11 +97,11 @@ export default function AuthScreen({ navigation }) {
 
       setModo(novoModo);
 
-      // 3. O banner recolhe suavemente revelando o novo conteúdo
+      // 3. O banner recolhe suavemente revelando o novo conteúdo (1s)
       Animated.timing(animCortina, {
         toValue: 0,
-        duration: 520,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        duration: 1000,
+        easing: Easing.bezier(0.22, 1, 0.36, 1),
         useNativeDriver: false,
       }).start(() => {
         setAnimando(false);
@@ -184,10 +186,11 @@ export default function AuthScreen({ navigation }) {
 
           await metaNutriApi.criar({
             id_usuario: idUser,
-            calorias_meta: 2000,
-            proteina_meta_g: 150,
-            carboidrato_meta_g: 225,
-            gordura_meta_g: 55,
+            calorias_diarias: 2000,
+            proteina_g: 150,
+            carboidrato_g: 225,
+            gordura_g: 55,
+            data_inicio: new Date().toISOString().split('T')[0],
           });
         } catch (setupErr) {
           console.warn('[Cadastro] Configuração inicial pendente:', setupErr?.message);
@@ -230,7 +233,7 @@ export default function AuthScreen({ navigation }) {
   });
 
   return (
-    <SafeAreaView style={styles.containerTela}>
+    <SafeAreaView style={[styles.containerTela, { backgroundColor: cores.fundo }]}>
       
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 🌟 BANNER MARROM PRINCIPAL (ÚNICO, ANIMA DIRETAMENTE)       */}
@@ -271,39 +274,39 @@ export default function AuthScreen({ navigation }) {
             {/* Conteúdo Central */}
             <View style={styles.corpoWelcome}>
               <View style={styles.centroHeader}>
-                <Text style={styles.tituloBoasVindas}>Bem-vindo ao KaorCount!</Text>
-                <Text style={styles.subBoasVindas}>Controle suas calorias e macronutrientes com facilidade</Text>
+                <Text style={[styles.tituloBoasVindas, { color: cores.textoEscuro }]}>Bem-vindo ao KaorCount!</Text>
+                <Text style={[styles.subBoasVindas, { color: cores.textoSuave }]}>Controle suas calorias e macronutrientes com facilidade</Text>
               </View>
 
               {/* Destaques de Funcionalidades */}
               <View style={styles.listaFeatures}>
-                <View style={styles.cardFeature}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: '#FDF3E7' }]}>
-                    <Flame size={18} color={CORES.primaria} />
+                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
+                    <Flame size={18} color={cores.primaria} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.featureTitulo}>Contagem de Calorias</Text>
-                    <Text style={styles.featureDesc}>Registre refeições e acompanhe seu consumo diário</Text>
+                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Contagem de Calorias</Text>
+                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Registre refeições e acompanhe seu consumo diário</Text>
                   </View>
                 </View>
 
-                <View style={styles.cardFeature}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: '#FDF3E7' }]}>
-                    <Zap size={18} color={CORES.primaria} />
+                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
+                    <Zap size={18} color={cores.primaria} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.featureTitulo}>Macronutrientes</Text>
-                    <Text style={styles.featureDesc}>Proteínas, carbos e gorduras em tempo real</Text>
+                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Macronutrientes</Text>
+                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Proteínas, carbos e gorduras em tempo real</Text>
                   </View>
                 </View>
 
-                <View style={styles.cardFeature}>
-                  <View style={[styles.iconeFeatureBox, { backgroundColor: '#EBF4FE' }]}>
+                <View style={[styles.cardFeature, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <View style={[styles.iconeFeatureBox, { backgroundColor: isDark ? '#14253D' : '#EBF4FE' }]}>
                     <Droplets size={18} color="#2F80ED" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.featureTitulo}>Hidratação</Text>
-                    <Text style={styles.featureDesc}>Monitore sua ingestão de água diária</Text>
+                    <Text style={[styles.featureTitulo, { color: cores.textoEscuro }]}>Hidratação</Text>
+                    <Text style={[styles.featureDesc, { color: cores.textoSuave }]}>Monitore sua ingestão de água diária</Text>
                   </View>
                 </View>
               </View>
@@ -317,15 +320,15 @@ export default function AuthScreen({ navigation }) {
                 activeOpacity={0.8}
               >
                 <Text style={styles.txtBtnPrincipal}>Entrar na conta</Text>
-                <ArrowRight size={16} color={CORES.branco} style={{ marginLeft: 6 }} />
+                <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={styles.btnSecundario}
+                style={[styles.btnSecundario, { backgroundColor: cores.branco, borderColor: cores.primaria }]}
                 onPress={() => transicionarPara('register')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.txtBtnSecundario}>Criar conta grátis</Text>
+                <Text style={[styles.txtBtnSecundario, { color: cores.primaria }]}>Criar conta grátis</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -333,7 +336,7 @@ export default function AuthScreen({ navigation }) {
                 onPress={handleEntrarDemo}
                 activeOpacity={0.7}
               >
-                <Text style={styles.txtBtnDemo}>Entrar como convidado (demo)</Text>
+                <Text style={[styles.txtBtnDemo, { color: cores.textoSuave }]}>Entrar como convidado (demo)</Text>
               </TouchableOpacity>
             </View>
 
@@ -351,13 +354,13 @@ export default function AuthScreen({ navigation }) {
             {/* Header de Voltar */}
             <View style={styles.navBarTop}>
               <TouchableOpacity 
-                style={styles.btnVoltarCircular}
+                style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
                 onPress={() => transicionarPara('welcome')}
                 activeOpacity={0.7}
               >
-                <ChevronLeft size={20} color={CORES.textoEscuro} />
+                <ChevronLeft size={20} color={cores.textoEscuro} />
               </TouchableOpacity>
-              <Text style={styles.navBarTitulo}>Entrar</Text>
+              <Text style={[styles.navBarTitulo, { color: cores.textoEscuro }]}>Entrar</Text>
               <View style={{ width: 36 }} />
             </View>
 
@@ -371,12 +374,12 @@ export default function AuthScreen({ navigation }) {
                   style={styles.logoForm}
                   resizeMode="contain"
                 />
-                <Text style={styles.tituloForm}>Bem-vindo de volta!</Text>
-                <Text style={styles.subtituloForm}>Entre com suas credenciais</Text>
+                <Text style={[styles.tituloForm, { color: cores.textoEscuro }]}>Bem-vindo de volta!</Text>
+                <Text style={[styles.subtituloForm, { color: cores.textoSuave }]}>Entre com suas credenciais</Text>
               </View>
 
               {/* Card do Formulário */}
-              <View style={styles.cardFormulario}>
+              <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                 {erroMsg ? (
                   <View style={styles.bannerErro}>
                     <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
@@ -385,12 +388,12 @@ export default function AuthScreen({ navigation }) {
                 ) : null}
 
                 {/* Input E-mail */}
-                <View style={styles.inputContainer}>
-                  <Mail size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="E-mail"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={emailLogin}
                     onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); }}
                     keyboardType="email-address"
@@ -400,12 +403,12 @@ export default function AuthScreen({ navigation }) {
                 </View>
 
                 {/* Input Senha */}
-                <View style={styles.inputContainer}>
-                  <Lock size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="Senha"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={senhaLogin}
                     onChangeText={(t) => { setSenhaLogin(t); setErroMsg(''); }}
                     secureTextEntry={!mostrarSenhaLogin}
@@ -413,9 +416,9 @@ export default function AuthScreen({ navigation }) {
                   />
                   <TouchableOpacity onPress={() => setMostrarSenhaLogin(!mostrarSenhaLogin)}>
                     {mostrarSenhaLogin ? (
-                      <EyeOff size={18} color="#9C8E81" />
+                      <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
                     ) : (
-                      <Eye size={18} color="#9C8E81" />
+                      <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -428,32 +431,32 @@ export default function AuthScreen({ navigation }) {
                   activeOpacity={0.8}
                 >
                   {carregandoReq ? (
-                    <ActivityIndicator color={CORES.branco} />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <>
                       <Text style={styles.txtBtnPrincipal}>Entrar</Text>
-                      <ArrowRight size={16} color={CORES.branco} style={{ marginLeft: 6 }} />
+                      <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                     </>
                   )}
                 </TouchableOpacity>
 
-                <View style={styles.divisorLinha} />
+                <View style={[styles.divisorLinha, { backgroundColor: cores.borda }]} />
 
                 {/* Botão Demo */}
                 <TouchableOpacity 
-                  style={styles.btnDemoCard}
+                  style={[styles.btnDemoCard, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: cores.borda }]}
                   onPress={handleEntrarDemo}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.txtBtnDemoCard}>Entrar com conta de demonstração</Text>
+                  <Text style={[styles.txtBtnDemoCard, { color: cores.primaria }]}>Entrar com conta de demonstração</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Link para Cadastro */}
               <View style={styles.rodapeLink}>
-                <Text style={styles.txtRodapeLink}>Não tem conta? </Text>
+                <Text style={[styles.txtRodapeLink, { color: cores.textoSuave }]}>Não tem conta? </Text>
                 <TouchableOpacity onPress={() => transicionarPara('register')}>
-                  <Text style={styles.txtRodapeLinkDestaque}>Cadastre-se</Text>
+                  <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Cadastre-se</Text>
                 </TouchableOpacity>
               </View>
 
@@ -473,13 +476,13 @@ export default function AuthScreen({ navigation }) {
             {/* Header de Voltar */}
             <View style={styles.navBarTop}>
               <TouchableOpacity 
-                style={styles.btnVoltarCircular}
+                style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
                 onPress={() => transicionarPara('welcome')}
                 activeOpacity={0.7}
               >
-                <ChevronLeft size={20} color={CORES.textoEscuro} />
+                <ChevronLeft size={20} color={cores.textoEscuro} />
               </TouchableOpacity>
-              <Text style={styles.navBarTitulo}>Criar conta</Text>
+              <Text style={[styles.navBarTitulo, { color: cores.textoEscuro }]}>Criar conta</Text>
               <View style={{ width: 36 }} />
             </View>
 
@@ -493,12 +496,12 @@ export default function AuthScreen({ navigation }) {
                   style={styles.logoForm}
                   resizeMode="contain"
                 />
-                <Text style={styles.tituloForm}>Crie sua conta</Text>
-                <Text style={styles.subtituloForm}>Comece sua jornada nutricional</Text>
+                <Text style={[styles.tituloForm, { color: cores.textoEscuro }]}>Crie sua conta</Text>
+                <Text style={[styles.subtituloForm, { color: cores.textoSuave }]}>Comece sua jornada nutricional</Text>
               </View>
 
               {/* Card do Formulário */}
-              <View style={styles.cardFormulario}>
+              <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                 {erroMsg ? (
                   <View style={styles.bannerErro}>
                     <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
@@ -507,12 +510,12 @@ export default function AuthScreen({ navigation }) {
                 ) : null}
 
                 {/* Input Nome */}
-                <View style={styles.inputContainer}>
-                  <User size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="Seu nome completo"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={nome}
                     onChangeText={(t) => { setNome(t); setErroMsg(''); }}
                     editable={!carregandoReq}
@@ -520,12 +523,12 @@ export default function AuthScreen({ navigation }) {
                 </View>
 
                 {/* Input E-mail */}
-                <View style={styles.inputContainer}>
-                  <Mail size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="E-mail"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={email}
                     onChangeText={(t) => { setEmail(t); setErroMsg(''); }}
                     keyboardType="email-address"
@@ -535,12 +538,12 @@ export default function AuthScreen({ navigation }) {
                 </View>
 
                 {/* Input Senha */}
-                <View style={styles.inputContainer}>
-                  <Lock size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="Senha (mínimo 6 caracteres)"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={senha}
                     onChangeText={(t) => { setSenha(t); setErroMsg(''); }}
                     secureTextEntry={!mostrarSenhaCad}
@@ -548,20 +551,20 @@ export default function AuthScreen({ navigation }) {
                   />
                   <TouchableOpacity onPress={() => setMostrarSenhaCad(!mostrarSenhaCad)}>
                     {mostrarSenhaCad ? (
-                      <EyeOff size={18} color="#9C8E81" />
+                      <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
                     ) : (
-                      <Eye size={18} color="#9C8E81" />
+                      <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
                     )}
                   </TouchableOpacity>
                 </View>
 
                 {/* Input Confirmar Senha */}
-                <View style={styles.inputContainer}>
-                  <Lock size={18} color="#9C8E81" style={{ marginRight: 10 }} />
+                <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                  <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                   <TextInput 
-                    style={styles.inputText}
+                    style={[styles.inputText, { color: cores.textoEscuro }]}
                     placeholder="Confirmar senha"
-                    placeholderTextColor="#9C8E81"
+                    placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                     value={confirmarSenha}
                     onChangeText={(t) => { setConfirmarSenha(t); setErroMsg(''); }}
                     secureTextEntry={!mostrarSenhaCad}
@@ -577,22 +580,23 @@ export default function AuthScreen({ navigation }) {
                   activeOpacity={0.8}
                 >
                   {carregandoReq ? (
-                    <ActivityIndicator color={CORES.branco} />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <>
                       <Text style={styles.txtBtnPrincipal}>Criar conta</Text>
-                      <ArrowRight size={16} color={CORES.branco} style={{ marginLeft: 6 }} />
+                      <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                     </>
                   )}
                 </TouchableOpacity>
-              </View>
 
-              {/* Link para Login */}
-              <View style={styles.rodapeLink}>
-                <Text style={styles.txtRodapeLink}>Já tem conta? </Text>
-                <TouchableOpacity onPress={() => transicionarPara('login')}>
-                  <Text style={styles.txtRodapeLinkDestaque}>Faça login</Text>
-                </TouchableOpacity>
+                {/* Link para Login */}
+                <View style={styles.rodapeLink}>
+                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave }]}>Já tem uma conta? </Text>
+                  <TouchableOpacity onPress={() => transicionarPara('login')}>
+                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Entrar</Text>
+                  </TouchableOpacity>
+                </View>
+
               </View>
 
             </View>
@@ -636,11 +640,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#85461e',
     borderBottomLeftRadius: 42,
     borderBottomRightRadius: 42,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 20,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 10px 16px rgba(0, 0, 0, 0.22)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.22,
+        shadowRadius: 16,
+        elevation: 20,
+      },
+    }),
     zIndex: 999,
     justifyContent: 'center',
     alignItems: 'center',

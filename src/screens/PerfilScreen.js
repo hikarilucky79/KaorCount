@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -11,9 +11,13 @@ import {
   TextInput,
   RefreshControl,
   Platform,
-  Alert
+  Alert,
+  Animated,
+  Easing
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
+import useTheme from '../hooks/useTheme';
 import { 
   PencilLine, 
   BookOpenText, 
@@ -44,6 +48,7 @@ import * as usuarioApi from '../api/usuarioApi';
 
 export default function PerfilScreen({ navigation }) {
   const { usuario, atualizarUsuario } = useAuth();
+  const { cores, isDark, toggleTema } = useTheme();
 
   // ↓ Estados para dados da API
   const [carregando, setCarregando] = useState(true);
@@ -123,7 +128,7 @@ export default function PerfilScreen({ navigation }) {
   // ↓ Estatísticas
   const diasRegistrados = resumo?.dias_registrados || resumo?.streak_dias || 0;
   const mediaCalorica = resumo?.calorias_consumidas || 0;
-  const metaCalorica = metaAtual?.calorias_meta || 0;
+  const metaCalorica = metaAtual?.calorias_diarias || metaAtual?.calorias_meta || 0;
 
   // ───────────────────────────────────────────────────────────
   // ↓ Carregar dados da API
@@ -137,8 +142,11 @@ export default function PerfilScreen({ navigation }) {
     }
 
     try {
-      if (isRefresh) setAtualizando(true);
-      else setCarregando(true);
+      if (isRefresh) {
+        setAtualizando(true);
+      } else if (!perfilNutri) {
+        setCarregando(true);
+      }
 
       const [resPerfil, resProgresso, resMeta, resResumo] = await Promise.allSettled([
         perfilNutriApi.buscarPerfil(idUsuario),
@@ -161,9 +169,26 @@ export default function PerfilScreen({ navigation }) {
     }
   }, [usuario]);
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+  // ───────────────────────────────────────────────────────────
+  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
+  // ───────────────────────────────────────────────────────────
+  const animEntrada = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+      animEntrada.setValue(0);
+      Animated.timing(animEntrada, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, [carregarDados])
+  );
+
+  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Formatação de máscara simples para data DD/MM/AAAA
@@ -319,12 +344,14 @@ export default function PerfilScreen({ navigation }) {
       const dist = macrosMap[objetivoEdit] || macrosMap.manter_peso;
 
       try {
+        const dataHoje = new Date().toISOString().split('T')[0];
         await metaNutriApi.criar({
           id_usuario: idUsuario,
-          calorias_meta: cals,
-          proteina_meta_g: Math.round((cals * dist.prot) / 4),
-          carboidrato_meta_g: Math.round((cals * dist.carb) / 4),
-          gordura_meta_g: Math.round((cals * dist.gord) / 9),
+          calorias_diarias: cals,
+          proteina_g: Math.round((cals * dist.prot) / 4),
+          carboidrato_g: Math.round((cals * dist.carb) / 4),
+          gordura_g: Math.round((cals * dist.gord) / 9),
+          data_inicio: dataHoje,
         });
       } catch (errMeta) {
         console.warn('[Perfil] Erro ao atualizar meta:', errMeta?.message);
@@ -342,49 +369,50 @@ export default function PerfilScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: CORES.fundo }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView 
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={atualizando}
             onRefresh={() => carregarDados(true)}
-            colors={[CORES.primaria]}
-            tintColor={CORES.primaria}
+            colors={[cores.primaria]}
+            tintColor={cores.primaria}
           />
         }
       >
         
         {/* ↓ Cabeçalho do Perfil */}
+        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
         <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 }]}>
-          <Text style={styles.tituloSecaoTop}>Meu Perfil</Text>
+          <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro }]}>Meu Perfil</Text>
         </View>
 
-        {/* ↓ Loading */}
-        {carregando ? (
+        {/* ↓ Loading (apenas no carregamento inicial) */}
+        {carregando && !perfilNutri ? (
           <View style={{ alignItems: 'center', padding: 20 }}>
-            <ActivityIndicator size="large" color={CORES.primaria} />
+            <ActivityIndicator size="large" color={cores.primaria} />
           </View>
         ) : null}
 
         {/* ↓ Bloco do Usuário */}
-        <View style={styles.cardPerfilSuperior}>
+        <View style={[styles.cardPerfilSuperior, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={styles.avatarLetra}><Text style={styles.textoLetra}>{inicialNome}</Text></View>
             <View style={{ marginLeft: 15, flex: 1 }}>
-              <Text style={styles.nomePerfil}>{nomeCompleto}</Text>
-              <Text style={styles.emailPerfil}>{emailUsuario}</Text>
-              <Text style={styles.subInfoPerfil}>{idadeTexto}  •  {objetivoTexto}</Text>
+              <Text style={[styles.nomePerfil, { color: cores.textoEscuro }]}>{nomeCompleto}</Text>
+              <Text style={[styles.emailPerfil, { color: cores.textoSuave }]}>{emailUsuario}</Text>
+              <Text style={[styles.subInfoPerfil, { color: cores.textoSuave }]}>{idadeTexto}  •  {objetivoTexto}</Text>
             </View>
             
             {/* Botão Editar funcional */}
             <TouchableOpacity 
-              style={styles.botaoEditar}
+              style={[styles.botaoEditar, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
               onPress={abrirModalEdicao}
               activeOpacity={0.7}
             >
-              <PencilLine color={CORES.primaria} size={14} style={{ marginRight: 5 }} />
-              <Text style={styles.textoEditar}>Editar</Text>
+              <PencilLine color={cores.primaria} size={14} style={{ marginRight: 5 }} />
+              <Text style={[styles.textoEditar, { color: cores.primaria }]}>Editar</Text>
             </TouchableOpacity>
           </View>
 
@@ -394,17 +422,17 @@ export default function PerfilScreen({ navigation }) {
             onPress={abrirModalEdicao}
             activeOpacity={0.8}
           >
-            <View style={styles.blocoMedida}>
-              <Text style={styles.medidaValor}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
-              <Text style={styles.medidaRotulo}>Peso</Text>
+            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
+              <Text style={[styles.medidaValor, { color: cores.textoEscuro }]}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
+              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>Peso</Text>
             </View>
-            <View style={styles.blocoMedida}>
+            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <Text style={[styles.medidaValor, { color: '#2D9CDB' }]}>{alturaCm > 0 ? `${alturaCm}cm` : '—'}</Text>
-              <Text style={styles.medidaRotulo}>Altura</Text>
+              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>Altura</Text>
             </View>
-            <View style={styles.blocoMedida}>
+            <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <Text style={[styles.medidaValor, { color: statusIMC.cor }]}>{alturaM > 0 && pesoKg > 0 ? imc : '—'}</Text>
-              <Text style={styles.medidaRotulo}>IMC</Text>
+              <Text style={[styles.medidaRotulo, { color: cores.textoSuave }]}>IMC</Text>
             </View>
           </TouchableOpacity>
 
@@ -413,10 +441,10 @@ export default function PerfilScreen({ navigation }) {
             <TouchableOpacity 
               onPress={abrirModalEdicao} 
               activeOpacity={0.7}
-              style={styles.btnCompletarPerfil}
+              style={[styles.btnCompletarPerfil, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
             >
-              <Text style={styles.txtCompletarPerfil}>Complete seu perfil</Text>
-              <ChevronRight size={15} color={CORES.primaria} style={{ marginLeft: 4 }} />
+              <Text style={[styles.txtCompletarPerfil, { color: cores.primaria }]}>Complete seu perfil</Text>
+              <ChevronRight size={15} color={cores.primaria} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           ) : null}
 
@@ -432,42 +460,43 @@ export default function PerfilScreen({ navigation }) {
         </View>
 
         {/* ↓ Seção Estatísticas */}
-        <Text style={styles.secaoTitulo}>ESTATÍSTICAS</Text>
-        <View style={styles.cardEstatisticaContainer}>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave }]}>ESTATÍSTICAS</Text>
+        <View style={[styles.cardEstatisticaContainer, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
           <View style={styles.rowGrid}>
-            <View style={styles.miniCardEstatistica}>
+            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <BookOpenText color={CORES.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.estatisticaIcone}>Dias registrados</Text>
+                <BookOpenText color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Dias registrados</Text>
               </View>
-              <Text style={[styles.estatisticaNumero, { color: CORES.sucesso }]}>{diasRegistrados}</Text>
+              <Text style={[styles.estatisticaNumero, { color: cores.sucesso }]}>{diasRegistrados}</Text>
             </View>
-            <View style={styles.miniCardEstatistica}>
+            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Flame color={CORES.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.estatisticaIcone}>Média calórica</Text>
+                <Flame color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Média calórica</Text>
               </View>
-              <Text style={[styles.estatisticaNumero, { color: CORES.primaria }]}>{Math.round(mediaCalorica)} kcal</Text>
+              <Text style={[styles.estatisticaNumero, { color: cores.primaria }]}>{Math.round(mediaCalorica)} kcal</Text>
             </View>
           </View>
 
           <View style={styles.rowGrid}>
-            <View style={styles.miniCardEstatistica}>
+            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Target color={CORES.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.estatisticaIcone}>Meta calórica</Text>
+                <Target color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Meta calórica</Text>
               </View>
               <Text style={[styles.estatisticaNumero, { color: '#2D9CDB' }]}>{metaCalorica > 0 ? `${metaCalorica} kcal` : '—'}</Text>
             </View>
-            <View style={styles.miniCardEstatistica}>
+            <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ChartNoAxesCombined color={CORES.primaria} size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.estatisticaIcone}>Objetivo</Text>
+                <ChartNoAxesCombined color={cores.primaria} size={14} style={{ marginRight: 4 }} />
+                <Text style={[styles.estatisticaIcone, { color: cores.textoSuave }]}>Objetivo</Text>
               </View>
-              <Text style={[styles.estatisticaNumero, { color: CORES.primaria }]}>{objetivoTexto}</Text>
+              <Text style={[styles.estatisticaNumero, { color: cores.primaria }]}>{objetivoTexto}</Text>
             </View>
           </View>
         </View>
+        </Animated.View>
 
       </ScrollView>
 
@@ -481,17 +510,17 @@ export default function PerfilScreen({ navigation }) {
         onRequestClose={() => setModalVisivel(false)}
       >
         <View style={styles.fundoModal}>
-          <View style={styles.cardModal}>
+          <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
             
             {/* Header do Modal */}
-            <View style={styles.headerModal}>
-              <Text style={styles.tituloModal}>Editar Perfil</Text>
+            <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
+              <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>Editar Perfil</Text>
               <TouchableOpacity 
                 onPress={() => setModalVisivel(false)} 
-                style={styles.btnFecharModal}
+                style={[styles.btnFecharModal, { backgroundColor: isDark ? '#2E2E2E' : '#FDF8F2', borderColor: isDark ? '#3E3E3E' : '#E8DDD0', borderWidth: 1 }]}
                 activeOpacity={0.7}
               >
-                <X size={20} color={CORES.textoEscuro} />
+                <X size={20} color={cores.textoEscuro} />
               </TouchableOpacity>
             </View>
 
@@ -509,13 +538,13 @@ export default function PerfilScreen({ navigation }) {
               contentContainerStyle={{ paddingBottom: 25 }}
             >
               {/* Campo Nome Completo */}
-              <Text style={styles.labelForm}>Nome Completo</Text>
-              <View style={styles.inputContainer}>
-                <User size={18} color="#9C8E81" style={{ marginRight: 8 }} />
+              <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nome Completo</Text>
+              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={styles.inputModal}
+                  style={[styles.inputModal, { color: cores.textoEscuro }]}
                   placeholder="Seu nome completo"
-                  placeholderTextColor="#9C8E81"
+                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                   value={nomeEdit}
                   onChangeText={(t) => { setNomeEdit(t); setErroModal(''); }}
                 />
@@ -524,13 +553,13 @@ export default function PerfilScreen({ navigation }) {
               {/* Linha Peso e Altura */}
               <View style={styles.rowForm}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.labelForm}>Peso (kg)</Text>
-                  <View style={styles.inputContainer}>
-                    <Weight size={18} color="#9C8E81" style={{ marginRight: 8 }} />
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso (kg)</Text>
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Weight size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={styles.inputModal}
+                      style={[styles.inputModal, { color: cores.textoEscuro }]}
                       placeholder="Ex: 75.5"
-                      placeholderTextColor="#9C8E81"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       keyboardType="numeric"
                       value={pesoEdit}
                       onChangeText={(t) => { setPesoEdit(t); setErroModal(''); }}
@@ -539,13 +568,13 @@ export default function PerfilScreen({ navigation }) {
                 </View>
 
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.labelForm}>Altura (cm)</Text>
-                  <View style={styles.inputContainer}>
-                    <Ruler size={18} color="#9C8E81" style={{ marginRight: 8 }} />
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura (cm)</Text>
+                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                    <Ruler size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={styles.inputModal}
+                      style={[styles.inputModal, { color: cores.textoEscuro }]}
                       placeholder="Ex: 175"
-                      placeholderTextColor="#9C8E81"
+                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       keyboardType="numeric"
                       value={alturaEdit}
                       onChangeText={(t) => { setAlturaEdit(t); setErroModal(''); }}
@@ -555,22 +584,22 @@ export default function PerfilScreen({ navigation }) {
               </View>
 
               {/* Data de Nascimento */}
-              <Text style={styles.labelForm}>Data de Nascimento (DD/MM/AAAA)</Text>
-              <View style={styles.inputContainer}>
-                <Calendar size={18} color="#9C8E81" style={{ marginRight: 8 }} />
+              <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Data de Nascimento (DD/MM/AAAA)</Text>
+              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                <Calendar size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                 <TextInput
                   value={dataNascEdit}
                   onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroModal(''); }}
                   placeholder="Ex: 15/08/1998"
-                  placeholderTextColor="#9C8E81"
-                  style={styles.inputModal}
+                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                  style={[styles.inputModal, { color: cores.textoEscuro }]}
                   keyboardType="numeric"
                   maxLength={10}
                 />
               </View>
 
               {/* Seleção de Gênero */}
-              <Text style={styles.labelForm}>Gênero</Text>
+              <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Gênero</Text>
               <View style={styles.selectorRow}>
                 {[
                   { id: 'masculino', label: 'Masculino' },
@@ -580,11 +609,19 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      style={[styles.chipOpcao, selecionado && styles.chipOpcaoAtiva]}
+                      style={[
+                        styles.chipOpcao, 
+                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
+                        selecionado && [styles.chipOpcaoAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                      ]}
                       onPress={() => setGeneroEdit(item.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.chipTexto, selecionado && styles.chipTextoAtivo]}>
+                      <Text style={[
+                        styles.chipTexto, 
+                        { color: isDark ? '#B8A89A' : cores.textoSuave },
+                        selecionado && [styles.chipTextoAtivo, { color: cores.primaria }]
+                      ]}>
                         {item.label}
                       </Text>
                     </TouchableOpacity>
@@ -593,7 +630,7 @@ export default function PerfilScreen({ navigation }) {
               </View>
 
               {/* Seleção de Objetivo */}
-              <Text style={styles.labelForm}>Objetivo Nutricional</Text>
+              <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Objetivo Nutricional</Text>
               <View style={styles.selectorCol}>
                 {[
                   { id: 'perder_peso', label: 'Perder peso (Déficit calórico)', icone: Flame },
@@ -605,28 +642,36 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      style={[styles.opcaoCard, selecionado && styles.opcaoCardAtiva]}
+                      style={[
+                        styles.opcaoCard, 
+                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                      ]}
                       onPress={() => setObjetivoEdit(item.id)}
                       activeOpacity={0.7}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? CORES.primaria : '#9C8E81'} 
+                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
                           style={{ marginRight: 10 }} 
                         />
-                        <Text style={[styles.opcaoTexto, selecionado && styles.opcaoTextoAtiva]}>
+                        <Text style={[
+                          styles.opcaoTexto, 
+                          { color: cores.textoEscuro },
+                          selecionado && [styles.opcaoTextoAtiva, { color: cores.primaria }]
+                        ]}>
                           {item.label}
                         </Text>
                       </View>
-                      {selecionado ? <Check size={18} color={CORES.primaria} /> : null}
+                      {selecionado ? <Check size={18} color={cores.primaria} /> : null}
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
               {/* Nível de Atividade */}
-              <Text style={styles.labelForm}>Nível de Atividade</Text>
+              <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nível de Atividade</Text>
               <View style={styles.selectorCol}>
                 {[
                   { id: 'sedentario', label: 'Sedentário (pouco ou nenhum exercício)', icone: Armchair },
@@ -639,21 +684,29 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      style={[styles.opcaoCard, selecionado && styles.opcaoCardAtiva]}
+                      style={[
+                        styles.opcaoCard, 
+                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                      ]}
                       onPress={() => setNivelAtividadeEdit(item.id)}
                       activeOpacity={0.7}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? CORES.primaria : '#9C8E81'} 
+                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
                           style={{ marginRight: 10 }} 
                         />
-                        <Text style={[styles.opcaoTexto, selecionado && styles.opcaoTextoAtiva]}>
+                        <Text style={[
+                          styles.opcaoTexto, 
+                          { color: cores.textoEscuro },
+                          selecionado && [styles.opcaoTextoAtiva, { color: cores.primaria }]
+                        ]}>
                           {item.label}
                         </Text>
                       </View>
-                      {selecionado ? <Check size={18} color={CORES.primaria} /> : null}
+                      {selecionado ? <Check size={18} color={cores.primaria} /> : null}
                     </TouchableOpacity>
                   );
                 })}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   StyleSheet, 
   Text, 
@@ -12,38 +13,19 @@ import {
   TextInput, 
   FlatList,
   RefreshControl,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
-import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, Search, Check, ChevronLeft, ChevronRight, Scale, Apple } from 'lucide-react-native';
+import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, Search, Check, ChevronLeft, ChevronRight, Scale, Apple, Sun, Moon } from 'lucide-react-native';
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
+import useTheme from '../hooks/useTheme';
 import * as refeicaoApi from '../api/refeicaoApi';
 import * as registroAguaApi from '../api/registroAguaApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import * as alimentoApi from '../api/alimentoApi';
 import * as fatsecretApi from '../api/fatsecretApi';
-
-// ↓ Alimentos comuns pré-cadastrados da biblioteca do KaorCount
-const ALIMENTOS_PREDEFINIDOS = [
-  { id: 'p1', nome_alimento: 'Peito de Frango (grelhado)', porcao_padrao_g: 100, calorias: 165, proteinas: 31, carboidratos: 0, gorduras: 3.6 },
-  { id: 'p2', nome_alimento: 'Arroz Branco (cozido)', porcao_padrao_g: 100, calorias: 130, proteinas: 2.7, carboidratos: 28, gorduras: 0.3 },
-  { id: 'p3', nome_alimento: 'Feijão Preto (cozido)', porcao_padrao_g: 100, calorias: 132, proteinas: 8.9, carboidratos: 24, gorduras: 0.5 },
-  { id: 'p4', nome_alimento: 'Ovo Cozido', porcao_padrao_g: 100, calorias: 155, proteinas: 13, carboidratos: 1.1, gorduras: 11 },
-  { id: 'p5', nome_alimento: 'Banana Prata', porcao_padrao_g: 100, calorias: 89, proteinas: 1.1, carboidratos: 23, gorduras: 0.3 },
-  { id: 'p6', nome_alimento: 'Aveia em Flocos', porcao_padrao_g: 100, calorias: 389, proteinas: 17, carboidratos: 66, gorduras: 7 },
-  { id: 'p7', nome_alimento: 'Iogurte Grego (0%)', porcao_padrao_g: 100, calorias: 59, proteinas: 10, carboidratos: 3.6, gorduras: 0.4 },
-  { id: 'p8', nome_alimento: 'Salmão (assado)', porcao_padrao_g: 100, calorias: 208, proteinas: 20, carboidratos: 0, gorduras: 13 },
-  { id: 'p9', nome_alimento: 'Batata Doce (assada)', porcao_padrao_g: 100, calorias: 90, proteinas: 2, carboidratos: 20, gorduras: 0.1 },
-  { id: 'p10', nome_alimento: 'Whey Protein', porcao_padrao_g: 30, calorias: 120, proteinas: 24, carboidratos: 3, gorduras: 1.5 },
-  { id: 'p11', nome_alimento: 'Amêndoas', porcao_padrao_g: 100, calorias: 579, proteinas: 21, carboidratos: 22, gorduras: 50 },
-  { id: 'p12', nome_alimento: 'Leite Integral', porcao_padrao_g: 100, calorias: 61, proteinas: 3.2, carboidratos: 4.8, gorduras: 3.3 },
-  { id: 'p13', nome_alimento: 'Maçã Fuji', porcao_padrao_g: 100, calorias: 52, proteinas: 0.3, carboidratos: 14, gorduras: 0.2 },
-  { id: 'p14', nome_alimento: 'Brócolis (cozido)', porcao_padrao_g: 100, calorias: 35, proteinas: 2.4, carboidratos: 7.2, gorduras: 0.4 },
-  { id: 'p15', nome_alimento: 'Azeite de Oliva', porcao_padrao_g: 13, calorias: 119, proteinas: 0, carboidratos: 0, gorduras: 13.5 },
-  { id: 'p16', nome_alimento: 'Pão Integral', porcao_padrao_g: 50, calorias: 124, proteinas: 6.5, carboidratos: 20.5, gorduras: 1.7 },
-  { id: 'p17', nome_alimento: 'Queijo Minas', porcao_padrao_g: 30, calorias: 79, proteinas: 5.2, carboidratos: 1, gorduras: 6 },
-  { id: 'p18', nome_alimento: 'Carne Moída (Patinho)', porcao_padrao_g: 100, calorias: 133, proteinas: 21.5, carboidratos: 0, gorduras: 4.5 },
-];
 
 const formatarDataAPI = (data) => {
   const ano = data.getFullYear();
@@ -52,10 +34,14 @@ const formatarDataAPI = (data) => {
   return `${ano}-${mes}-${dia}`;
 };
 
+const normalizarTexto = (txt) => 
+  (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 export default function DiarioAlimentar({ navigation }) {
   const { usuario } = useAuth();
-  
-  // ↓ Estados locais
+  const { cores, isDark } = useTheme();
+
+  // ↓ Estados da Tela
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [refeicoes, setRefeicoes] = useState([]);
   const [macros, setMacros] = useState(null);
@@ -92,10 +78,10 @@ export default function DiarioAlimentar({ navigation }) {
     dataSelecionada.getFullYear() === hoje.getFullYear();
 
   // ↓ Metas
-  const metaCalorias = metaAtual?.calorias_meta || 1800;
-  const metaProteina = metaAtual?.proteina_meta_g || 140;
-  const metaCarboidrato = metaAtual?.carboidrato_meta_g || 180;
-  const metaGordura = metaAtual?.gordura_meta_g || 55;
+  const metaCalorias = metaAtual?.calorias_diarias || metaAtual?.calorias_meta || 1800;
+  const metaProteina = metaAtual?.proteina_g || metaAtual?.proteina_meta_g || 140;
+  const metaCarboidrato = metaAtual?.carboidrato_g || metaAtual?.carboidrato_meta_g || 180;
+  const metaGordura = metaAtual?.gordura_g || metaAtual?.gordura_meta_g || 55;
   const metaAgua = 2500;
 
   // ↓ Totais de macros (calculados a partir das refeições e itens carregados)
@@ -143,6 +129,37 @@ export default function DiarioAlimentar({ navigation }) {
   const pctProteina = metaProteina > 0 ? Math.min((totais.proteina / metaProteina) * 100, 100) : 0;
   const pctCarboidrato = metaCarboidrato > 0 ? Math.min((totais.carboidrato / metaCarboidrato) * 100, 100) : 0;
   const pctGordura = metaGordura > 0 ? Math.min((totais.gordura / metaGordura) * 100, 100) : 0;
+  const pctAgua = Math.min((agua / metaAgua) * 100, 100);
+
+  // ↓ Animação das barras de progresso (aumentam suavemente a partir do valor atual sem resetar para 0)
+  const animBarraProteina = useRef(new Animated.Value(0)).current;
+  const animBarraCarboidrato = useRef(new Animated.Value(0)).current;
+  const animBarraGordura = useRef(new Animated.Value(0)).current;
+  const animBarraAgua = useRef(new Animated.Value(0)).current;
+
+  // Animação dos macros (2 segundos)
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+    ]).start();
+  }, [pctProteina, pctCarboidrato, pctGordura]);
+
+  // Animação da água (2 segundos): apenas aumenta/ajusta suavemente sem voltar ao início
+  useEffect(() => {
+    Animated.timing(animBarraAgua, {
+      toValue: pctAgua,
+      duration: 1500,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [pctAgua]);
+
+  const larguraBarraProteina = animBarraProteina.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+  const larguraBarraCarboidrato = animBarraCarboidrato.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+  const larguraBarraGordura = animBarraGordura.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
+  const larguraBarraAgua = animBarraAgua.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
 
   // ↓ Agrupar refeições por tipo
   const refeicoesPorTipo = {
@@ -185,8 +202,11 @@ export default function DiarioAlimentar({ navigation }) {
     }
 
     try {
-      if (isRefresh) setAtualizando(true);
-      else setCarregando(true);
+      if (isRefresh) {
+        setAtualizando(true);
+      } else if (!refeicoes || refeicoes.length === 0) {
+        setCarregando(true);
+      }
 
       const dataStr = formatarDataAPI(dataSelecionada);
 
@@ -209,67 +229,40 @@ export default function DiarioAlimentar({ navigation }) {
     }
   }, [usuario?.id_usuario, dataSelecionada]);
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+  // ───────────────────────────────────────────────────────────
+  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
+  // ───────────────────────────────────────────────────────────
+  const animEntrada = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+      animEntrada.setValue(0);
+      Animated.timing(animEntrada, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, [carregarDados])
+  );
+
+  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
+  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-35, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
-  // ↓ Busca dinâmica integrada com FatSecret e Catálogo Local
+  // ↓ Animação Direcional ao Mudar de Dia (< e >)
   // ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    const q = busca.trim().toLowerCase();
-    if (!q) {
-      setAlimentosBuscados([]);
-      setBuscandoExterna(false);
-      return;
-    }
+  const animSlideDia = useRef(new Animated.Value(0)).current;
+  const animFadeDia = useRef(new Animated.Value(1)).current;
+  const [animandoDia, setAnimandoDia] = useState(false);
 
-    // 1. Filtrar catálogo local imediatamente para feedback instantâneo
-    const locais = ALIMENTOS_PREDEFINIDOS.filter(a =>
-      a.nome_alimento.toLowerCase().includes(q)
-    );
-    setAlimentosBuscados(locais);
-
-    // 2. Debounce de 350ms para chamar a API externa do FatSecret
-    const timer = setTimeout(async () => {
-      if (q.length >= 2) {
-        setBuscandoExterna(true);
-        try {
-          const res = await fatsecretApi.buscarAlimentos(busca.trim(), 0, 25);
-          if (res?.alimentos && res.alimentos.length > 0) {
-            const nomesExistentes = new Set(locais.map(l => l.nome_alimento.toLowerCase()));
-            const novos = res.alimentos.filter(a => !nomesExistentes.has(a.nome_alimento.toLowerCase()));
-            setAlimentosBuscados([...locais, ...novos]);
-          }
-        } catch (err) {
-          // Fallback se FatSecret falhar: buscar no backend local
-          try {
-            const resLocal = await alimentoApi.buscarPorNome(busca.trim(), 25);
-            if (resLocal && resLocal.length > 0) {
-              const nomesExistentes = new Set(locais.map(l => l.nome_alimento.toLowerCase()));
-              const novos = resLocal.filter(a => !nomesExistentes.has(a.nome_alimento.toLowerCase()));
-              setAlimentosBuscados([...locais, ...novos]);
-            }
-          } catch (e2) {
-            console.warn('[Diário] Erro ao buscar alimentos externamente:', err?.message);
-          }
-        } finally {
-          setBuscandoExterna(false);
-        }
-      }
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [busca]);
-
-  // ───────────────────────────────────────────────────────────
-  // ↓ Navegação de data (bloqueada para dias futuros)
-  // ───────────────────────────────────────────────────────────
-  const mudarData = (dias) => {
-    if (dias > 0 && ehHoje) return;
+  const mudarData = (diasOffset) => {
+    if (animandoDia) return;
+    if (diasOffset > 0 && ehHoje) return;
 
     const novaData = new Date(dataSelecionada);
-    novaData.setDate(novaData.getDate() + dias);
+    novaData.setDate(novaData.getDate() + diasOffset);
 
     const hojeZero = new Date();
     hojeZero.setHours(0, 0, 0, 0);
@@ -278,8 +271,83 @@ export default function DiarioAlimentar({ navigation }) {
 
     if (novaDataZero > hojeZero) return;
 
-    setDataSelecionada(novaData);
+    setAnimandoDia(true);
+
+    // Se clicar na seta esquerda (<), sai para a ESQUERDA (-50) e entra pela DIREITA (+50)
+    // Se clicar na seta direita (>), sai para a DIREITA (+50) e entra pela ESQUERDA (-50)
+    const direcaoSaida = diasOffset < 0 ? -50 : 50;
+    const direcaoEntrada = diasOffset < 0 ? 50 : -50;
+
+    Animated.parallel([
+      Animated.timing(animSlideDia, {
+        toValue: direcaoSaida,
+        duration: 160,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(animFadeDia, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setDataSelecionada(novaData);
+
+      animSlideDia.setValue(direcaoEntrada);
+      Animated.parallel([
+        Animated.timing(animSlideDia, {
+          toValue: 0,
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(animFadeDia, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setAnimandoDia(false);
+      });
+    });
   };
+
+  // ───────────────────────────────────────────────────────────
+  // ↓ Busca dinâmica integrada com FatSecret API
+  // ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const q = busca.trim();
+
+    if (!q) {
+      setAlimentosBuscados([]);
+      setBuscandoExterna(false);
+      return;
+    }
+
+    setBuscandoExterna(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fatsecretApi.buscarAlimentos(q, 0, 30);
+        if (res?.alimentos && res.alimentos.length > 0) {
+          setAlimentosBuscados(res.alimentos);
+        } else {
+          setAlimentosBuscados([]);
+        }
+      } catch (err) {
+        try {
+          const resLocal = await alimentoApi.buscarPorNome(q, 30);
+          setAlimentosBuscados(resLocal || []);
+        } catch (e2) {
+          console.warn('[Diário] Erro ao buscar alimentos:', err?.message);
+          setAlimentosBuscados([]);
+        }
+      } finally {
+        setBuscandoExterna(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [busca]);
 
   // ───────────────────────────────────────────────────────────
   // ↓ Hidratação (+150, +250, +350)
@@ -353,7 +421,10 @@ export default function DiarioAlimentar({ navigation }) {
       
       const precisaCriar = 
         alimentoSelecionado.origem_dados === 'FatSecret' ||
-        typeof idAlimentoReal === 'string' && (idAlimentoReal.startsWith('p') || !idAlimentoReal.includes('-'));
+        alimentoSelecionado.origem_dados === 'Catálogo Brasileiro' ||
+        alimentoSelecionado.origem_dados === 'Tabela Brasileira' ||
+        alimentoSelecionado.origem_dados === 'Tabela TACO' ||
+        typeof idAlimentoReal === 'string' && (idAlimentoReal.startsWith('taco_') || idAlimentoReal.startsWith('br_') || idAlimentoReal.startsWith('p') || idAlimentoReal.startsWith('fallback_') || !idAlimentoReal.includes('-'));
 
       if (precisaCriar) {
         try {
@@ -480,22 +551,29 @@ export default function DiarioAlimentar({ navigation }) {
     const todosItens = lista.flatMap(ref => ref.itens || []);
 
     return (
-      <View style={styles.cardRefeicao} key={tipo}>
+      <View style={[styles.cardRefeicao, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]} key={tipo}>
         <View style={styles.headerRefeicao}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <IconeComp size={20} color={CORES.textoEscuro} />
-            <Text style={[styles.refeicaoTituloTexto, { marginLeft: 10 }]}>
-              {config.titulo}  •  <Text style={{ fontWeight: 'normal', fontSize: 13, color: CORES.textoSuave }}>{calsTipo} kcal</Text>
+            <IconeComp size={20} color={cores.textoEscuro} />
+            <Text style={[styles.refeicaoTituloTexto, { marginLeft: 10, color: cores.textoEscuro }]}>
+              {config.titulo}  •  <Text style={{ fontWeight: 'normal', fontSize: 13, color: cores.textoSuave }}>{calsTipo} kcal</Text>
             </Text>
           </View>
           
           {/* Botão + funcional para abrir modal */}
           <TouchableOpacity 
-            style={styles.botaoAddRefeicao}
+            style={[
+              styles.botaoAddRefeicao, 
+              { 
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.35)' : '#EADCC9',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FDF8F2',
+              }
+            ]}
             onPress={() => abrirModalAdicionar(tipo)}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Plus size={16} color={CORES.primaria} />
+            <Plus size={16} color={cores.primaria} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         
@@ -513,42 +591,45 @@ export default function DiarioAlimentar({ navigation }) {
             return (
               <View 
                 key={item.id_refeicao_item || item.id_item_refeicao || idx} 
-                style={[styles.linhaAlimento, idx === todosItens.length - 1 && { borderBottomWidth: 0 }]}
+                style={[styles.linhaAlimento, { borderBottomColor: cores.borda }, idx === todosItens.length - 1 && { borderBottomWidth: 0 }]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.nomeAlimento}>{alimentoNome}</Text>
-                  <Text style={styles.detalheAlimento}>
+                  <Text style={[styles.nomeAlimento, { color: cores.textoEscuro }]}>{alimentoNome}</Text>
+                  <Text style={[styles.detalheAlimento, { color: cores.textoSuave }]}>
                     {qtdG}g  •  P{prot}g  C{carb}g  G{gord}g
                   </Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.caloriaAlimento}>{cal} <Text style={styles.kcalMini}>kcal</Text></Text>
+                  <Text style={[styles.caloriaAlimento, { color: cores.textoEscuro }]}>{cal} <Text style={styles.kcalMini}>kcal</Text></Text>
                   
                   {/* Botão de remover item */}
                   <TouchableOpacity 
-                    style={styles.btnRemoverItem}
+                    style={[
+                      styles.btnRemoverItem,
+                      {
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.35)' : '#FEB2B2',
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FFF5F5',
+                      }
+                    ]}
                     onPress={() => removerItem(item.id_refeicao_item || item.id_item_refeicao)}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Trash2 size={15} color="#EB5757" />
+                    <Trash2 size={15} color="#FF5C5C" />
                   </TouchableOpacity>
                 </View>
               </View>
             );
           })
         ) : (
-          <Text style={styles.textoVazioRefeicao}>
+          <Text style={[styles.textoVazioRefeicao, { color: cores.textoSuave }]}>
             Nenhum alimento registrado.
           </Text>
         )}
       </View>
     );
   };
-
-  // Filtragem dos alimentos na busca do modal
-  const alimentosFiltrados = ALIMENTOS_PREDEFINIDOS.filter(a => 
-    a.nome_alimento.toLowerCase().includes(busca.toLowerCase())
-  );
 
   // Cálculo prévio dos macros do alimento selecionado no modal com base na quantidade
   const fatorModal = alimentoSelecionado ? (parseFloat(quantidadeG.replace(',', '.')) || 100) / (alimentoSelecionado.porcao_padrao_g || 100) : 1;
@@ -558,107 +639,128 @@ export default function DiarioAlimentar({ navigation }) {
   const gordModal = alimentoSelecionado ? Math.round((alimentoSelecionado.gorduras || 0) * fatorModal) : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: CORES.fundo }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView 
         contentContainerStyle={{ padding: 20, paddingBottom: 50 }}
         refreshControl={
           <RefreshControl 
             refreshing={atualizando} 
             onRefresh={() => carregarDados(true)}
-            colors={[CORES.primaria]}
-            tintColor={CORES.primaria}
+            colors={[cores.primaria]}
+            tintColor={cores.primaria}
           />
         }
       >
-        
-        {/* Cabeçalho Seletor de Data */}
-        <View style={styles.seletorDataContainer}>
+        {/* Cabeçalho Seletor de Data TOTALMENTE FIXO / ESTÁTICO */}
+        <View style={[styles.seletorDataContainer, { backgroundColor: '#85461e' }]}>
           <TouchableOpacity 
-            style={styles.setaData} 
+            style={[
+              styles.setaData, 
+              { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' }
+            ]} 
             onPress={() => mudarData(-1)} 
             activeOpacity={0.7}
           >
-            <ChevronLeft size={18} color={CORES.textoEscuro} strokeWidth={2.5} />
+            <ChevronLeft size={18} color="#FFFFFF" strokeWidth={2.5} />
           </TouchableOpacity>
+          
           <View style={{ alignItems: 'center' }}>
-            <Text style={styles.textoHoje}>{ehHoje ? 'Hoje' : `${diaDoMes} ${mes}`}</Text>
-            <Text style={styles.textoDataDetalhe}>{`${diaDaSemana}, ${diaDoMes} de ${mes} de ${ano}`}</Text>
+            <Text style={[styles.textoHoje, { color: '#FFFFFF' }]}>{ehHoje ? 'Hoje' : `${diaDoMes} ${mes}`}</Text>
+            <Text style={[styles.textoDataDetalhe, { color: '#FFE8D6' }]}>{`${diaDaSemana}, ${diaDoMes} de ${mes} de ${ano}`}</Text>
           </View>
+          
           <TouchableOpacity 
-            style={[styles.setaData, ehHoje && styles.setaDataDesabilitada]} 
+            style={[
+              styles.setaData, 
+              { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.35)' },
+              ehHoje && { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'transparent' }
+            ]} 
             onPress={() => mudarData(1)} 
             disabled={ehHoje}
             activeOpacity={ehHoje ? 1 : 0.7}
           >
             <ChevronRight 
               size={18} 
-              color={ehHoje ? 'rgba(0, 0, 0, 0.25)' : CORES.textoEscuro} 
+              color={ehHoje ? 'rgba(255, 255, 255, 0.35)' : '#FFFFFF'} 
               strokeWidth={2.5} 
             />
           </TouchableOpacity>
         </View>
 
-        {/* Loading */}
-        {carregando && (
-          <View style={{ alignItems: 'center', padding: 12 }}>
-            <ActivityIndicator size="small" color={CORES.primaria} />
-          </View>
-        )}
+        {/* Animação de Entrada Geral da Aba Diário (Apenas para o conteúdo abaixo da barra fixa) */}
+        <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+          {/* ↓ Conteúdo Diário Completo com Animação Direcional ao Mudar de Dia */}
+          <Animated.View style={{ opacity: animFadeDia, transform: [{ translateX: animSlideDia }] }}>
+            {/* Loading (apenas no carregamento inicial) */}
+            {carregando && (!refeicoes || refeicoes.length === 0) && (
+              <View style={{ alignItems: 'center', padding: 12 }}>
+                <ActivityIndicator size="small" color={cores.primaria} />
+              </View>
+            )}
 
-        {/* Resumo Superior Expandido */}
-        <View style={styles.cardResumo}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text style={styles.tituloResumo}>RESUMO</Text>
-            <Text style={styles.caloriasResumoValor}>{totais.calorias} <Text style={{fontSize:12, fontWeight:'normal'}}>kcal</Text></Text>
-          </View>
-          
-          <Text style={styles.macroTextoDiario}>PROTEÍNA <Text style={{color: CORES.primaria}}>{totais.proteina}/{metaProteina}g</Text></Text>
-          <View style={styles.barraFundo}><View style={[styles.barraPreenchida, { width: `${pctProteina}%`, backgroundColor: CORES.primaria }]} /></View>
+            {/* Resumo Superior Expandido */}
+            <View style={[styles.cardResumo, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <Text style={[styles.tituloResumo, { color: cores.textoSuave }]}>RESUMO</Text>
+                <Text style={[styles.caloriasResumoValor, { color: cores.textoEscuro }]}>{totais.calorias} <Text style={{fontSize:12, fontWeight:'normal', color: cores.textoSuave}}>kcal</Text></Text>
+              </View>
+              
+              <Text style={[styles.macroTextoDiario, { color: cores.textoEscuro }]}>PROTEÍNA <Text style={{color: cores.primaria}}>{totais.proteina}/{metaProteina}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraProteina, backgroundColor: cores.primaria }]} /></View>
 
-          <Text style={styles.macroTextoDiario}>CARBOS <Text style={{color: CORES.carboidrato}}>{totais.carboidrato}/{metaCarboidrato}g</Text></Text>
-          <View style={styles.barraFundo}><View style={[styles.barraPreenchida, { width: `${pctCarboidrato}%`, backgroundColor: CORES.carboidrato }]} /></View>
+              <Text style={[styles.macroTextoDiario, { color: cores.carboidrato }]}>CARBOS <Text style={{color: cores.carboidrato}}>{totais.carboidrato}/{metaCarboidrato}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraCarboidrato, backgroundColor: cores.carboidrato }]} /></View>
 
-          <Text style={styles.macroTextoDiario}>GORDURA <Text style={{color: CORES.gordura}}>{totais.gordura}/{metaGordura}g</Text></Text>
-          <View style={styles.barraFundo}><View style={[styles.barraPreenchida, { width: `${pctGordura}%`, backgroundColor: CORES.gordura }]} /></View>
-        </View>
-
-        {/* Blocos de refeição com botão + e itens */}
-        {renderBlocoRefeicao('cafe_manha')}
-        {renderBlocoRefeicao('almoco')}
-        {renderBlocoRefeicao('janta')}
-        {renderBlocoRefeicao('lanche')}
-
-        {/* Bloco Hidratação com botões funcionais */}
-        <View style={styles.cardConfig}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Droplets size={20} color="#2F80ED" />
-              <Text style={[styles.tituloCardInterno, { marginLeft: 8 }]}>Hidratação</Text>
+              <Text style={[styles.macroTextoDiario, { color: cores.gordura }]}>GORDURA <Text style={{color: cores.gordura}}>{totais.gordura}/{metaGordura}g</Text></Text>
+              <View style={[styles.barraFundo, { backgroundColor: isDark ? '#2C2C2C' : '#F0E4D4' }]}><Animated.View style={[styles.barraPreenchida, { width: larguraBarraGordura, backgroundColor: cores.gordura }]} /></View>
             </View>
-            <Text style={styles.volAguaText}>
-              {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: CORES.textoSuave }}>/ {metaAgua} ml</Text>
-            </Text>
-          </View>
-          
-          <View style={styles.barraFundoAgua}>
-            <View style={[styles.barraPreenchidaAgua, { width: `${Math.min((agua / metaAgua) * 100, 100)}%` }]} />
-          </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, gap: 6 }}>
-            <TouchableOpacity style={styles.btnQuickAgua} onPress={() => adicionarAgua(150)} disabled={adicionandoAgua}>
-              <Text style={styles.txtBtnAgua}>+150ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnQuickAgua} onPress={() => adicionarAgua(250)} disabled={adicionandoAgua}>
-              <Text style={styles.txtBtnAgua}>+250ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnQuickAgua} onPress={() => adicionarAgua(350)} disabled={adicionandoAgua}>
-              <Text style={styles.txtBtnAgua}>+350ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnQuickAgua} onPress={() => adicionarAgua(500)} disabled={adicionandoAgua}>
-              <Text style={styles.txtBtnAgua}>+500ml</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            {/* Blocos de refeição com botão + e itens */}
+            <View>
+              {renderBlocoRefeicao('cafe_manha')}
+              {renderBlocoRefeicao('almoco')}
+              {renderBlocoRefeicao('janta')}
+              {renderBlocoRefeicao('lanche')}
+            </View>
+
+            {/* Bloco Hidratação com botões funcionais */}
+            <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Droplets size={20} color="#2F80ED" />
+                  <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro }]}>Hidratação</Text>
+                </View>
+                <Text style={[styles.volAguaText, { color: '#2F80ED' }]}>
+                  {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua} ml</Text>
+                </Text>
+              </View>
+              
+              <View style={[styles.barraFundoAgua, { backgroundColor: isDark ? '#262626' : '#EADCC9' }]}>
+                <Animated.View style={[styles.barraPreenchidaAgua, { width: larguraBarraAgua }]} />
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, gap: 6 }}>
+                {[150, 250, 350, 500].map((qtd) => (
+                  <TouchableOpacity 
+                    key={qtd}
+                    style={[
+                      styles.btnQuickAgua, 
+                      { 
+                        backgroundColor: isDark ? '#16222F' : '#F0F6FF', 
+                        borderColor: isDark ? '#223B5A' : '#D0E4FF' 
+                      }
+                    ]} 
+                    onPress={() => adicionarAgua(qtd)} 
+                    disabled={adicionandoAgua}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED' }]}>+{qtd}ml</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </Animated.View>
+        </Animated.View>
 
       </ScrollView>
 
@@ -673,11 +775,11 @@ export default function DiarioAlimentar({ navigation }) {
         statusBarTranslucent={true}
         onRequestClose={() => setModalVisivel(false)}
       >
-        <View style={styles.fundoModal}>
-          <View style={styles.cardModal}>
+        <View style={[styles.fundoModal, isDark && { backgroundColor: '#121212' }]}>
+          <View style={[styles.cardModal, { backgroundColor: cores.fundo }]}>
             
             {/* Header Colorido Marrom #85461E do Modal */}
-            <View style={styles.headerModalBrown}>
+            <View style={[styles.headerModalBrown, isDark && { backgroundColor: '#1F140E', borderBottomWidth: 1, borderBottomColor: cores.borda }]}>
               {alimentoSelecionado ? (
                 <View style={styles.headerBrownRowDetail}>
                   <TouchableOpacity 
@@ -708,7 +810,7 @@ export default function DiarioAlimentar({ navigation }) {
                       <Text style={styles.headerBrownMealTitulo}>
                         {tiposConfig[tipoRefeicaoAtual]?.titulo}
                       </Text>
-                      <Text style={styles.headerBrownMealCalorias}>
+                      <Text style={[styles.headerBrownMealCalorias, isDark && { color: '#D6C7B8' }]}>
                         {calcularCaloriasRefeicoes(refeicoesPorTipo[tipoRefeicaoAtual] || [])} / {tiposConfig[tipoRefeicaoAtual]?.metaCal || Math.round(metaCalorias / 4)} kcal
                       </Text>
                     </View>
@@ -742,18 +844,18 @@ export default function DiarioAlimentar({ navigation }) {
 
             {/* ETAPA 1: Busca, Abas e Seleção de Alimento */}
             {!alimentoSelecionado ? (
-              <View style={{ flex: 1, backgroundColor: CORES.fundo }}>
+              <View style={{ flex: 1, backgroundColor: cores.fundo }}>
                 {/* Abas Superiores (Código de barras | Buscar) */}
-                <View style={styles.containerAbasModal}>
+                <View style={[styles.containerAbasModal, { backgroundColor: cores.branco, borderBottomColor: cores.borda }]}>
                   <TouchableOpacity 
                     style={styles.btnAbaModal}
                     onPress={() => setTabModal('barcode')}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.circuloAbaModal, tabModal === 'barcode' && styles.circuloAbaModalAtiva]}>
-                      <Scale size={18} color={tabModal === 'barcode' ? CORES.primaria : CORES.textoSuave} />
+                    <View style={[styles.circuloAbaModal, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: isDark ? '#3A3A3A' : cores.borda }, tabModal === 'barcode' && { backgroundColor: isDark ? '#3D2817' : 'rgba(200, 130, 66, 0.15)', borderColor: cores.primaria }]}>
+                      <Scale size={18} color={tabModal === 'barcode' ? cores.primaria : (isDark ? '#B8A89A' : cores.textoSuave)} />
                     </View>
-                    <Text style={[styles.txtAbaModal, tabModal === 'barcode' && styles.txtAbaModalAtiva]}>
+                    <Text style={[styles.txtAbaModal, { color: isDark ? '#B8A89A' : cores.textoSuave }, tabModal === 'barcode' && [styles.txtAbaModalAtiva, { color: cores.primaria }]]}>
                       Código de{"\n"}barras
                     </Text>
                   </TouchableOpacity>
@@ -763,10 +865,10 @@ export default function DiarioAlimentar({ navigation }) {
                     onPress={() => setTabModal('search')}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.circuloAbaModal, tabModal === 'search' && styles.circuloAbaModalAtiva]}>
-                      <Search size={18} color={tabModal === 'search' ? CORES.primaria : CORES.textoSuave} />
+                    <View style={[styles.circuloAbaModal, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: isDark ? '#3A3A3A' : cores.borda }, tabModal === 'search' && { backgroundColor: isDark ? '#3D2817' : 'rgba(200, 130, 66, 0.15)', borderColor: cores.primaria }]}>
+                      <Search size={18} color={tabModal === 'search' ? cores.primaria : (isDark ? '#B8A89A' : cores.textoSuave)} />
                     </View>
-                    <Text style={[styles.txtAbaModal, tabModal === 'search' && styles.txtAbaModalAtiva]}>
+                    <Text style={[styles.txtAbaModal, { color: isDark ? '#B8A89A' : cores.textoSuave }, tabModal === 'search' && [styles.txtAbaModalAtiva, { color: cores.primaria }]]}>
                       Buscar
                     </Text>
                   </TouchableOpacity>
@@ -774,42 +876,42 @@ export default function DiarioAlimentar({ navigation }) {
 
                 {tabModal === 'barcode' ? (
                   <View style={styles.containerEmBreve}>
-                    <View style={styles.circuloIconeEmBreve}>
-                      <Scale size={24} color={CORES.primaria} />
+                    <View style={[styles.circuloIconeEmBreve, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
+                      <Scale size={24} color={cores.primaria} />
                     </View>
-                    <Text style={styles.txtEmBreve}>Leitor de código de barras em breve</Text>
+                    <Text style={[styles.txtEmBreve, { color: isDark ? '#B8A89A' : cores.textoSuave }]}>Leitor de código de barras em breve</Text>
                   </View>
                 ) : (
                   <>
                     {/* Barra de Pesquisa Redonda */}
-                    <View style={styles.inputBuscaWrapper}>
-                      <View style={styles.inputBuscaContainer}>
-                        <Search size={16} color={CORES.textoSuave} style={{ marginRight: 8 }} />
+                    <View style={[styles.inputBuscaWrapper, { backgroundColor: cores.branco, borderBottomColor: cores.borda }]}>
+                      <View style={[styles.inputBuscaContainer, { backgroundColor: isDark ? '#2A2A2A' : cores.fundoInput, borderColor: isDark ? '#3E3E3E' : cores.borda }]}>
+                        <Search size={16} color={isDark ? '#B8A89A' : cores.textoSuave} style={{ marginRight: 8 }} />
                         <TextInput 
-                          style={styles.inputBusca}
-                          placeholder="Buscar alimento..."
-                          placeholderTextColor={CORES.textoSuave}
+                          style={[styles.inputBusca, { color: cores.textoEscuro }]}
+                          placeholder="Buscar alimento (ex: biscoito, arroz, frango)..."
+                          placeholderTextColor={isDark ? '#8A7E74' : cores.textoSuave}
                           value={busca}
                           onChangeText={setBusca}
                           autoFocus
                         />
                         {buscandoExterna && (
-                          <ActivityIndicator size="small" color={CORES.primaria} style={{ marginRight: 8 }} />
+                          <ActivityIndicator size="small" color={cores.primaria} style={{ marginRight: 8 }} />
                         )}
                         {busca.length > 0 && !buscandoExterna && (
                           <TouchableOpacity onPress={() => setBusca('')}>
-                            <X size={16} color={CORES.textoSuave} />
+                            <X size={16} color={isDark ? '#B8A89A' : cores.textoSuave} />
                           </TouchableOpacity>
                         )}
                       </View>
                     </View>
 
-                    {/* Lista de Alimentos / Estado Inicial de Busca */}
-                    {busca.trim() === '' ? (
+                    {/* Lista de Alimentos */}
+                    {alimentosBuscados.length === 0 && !buscandoExterna ? (
                       <View style={styles.containerBuscaVazia}>
-                        <Search size={54} color="#EDD9C3" style={{ marginBottom: 16 }} />
-                        <Text style={styles.txtInstrucaoBusca}>
-                          Digite o nome de um alimento para buscar
+                        <Search size={48} color={isDark ? '#3D3126' : '#EDD9C3'} style={{ marginBottom: 14 }} />
+                        <Text style={[styles.txtInstrucaoBusca, { color: isDark ? '#B8A89A' : cores.textoSuave }]}>
+                          {busca.trim() ? `Nenhum alimento encontrado para "${busca}"` : 'Digite o nome do alimento para buscar no FatSecret'}
                         </Text>
                       </View>
                     ) : (
@@ -817,25 +919,18 @@ export default function DiarioAlimentar({ navigation }) {
                         data={alimentosBuscados}
                         keyExtractor={(item, index) => String(item.id || item.id_alimento || item.food_id || index)}
                         showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
-                        ListEmptyComponent={
-                          !buscandoExterna ? (
-                            <View style={styles.containerBuscaVazia}>
-                              <Apple size={40} color={CORES.borda} style={{ marginBottom: 12 }} />
-                              <Text style={styles.listaVaziaTexto}>
-                                Nenhum alimento encontrado para "{busca}"
-                              </Text>
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 30 }}
+                        ListHeaderComponent={
+                          buscandoExterna ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 6 }}>
+                              <ActivityIndicator size="small" color={cores.primaria} />
+                              <Text style={{ fontSize: 12, color: cores.textoSuave }}>Buscando alimentos...</Text>
                             </View>
-                          ) : (
-                            <View style={styles.containerBuscaVazia}>
-                              <ActivityIndicator size="large" color={CORES.primaria} style={{ marginBottom: 12 }} />
-                              <Text style={styles.txtInstrucaoBusca}>Buscando no catálogo FatSecret...</Text>
-                            </View>
-                          )
+                          ) : null
                         }
                         renderItem={({ item }) => (
                           <TouchableOpacity 
-                            style={styles.cardItemAlimento}
+                            style={[styles.cardItemAlimento, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}
                             onPress={() => {
                               setAlimentoSelecionado(item);
                               setQuantidadeG(String(item.porcao_padrao_g || 100));
@@ -843,18 +938,18 @@ export default function DiarioAlimentar({ navigation }) {
                             activeOpacity={0.7}
                           >
                             <View style={{ flex: 1, marginRight: 8 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.itemNomeTexto} numberOfLines={1}>{item.nome_alimento || item.nome}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                                <Text style={[styles.itemNomeTexto, { color: cores.textoEscuro }]} numberOfLines={1}>{item.nome_alimento || item.nome}</Text>
                                 {item.marca ? (
-                                  <Text style={styles.badgeMarcaTexto} numberOfLines={1}> · {item.marca}</Text>
+                                  <Text style={[styles.badgeMarcaTexto, { color: cores.textoSuave }]} numberOfLines={1}> · {item.marca}</Text>
                                 ) : null}
                               </View>
-                              <Text style={styles.itemSubTexto}>{item.calorias || 0} kcal · por {item.porcao_padrao_g || 100}g</Text>
+                              <Text style={[styles.itemSubTexto, { color: cores.textoSuave }]}>{item.calorias || 0} kcal · por {item.porcao_padrao_g || 100}g</Text>
                             </View>
                             <View style={styles.colunaMacroBadges}>
-                              <Text style={[styles.macroBadgeTexto, { color: CORES.proteina }]}>P {item.proteinas || 0}g</Text>
-                              <Text style={[styles.macroBadgeTexto, { color: CORES.carboidrato }]}>C {item.carboidratos || 0}g</Text>
-                              <Text style={[styles.macroBadgeTexto, { color: CORES.gordura }]}>G {item.gorduras || 0}g</Text>
+                              <Text style={[styles.macroBadgeTexto, { color: cores.proteina }]}>P {item.proteinas || 0}g</Text>
+                              <Text style={[styles.macroBadgeTexto, { color: cores.carboidrato }]}>C {item.carboidratos || 0}g</Text>
+                              <Text style={[styles.macroBadgeTexto, { color: cores.gordura }]}>G {item.gorduras || 0}g</Text>
                             </View>
                           </TouchableOpacity>
                         )}
@@ -867,54 +962,61 @@ export default function DiarioAlimentar({ navigation }) {
               /* ETAPA 2: Quantidade & Valores Nutricionais */
               <ScrollView 
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ padding: 16, paddingBottom: 25, flexGrow: 1, backgroundColor: CORES.fundo }}
+                contentContainerStyle={{ padding: 16, paddingBottom: 25, flexGrow: 1, backgroundColor: cores.fundo }}
               >
                 {/* Card 1: Informações do Alimento Selecionado */}
-                <View style={styles.cardAlimentoSelecionado}>
-                  <Text style={styles.tituloAlimentoSelecionado}>{alimentoSelecionado.nome_alimento}</Text>
-                  <Text style={styles.subAlimentoSelecionado}>
+                <View style={[styles.cardAlimentoSelecionado, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <Text style={[styles.tituloAlimentoSelecionado, { color: cores.textoEscuro }]}>{alimentoSelecionado.nome_alimento}</Text>
+                  <Text style={[styles.subAlimentoSelecionado, { color: cores.textoSuave }]}>
                     {alimentoSelecionado.calorias} kcal · por {alimentoSelecionado.porcao_padrao_g || 100}g
                   </Text>
                 </View>
 
                 {/* Card 2: Entrada da Quantidade */}
-                <View style={styles.cardSecaoModal}>
-                  <Text style={styles.labelSecaoModal}>QUANTIDADE</Text>
+                <View style={[styles.cardSecaoModal, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <Text style={[styles.labelSecaoModal, { color: cores.textoSuave }]}>QUANTIDADE</Text>
                   <View style={styles.rowInputGrande}>
                     <TextInput 
-                      style={styles.inputGrandeQtd}
+                      style={[
+                        styles.inputGrandeQtd, 
+                        { 
+                          backgroundColor: isDark ? '#242424' : '#FDF8F2', 
+                          borderColor: isDark ? '#3E3E3E' : cores.borda,
+                          color: cores.textoEscuro 
+                        }
+                      ]}
                       value={quantidadeG}
                       onChangeText={setQuantidadeG}
                       keyboardType="numeric"
                       autoFocus
                     />
-                    <Text style={styles.unidadeGrandeTexto}>g</Text>
+                    <Text style={[styles.unidadeGrandeTexto, { color: cores.textoSuave }]}>g</Text>
                   </View>
                 </View>
 
                 {/* Card 3: 4 Colunas de Valores Nutricionais */}
-                <View style={styles.cardSecaoModal}>
-                  <Text style={styles.labelSecaoModal}>VALORES NUTRICIONAIS</Text>
+                <View style={[styles.cardSecaoModal, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  <Text style={[styles.labelSecaoModal, { color: cores.textoSuave }]}>VALORES NUTRICIONAIS</Text>
                   <View style={styles.gridQuatroColunas}>
-                    <View style={styles.colunaMacroBox}>
-                      <Text style={[styles.colunaMacroValor, { color: CORES.primaria }]}>{calModal}</Text>
-                      <Text style={styles.colunaMacroUnidade}>kcal</Text>
-                      <Text style={styles.colunaMacroLabel}>Calorias</Text>
+                    <View style={[styles.colunaMacroBox, { backgroundColor: isDark ? '#242424' : '#FDF8F2' }]}>
+                      <Text style={[styles.colunaMacroValor, { color: cores.primaria }]}>{calModal}</Text>
+                      <Text style={[styles.colunaMacroUnidade, { color: cores.textoSuave }]}>kcal</Text>
+                      <Text style={[styles.colunaMacroLabel, { color: cores.textoSuave }]}>Calorias</Text>
                     </View>
-                    <View style={styles.colunaMacroBox}>
-                      <Text style={[styles.colunaMacroValor, { color: CORES.proteina }]}>{protModal}g</Text>
-                      <Text style={styles.colunaMacroUnidade}>g</Text>
-                      <Text style={styles.colunaMacroLabel}>Proteína</Text>
+                    <View style={[styles.colunaMacroBox, { backgroundColor: isDark ? '#242424' : '#FDF8F2' }]}>
+                      <Text style={[styles.colunaMacroValor, { color: cores.proteina }]}>{protModal}g</Text>
+                      <Text style={[styles.colunaMacroUnidade, { color: cores.textoSuave }]}>g</Text>
+                      <Text style={[styles.colunaMacroLabel, { color: cores.textoSuave }]}>Proteína</Text>
                     </View>
-                    <View style={styles.colunaMacroBox}>
-                      <Text style={[styles.colunaMacroValor, { color: CORES.carboidrato }]}>{carbModal}g</Text>
-                      <Text style={styles.colunaMacroUnidade}>g</Text>
-                      <Text style={styles.colunaMacroLabel}>Carbos</Text>
+                    <View style={[styles.colunaMacroBox, { backgroundColor: isDark ? '#242424' : '#FDF8F2' }]}>
+                      <Text style={[styles.colunaMacroValor, { color: cores.carboidrato }]}>{carbModal}g</Text>
+                      <Text style={[styles.colunaMacroUnidade, { color: cores.textoSuave }]}>g</Text>
+                      <Text style={[styles.colunaMacroLabel, { color: cores.textoSuave }]}>Carbos</Text>
                     </View>
-                    <View style={styles.colunaMacroBox}>
-                      <Text style={[styles.colunaMacroValor, { color: CORES.gordura }]}>{gordModal}g</Text>
-                      <Text style={styles.colunaMacroUnidade}>g</Text>
-                      <Text style={styles.colunaMacroLabel}>Gordura</Text>
+                    <View style={[styles.colunaMacroBox, { backgroundColor: isDark ? '#242424' : '#FDF8F2' }]}>
+                      <Text style={[styles.colunaMacroValor, { color: cores.gordura }]}>{gordModal}g</Text>
+                      <Text style={[styles.colunaMacroUnidade, { color: cores.textoSuave }]}>g</Text>
+                      <Text style={[styles.colunaMacroLabel, { color: cores.textoSuave }]}>Gordura</Text>
                     </View>
                   </View>
                 </View>
@@ -927,10 +1029,10 @@ export default function DiarioAlimentar({ navigation }) {
                   activeOpacity={0.8}
                 >
                   {salvandoItem ? (
-                    <ActivityIndicator color={CORES.branco} />
+                    <ActivityIndicator color={cores.branco} />
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Check size={18} color={CORES.branco} style={{ marginRight: 8 }} />
+                      <Check size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
                       <Text style={styles.btnConfirmarTexto}>
                         Adicionar ao {tiposConfig[tipoRefeicaoAtual]?.titulo}
                       </Text>
@@ -955,7 +1057,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     marginBottom: 20, 
     marginTop: 10, 
-    backgroundColor: CORES.primaria, 
+    backgroundColor: '#85461e', 
     borderRadius: 25, 
     paddingHorizontal: 15,
     paddingVertical: 8,
@@ -1038,14 +1140,12 @@ const styles = StyleSheet.create({
     color: CORES.textoEscuro 
   },
   botaoAddRefeicao: { 
-    width: 32, 
-    height: 32, 
-    borderRadius: 16, 
-    backgroundColor: '#FDF8F2', 
+    width: 30, 
+    height: 30, 
+    borderRadius: 15,
+    borderWidth: 1,
     justifyContent: 'center', 
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EADCC9',
   },
   linhaAlimento: { 
     flexDirection: 'row', 
@@ -1077,9 +1177,12 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave 
   },
   btnRemoverItem: {
-    padding: 6,
+    width: 30,
+    height: 30,
     borderRadius: 8,
-    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textoVazioRefeicao: {
     color: CORES.textoSuave, 
@@ -1306,6 +1409,31 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave,
     marginTop: 10,
   },
+  containerFiltrosBR: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  chipFiltroBR: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txtChipFiltroBR: {
+    fontSize: 12,
+  },
+  badgeBRTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  txtBadgeBR: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   cardItemAlimento: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1436,11 +1564,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: CORES.primaria,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 8px rgba(133, 70, 30, 0.25)',
+      },
+      default: {
+        shadowColor: CORES.primaria,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 3,
+      },
+    }),
   },
   btnConfirmarTexto: {
     color: CORES.branco,

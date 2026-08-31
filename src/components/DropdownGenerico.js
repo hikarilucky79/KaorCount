@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, TouchableWithoutFeedback, Platform } from 'react-native';
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
 import { CORES } from '../constants/Cores';
 
 export default function DropdownGenerico({ 
   valorSelecionado, 
   onChange, 
-  opcoes = [], // ← Recebe as opções dinamicamente
-  placeholder = 'Selecione...' // ← Texto padrão personalizável
+  opcoes = [], 
+  placeholder = 'Selecione...' 
 }) {
   const [visivel, setVisivel] = useState(false);
 
-  // ↓ Agora ele busca o texto dentro da lista que você passar como propriedade
   const opcaoAtual = opcoes.find(opt => opt.id === valorSelecionado);
 
   const selecionar = (id) => {
@@ -23,41 +22,40 @@ export default function DropdownGenerico({
     <View style={styles.container}>
       {/* Caixa do Dropdown */}
       <TouchableOpacity 
-        style={styles.dropdownBotao} 
-        onPress={() => setVisivel(!visivel)}
-        activeOpacity={0.7}
+        style={styles.caixaSelecao} 
+        onPress={() => setVisivel(true)}
+        activeOpacity={0.8}
       >
-        <Text style={opcaoAtual ? styles.textoSelecionado : styles.textoPlaceholder}>
+        <Text style={[styles.textoSelecao, !opcaoAtual && styles.placeholder]}>
           {opcaoAtual ? opcaoAtual.label : placeholder}
         </Text>
-        {visivel ? (
-          <ChevronUp size={16} color="#64748b" />
-        ) : (
-          <ChevronDown size={16} color="#64748b" />
-        )}
+        {visivel ? <ChevronUp size={18} color="#6b7280" /> : <ChevronDown size={18} color="#6b7280" />}
       </TouchableOpacity>
 
-      {/* Lista Suspensa Modal */}
-      <Modal visible={visivel} transparent animationType="fade" onRequestClose={() => setVisivel(false)}>
+      {/* Modal com as opções */}
+      <Modal visible={visivel} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setVisivel(false)}>
-          <View style={styles.fundoModal}>
+          <View style={styles.mascaraModal}>
             <View style={styles.menuOpcoes}>
               <FlatList
                 data={opcoes}
                 keyExtractor={(item) => String(item.id)}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={[styles.opcaoItem, valorSelecionado === item.id && styles.opcaoAtiva]} 
-                    onPress={() => selecionar(item.id)}
-                  >
-                    <Text style={[styles.textoOpcao, valorSelecionado === item.id && styles.textoOpcaoAtiva]}>
-                      {item.label}
-                    </Text>
-                    {valorSelecionado === item.id && (
-                      <Check size={16} color={CORES.primaria} />
-                    )}
-                  </TouchableOpacity>
-                )}
+                renderItem={({ item }) => {
+                  const ativo = item.id === valorSelecionado;
+                  return (
+                    <TouchableOpacity 
+                      style={[styles.opcaoItem, ativo && styles.opcaoAtiva]}
+                      onPress={() => selecionar(item.id)}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={[styles.textoOpcao, ativo && styles.textoOpcaoAtiva]}>
+                          {item.label}
+                        </Text>
+                        {ativo && <Check size={16} color={CORES.primaria} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
               />
             </View>
           </View>
@@ -67,42 +65,52 @@ export default function DropdownGenerico({
   );
 }
 
-// ... manter o bloco StyleSheet idêntico ao seu original
 const styles = StyleSheet.create({
   container: {
-    flex: 1, // ← Faz o contêiner se expandir igual ao TextInput original.
-    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 4,
   },
-  dropdownBotao: {
+  caixaSelecao: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10, // ← Apenas espaçamento lateral
-    height: '100%', // ← Faz o botão preencher exatamente a altura da caixa pai.
-    // ↓ Removemos os backgrounds, bordas, margins e height fixo que causavam o corte!
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 48,
   },
-  textoSelecionado: { color: CORES.textoEscuro, fontSize: 15 },
-  textoPlaceholder: { color: '#9C8E81', fontSize: 15 },
-  seta: { color: '#64748b', fontSize: 12 },
-  
-  // ↓ O estilo do Modal permanece o mesmo:
-  fundoModal: {
+  textoSelecao: {
+    fontSize: 15,
+    color: '#334155',
+  },
+  placeholder: {
+    color: '#94a3b8',
+  },
+  mascaraModal: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)', 
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 24,
   },
   menuOpcoes: {
     width: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 5,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 5px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 5,
+      },
+    }),
   },
   opcaoItem: {
     paddingVertical: 14,
