@@ -5,6 +5,7 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
+  ActivityIndicator,
   Modal,
   TextInput,
   RefreshControl,

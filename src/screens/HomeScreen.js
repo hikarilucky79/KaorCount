@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, Animated, Easing, Platform } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Animated, Easing, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { HandMetal, ChevronRight, Utensils, Sun, Moon } from 'lucide-react-native';
