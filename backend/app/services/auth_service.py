@@ -8,7 +8,9 @@ from fastapi import HTTPException, status
 
 
 from datetime import date
+import uuid
 from app.models.meta_nutri import MetaNutri
+from app.models.perfil_nutri import PerfilNutri
 
 class AuthService:
     def __init__(self, db: Session):
@@ -24,6 +26,7 @@ class AuthService:
         })
         try:
             meta = MetaNutri(
+                id_meta=str(uuid.uuid4()),
                 id_usuario=novo_usuario.id_usuario,
                 calorias_diarias=1800.0,
                 proteina_g=140.0,
@@ -32,6 +35,17 @@ class AuthService:
                 data_inicio=date.today(),
             )
             self.repo.db.add(meta)
+
+            perfil = PerfilNutri(
+                id_perfil=str(uuid.uuid4()),
+                id_usuario=novo_usuario.id_usuario,
+                data_nascimento=date(1998, 8, 15),
+                genero="masculino",
+                objetivo_nutricional="manter_peso",
+                nivel_atividade="moderado",
+                tmb_calculo=1750.0,
+            )
+            self.repo.db.add(perfil)
             self.repo.db.commit()
         except Exception:
             pass
