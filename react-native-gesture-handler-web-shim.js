@@ -1,11 +1,4 @@
-const { getDefaultConfig } = require('expo/metro-config');
-const path = require('path');
-const fs = require('fs');
 
-const config = getDefaultConfig(__dirname);
-
-const shimPath = path.resolve(__dirname, 'react-native-gesture-handler-web-shim.js');
-const noopSource = `
 module.exports = {
   enableExperimentalWebImplementation: true,
   GestureHandlerRootView: ({ children }) => children,
@@ -30,19 +23,3 @@ module.exports = {
   Directions: {},
   gestureHandlerRootHOC: (Component) => Component,
 };
-`;
-
-// Write the shim file to disk so Metro's file watcher and hasher can track it
-fs.writeFileSync(shimPath, noopSource);
-
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (platform === 'web' && moduleName === 'react-native-gesture-handler') {
-    return {
-      type: 'sourceFile',
-      filePath: shimPath,
-    };
-  }
-  return context.resolveRequest(context, moduleName, platform);
-};
-
-module.exports = config;
