@@ -390,9 +390,10 @@ export default function AuthScreen({ navigation }) {
                     style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
                     resizeMode="contain"
                   />
-                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Bem-vindo de volta!</Text>
-                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Entre com suas credenciais</Text>
+                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Crie sua conta</Text>
+                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Preencha os dados abaixo para começar</Text>
                 </View>
+
 
                 {/* Card do Formulário */}
                 <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
@@ -616,9 +617,12 @@ export default function AuthScreen({ navigation }) {
                       <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Entrar</Text>
                     </TouchableOpacity>
                   </View>
-
+                </View>
+                </View>
+            </View>
+          </ScrollView>
+        </Animated.View>      
       )}
-
     </SafeAreaView>
   );
 }
