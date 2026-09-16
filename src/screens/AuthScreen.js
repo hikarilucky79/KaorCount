@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   StyleSheet, 
   Image, 
@@ -36,7 +36,7 @@ import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
 export default function AuthScreen({ navigation }) {
-  const { login, registrar, loginDemo } = useAuth();
+  const { login, registrar, loginDemo, auth0, logado, carregando } = useAuth();
   const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxAuthWidth } = useResponsive();
 
@@ -54,11 +54,22 @@ export default function AuthScreen({ navigation }) {
       if (loginDemo) {
         await loginDemo();
       }
+      transicionarPara('app');
     } catch (e) {
       console.warn('[AuthScreen] Erro ao carregar demo:', e?.message);
+      setErroMsg('Demo indisponível no momento.');
     }
-    transicionarPara('app');
   };
+
+  // ↓ No modo Auth0 o app recarrega após o retorno do Universal Login.
+  //   Assim que a sessão é restaurada (isAuthenticated = true), avança
+  //   direto para as abas — sem essa ponte o usuário ficaria preso na
+  //   tela de autenticação depois de logar.
+  useEffect(() => {
+    if (auth0 && logado && !carregando) {
+      navigation.replace('AppTabs');
+    }
+  }, [auth0, logado, carregando, navigation]);
 
   // ↓ Valor animado (0 = repouso da tela atual, 1 = banner totalmente estendido cobrindo a tela)
   const animCortina = useRef(new Animated.Value(0)).current;
@@ -141,6 +152,7 @@ export default function AuthScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
   const handleCadastrar = async () => {
     setErroMsg('');
+
     if (!nome.trim()) {
       setErroMsg('Por favor, informe seu nome completo.');
       return;
@@ -390,7 +402,7 @@ export default function AuthScreen({ navigation }) {
                     style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
                     resizeMode="contain"
                   />
-                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Crie sua conta</Text>
+                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Entre na sua conta</Text>
                   <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Preencha os dados abaixo para começar</Text>
                 </View>
 

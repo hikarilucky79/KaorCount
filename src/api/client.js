@@ -3,9 +3,9 @@
 // Instância centralizada do Axios com interceptors e SHA-256 puro JS.
 // ───────────────────────────────────────────────────────────────
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { obterTokenAutorizacao, limparSessaoGlobal } from '../auth/tokenBridge';
 
 // ↓ URL base da API dinâmica conforme o ambiente:
 //   - Web / Navegador: http://localhost:8000/api/v1
@@ -112,10 +112,10 @@ const api = axios.create({
 // ───────────────────────────────────────────────────────────────
 api.interceptors.request.use(
   async (config) => {
-    // ↓ 1. Injetar o token de autenticação (se existir).
+    // ↓ 1. Injetar o token de autenticação (Auth0 ou legado).
     try {
-      const token = await AsyncStorage.getItem('@kaorcount_token');
-      if (token) {
+      const token = await obterTokenAutorizacao();
+      if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (e) {
@@ -154,11 +154,10 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
-      // ↓ Token expirado ou inválido → limpar sessão.
+      // ↓ Token expirado ou inválido → limpar sessão legada.
       if (status === 401) {
         try {
-          await AsyncStorage.removeItem('@kaorcount_token');
-          await AsyncStorage.removeItem('@kaorcount_usuario');
+          await limparSessaoGlobal();
         } catch (e) {
           // Ignore storage error
         }

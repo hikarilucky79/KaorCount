@@ -348,16 +348,25 @@ export default function PerfilScreen({ navigation }) {
 
       try {
         const dataHoje = new Date().toISOString().split('T')[0];
-        await metaNutriApi.criar({
-          id_usuario: idUsuario,
+        const payloadMeta = {
           calorias_diarias: cals,
           proteina_g: Math.round((cals * dist.prot) / 4),
           carboidrato_g: Math.round((cals * dist.carb) / 4),
           gordura_g: Math.round((cals * dist.gord) / 9),
           data_inicio: dataHoje,
-        });
+        };
+        // Atualiza a meta atual no lugar (evita linhas duplicadas no mesmo dia,
+        // que faziam a meta em kcal não acompanhar o perfil na Home/Perfil).
+        const metaExistente = await metaNutriApi.metaAtual(idUsuario);
+        if (metaExistente?.id_meta) {
+          await metaNutriApi.atualizar(metaExistente.id_meta, payloadMeta);
+        } else {
+          await metaNutriApi.criar({ id_usuario: idUsuario, ...payloadMeta });
+        }
       } catch (errMeta) {
         console.warn('[Perfil] Erro ao atualizar meta:', errMeta?.message);
+        setErroModal('Perfil salvo, mas não foi possível atualizar sua meta calórica. Tente novamente.');
+        return;
       }
 
       setModalVisivel(false);
