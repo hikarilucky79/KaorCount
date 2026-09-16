@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_senha, verificar_senha, criar_token_acesso
 from app.repositories.usuario_repo import UsuarioRepository
-from app.schemas.usuario import UsuarioCreate, UsuarioLogin
+from app.schemas.usuario import UsuarioCreate, UsuarioLogin, UsuarioAuth0Response
 from app.schemas.token import Token
 from fastapi import HTTPException, status
 
@@ -62,3 +62,33 @@ class AuthService:
         if usuario.status_conta != "ativo":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta inativa")
         return Token(access_token=criar_token_acesso(usuario.id_usuario))
+
+    # ─── Auth0 (Custom Database Connection) ────────────────────────────
+    # O script "Login" da conexão customizada chama estes endpoints para
+    # validar as credenciais contra o BANCO LOCAL. Auth0 apenas emite os
+    # tokens; os usuários continuam sendo a fonte de verdade local.
+
+    def validar_credenciais_auth0(self, email: str, senha: str) -> UsuarioAuth0Response:
+        usuario = self.repo.get_by_email(email)
+        if not usuario or not verificar_senha(senha, usuario.senha_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email ou senha incorretos",
+            )
+        if usuario.status_conta != "ativo":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta inativa")
+        return UsuarioAuth0Response(
+            user_id=str(usuario.id_usuario),
+            email=usuario.email,
+            name=usuario.nome,
+        )
+
+    def consultar_usuario_auth0(self, email: str) -> UsuarioAuth0Response | None:
+        usuario = self.repo.get_by_email(email)
+        if not usuario:
+            return None
+        return UsuarioAuth0Response(
+            user_id=str(usuario.id_usuario),
+            email=usuario.email,
+            name=usuario.nome,
+        )

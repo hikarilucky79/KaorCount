@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String, LargeBinary
+from sqlalchemy import Column, DateTime, String, LargeBinary, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import CHAR
 
@@ -14,7 +14,12 @@ class Usuario(Base):
     id_usuario = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nome = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False, unique=True, index=True)
+    # Usuários criados via Auth0 não possuem senha local (o Auth0 valida a senha).
+    # Nesse caso, senha_hash recebe um placeholder (nunca usado para login local).
     senha_hash = Column(LargeBinary(60), nullable=False)
+    # Vínculo com o Auth0 (ex.: "auth0|abc123"). É a chave JIT de provisionamento.
+    auth0_sub = Column(String(255), nullable=True, unique=True, index=True)
+    auth0_email_verified = Column(Boolean, nullable=False, default=False)
     data_cadastro = Column(DateTime, nullable=False, default=datetime.utcnow)
     status_conta = Column(String(20), nullable=False, default="ativo")
 

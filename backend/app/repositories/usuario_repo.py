@@ -14,3 +14,6 @@ class UsuarioRepository(BaseRepository[Usuario]):
 
     def get_by_email(self, email: str) -> Usuario | None:
         return self.db.query(Usuario).filter(Usuario.email == email).first()
+
+    def get_by_auth0_sub(self, auth0_sub: str) -> Usuario | None:
+        return self.db.query(Usuario).filter(Usuario.auth0_sub == auth0_sub).first()
