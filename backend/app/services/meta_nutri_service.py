@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.meta_nutri import MetaNutri
 from app.repositories.meta_nutri_repo import MetaNutriRepository
 from app.services.base_service import BaseService
+from app.schemas.meta_nutri import MetaNutriCreate
 from fastapi import HTTPException, status
 
 
@@ -12,6 +13,16 @@ class MetaNutriService(BaseService):
 
     def __init__(self, db: Session):
         super().__init__(MetaNutriRepository(db))
+
+    def criar(self, dados: MetaNutriCreate) -> MetaNutri:
+        # Upsert: para um mesmo usuário/dia não pode existir mais de uma meta.
+        # Sem esse comportamento, cada edição de perfil criava uma nova linha com
+        # data_inicio = hoje, e a consulta da "meta atual" retornava uma linha
+        # antiga arbitrariamente — fazendo o valor (ex: kcal) não acompanhar o perfil.
+        existente = self.repo.get_by_usuario_dia(dados.id_usuario, dados.data_inicio)
+        if existente:
+            return self.repo.update(existente, dados.model_dump(exclude={"id_usuario"}))
+        return self.repo.create(dados.model_dump())
 
     def listar_por_usuario(self, id_usuario: UUID | str) -> list[MetaNutri]:
         return self.repo.get_by_usuario(id_usuario)

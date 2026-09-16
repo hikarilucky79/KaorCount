@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
   data_cadastro DATE NOT NULL,
   status_conta CHAR(1) DEFAULT 'D',
 
+  /*Vínculo com o Auth0 (ex.: "auth0|abc123"). Chave JIT de provisionamento.*/
+  auth0_sub VARCHAR(255) UNIQUE,
+  auth0_email_verified BOOLEAN NOT NULL DEFAULT 0,
+
   CONSTRAINT chk_email CHECK (email LIKE '%@%'),
   CONSTRAINT chk_sexo CHECK (sexo IN ('F', 'M')), /*feminino, masculino*/
   CONSTRAINT chk_objetivo CHECK (objetivo IN ('P', 'M', 'G')), /*perder,manter, ganhar*/

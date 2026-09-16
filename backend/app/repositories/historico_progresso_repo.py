@@ -17,7 +17,13 @@ class HistoricoProgressoRepository(BaseRepository[HistoricoProgresso]):
         return (
             self.db.query(HistoricoProgresso)
             .filter(HistoricoProgresso.id_usuario == str(id_usuario))
-            .order_by(HistoricoProgresso.data_registro.desc())
+            .order_by(
+                HistoricoProgresso.data_registro.desc(),
+                # ↓ Desempate determinístico: com o upsert por dia não existem
+                #   mais linhas repetidas; o id garante ordem estável para
+                #   registros antigos que já estejam duplicados no banco.
+                HistoricoProgresso.id_progresso.asc(),
+            )
             .offset(skip)
             .limit(limit)
             .all()
@@ -31,6 +37,19 @@ class HistoricoProgressoRepository(BaseRepository[HistoricoProgresso]):
                 HistoricoProgresso.data_registro >= data_inicio,
                 HistoricoProgresso.data_registro <= data_fim,
             )
-            .order_by(HistoricoProgresso.data_registro.desc())
+            .order_by(
+                HistoricoProgresso.data_registro.desc(),
+                HistoricoProgresso.id_progresso.asc(),
+            )
             .all()
+        )
+
+    def get_by_usuario_dia(self, id_usuario: UUID | str, data_registro: date) -> HistoricoProgresso | None:
+        return (
+            self.db.query(HistoricoProgresso)
+            .filter(
+                HistoricoProgresso.id_usuario == str(id_usuario),
+                HistoricoProgresso.data_registro == data_registro,
+            )
+            .first()
         )

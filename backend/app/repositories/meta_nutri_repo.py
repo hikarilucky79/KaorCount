@@ -16,7 +16,21 @@ class MetaNutriRepository(BaseRepository[MetaNutri]):
     def get_by_usuario(self, id_usuario: UUID | str) -> list[MetaNutri]:
         return self.db.query(MetaNutri).filter(MetaNutri.id_usuario == str(id_usuario)).all()
 
+    def get_by_usuario_dia(self, id_usuario: UUID | str, data_inicio: date) -> MetaNutri | None:
+        return (
+            self.db.query(MetaNutri)
+            .filter(
+                MetaNutri.id_usuario == str(id_usuario),
+                MetaNutri.data_inicio == data_inicio,
+            )
+            .first()
+        )
+
     def get_meta_atual(self, id_usuario: UUID | str) -> MetaNutri | None:
+        # A "meta atual" é a de maior data_inicio. Como a criação é um upsert
+        # por (id_usuario, data_inicio), não devem existir registros duplicados
+        # no mesmo dia — isso evita que uma meta antiga seja devolvida no lugar
+        # da meta recém-calculada após a edição de perfil.
         return (
             self.db.query(MetaNutri)
             .filter(MetaNutri.id_usuario == str(id_usuario))

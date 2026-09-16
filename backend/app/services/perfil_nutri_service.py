@@ -47,15 +47,11 @@ class PerfilNutriService:
                 obj_data["data_nascimento"] = "2000-01-01"
             if "genero" not in obj_data:
                 obj_data["genero"] = "masculino"
-            if "peso_kg" not in obj_data:
-                obj_data["peso_kg"] = 70.0
-            if "altura_cm" not in obj_data:
-                obj_data["altura_cm"] = 170.0
             if "nivel_atividade" not in obj_data:
                 obj_data["nivel_atividade"] = "moderado"
             if "objetivo_nutricional" not in obj_data:
                 obj_data["objetivo_nutricional"] = "manter_peso"
-            obj_data["tmb_calculo"] = NutricaoService.calcular_tmb(obj_data["data_nascimento"], obj_data["genero"], peso_kg=obj_data.get("peso_kg", 70.0))
+            obj_data["tmb_calculo"] = NutricaoService.calcular_tmb(obj_data["data_nascimento"], obj_data["genero"], peso_kg=70.0)
             return self.repo.create(obj_data)
         return self.repo.update(perfil, dados.model_dump(exclude_unset=True))
 
