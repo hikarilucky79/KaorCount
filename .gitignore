@@ -1,47 +1,67 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# ─── Dependências ───────────────────────────────────────────────
 node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-*.db
-*.sqlite3
-__pycache__/
 
-# Expo
+# ─── Backend / Python ───────────────────────────────────────────
+*.db
+*.db-*
+*.sqlite3
+*.sqlite3-*
+*.py[cod]
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+# ─── Expo / React Native ────────────────────────────────────────
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
-
-# Native
-.kotlin/
 *.orig.*
+*.orig
+
+# ─── Segredos / env (modelos .env.example seguem versionados) ───
+.env
+.env.*
+.env*.local
+!.env.example
+!.env.example.*
+
+# ─── IDE / editores ─────────────────────────────────────────────
+.vscode/
+.idea/
+.history/
+*.swp
+*.swo
+*.tsbuildinfo
+
+# ─── Sistemas / utilitários ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.pem
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 
-# Metro
-.metro-health-check*
-
-# debug
+# ─── Debug ──────────────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.metro-health-check*
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
+# ─── Pastas nativas geradas ─────────────────────────────────────
 /ios
 /android
