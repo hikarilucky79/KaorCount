@@ -1,6 +1,9 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
@@ -59,10 +62,18 @@ app.add_exception_handler(DataError, data_error_handler)
 app.add_exception_handler(OperationalError, operational_error_handler)
 
 
-@app.get("/")
-def root():
-    return {"projeto": "KaorCount", "versao": "1.0.0", "documentacao": "/docs", "prefixo_api": settings.API_V1_PREFIX}
+PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
+INDEX_HTML = PUBLIC_DIR / "html" / "index.html"
 
+# Servir arquivos estáticos (CSS e JS)
+app.mount("/css", StaticFiles(directory=PUBLIC_DIR / "css"), name="css")
+app.mount("/js", StaticFiles(directory=PUBLIC_DIR / "js"), name="js")
+
+# Rota para a raiz e para /index.html
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def root():
+    return FileResponse(INDEX_HTML)
 
 @app.get("/health")
 def health():
