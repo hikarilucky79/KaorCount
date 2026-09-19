@@ -13,8 +13,8 @@ body {
     padding-top: 140px; /* Espaço inicial para header não tampar*/
 }
 
-#inicio{
-    scroll-margin-top: 130px;
+.inicio {
+    scroll-margin-top: 1000px;
 }
 
 header {    
@@ -101,11 +101,11 @@ nav a:hover::after {
 /*Telas de pc*/
 @media (min-width: 1024px) {
     body {
-        padding-top: 180px; /* Ajustado para o cabeçalho mais alto */
+        padding-top: 150px; /* Ajustado para o cabeçalho mais alto */
     }
 
     header {
-        padding: 1.8rem 2rem; /* Aumenta o espaço interno do header */
+        padding: 1rem 2rem; /* Aumenta o espaço interno do header */
     }
 
     .logo img {
@@ -113,21 +113,28 @@ nav a:hover::after {
     }
 
     nav {
-        margin-top: 1.5rem; /* Distância vertical maior entre a logo e os links */
         gap: 3rem; /* Distância horizontal maior entre cada link */
         max-width: 1100px;
     }
 
     /* Ajuste esconder a logo */
     header.esconder-logo {
-        transform: translateY(-105px);
+        transform: translateY(-102px);
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .text{
+        font-size: 1rem;
     }
 }
 
 /* Telas de até 768px */
 @media (max-width: 768px) {
     body {
-        padding-top: 160px; /* Aumenta o espaço do topo pois o nav ocupa mais espaço vertical */
+        padding-top: 110px; /* Aumenta o espaço do topo */
     }
 
     header {
@@ -138,24 +145,40 @@ nav a:hover::after {
         max-width: 110px; /* Reduz a logo em telas menores */
     }
 
-    /* Recalcula a distância para esconder a logo menor no mobile */
+    /* Recalcula distância para esconder a logo */
     header.esconder-logo {
-        transform: translateY(-60px); 
+        transform: translateY(-70px); 
     }
 
     nav {
         gap: 0.6rem 1rem; /* Diminui o espaçamento entre links */
         margin-top: 0.5rem;
     }
+
+    h1 {
+        font-size: 2.4rem;
+    }
+
+    .text{
+        font-size: 1rem;
+    }
 }
 
 /* Telas muito pequenas (até 480px) */
 @media (max-width: 480px) {
     body {
-        padding-top: 175px;
+        padding-top: 100px;
     }
 
     nav a {
         font-size: 0.85rem; /* Ajuste na fonte para caber */
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .text{
+        font-size: 0.9rem;
     }
 }
