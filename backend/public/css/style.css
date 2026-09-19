@@ -4,16 +4,17 @@
 
 html {
     scroll-behavior: smooth;
-}
-
-#inicio{
-    scroll-margin-top: 130px;
+    font-family: "Sora", sans-serif;
 }
 
 body {
     padding: 0px;
     margin: 0px;
     padding-top: 140px; /* Espaço inicial para header não tampar*/
+}
+
+#inicio{
+    scroll-margin-top: 130px;
 }
 
 header {    
