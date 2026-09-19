@@ -17,6 +17,14 @@ body {
     padding-top: 140px; /* Espaço inicial para header não tampar*/
 }
 
+#text-efeito{
+    text-align: center;
+}
+
+#destaque{
+    color: #038c57;
+}
+
 header {    
     position: fixed;
     top: 0;
@@ -80,7 +88,7 @@ nav a::after {
     transition: width 0.3s ease;
 }
 
-/* Efeito Hover: Aumenta o tamanho, muda a cor e exibe a linha */
+/* Efeito Aumenta o tamanho, muda a cor e exibe a linha */
 nav a:hover {
     color: #038c57;
     transform: scale(1.08);
@@ -93,6 +101,19 @@ nav a:hover::after {
 .btn-baixar {
     color: #038c57;
 }
+
+section{
+    border-style: solid;
+    border-top-color: #038c57;
+    border-bottom-color: #038c57;
+    border-left-color:white;
+    border-right-color: white;
+    padding: 1rem;
+    margin-bottom: 1%;
+    box-shadow: 0 20px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+
 
 /*  =======================================================
     TELA RESPONSIVA
