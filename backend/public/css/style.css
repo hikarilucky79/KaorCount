@@ -1,22 +1,160 @@
-header {
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+#inicio{
+    scroll-margin-top: 130px;
+}
+
+body {
+    padding: 0px;
+    margin: 0px;
+    padding-top: 140px; /* Espaço inicial para header não tampar*/
+}
+
+header {    
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    background-color: #ffff;
+    background-color: #ffffff;
     z-index: 1000;
     box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.3s ease-in-out;
 }
 
-nav{
+/* Classe aplicada no JavaScript */
+header.esconder-logo {
+    transform: translateY(-80px); /* Oculta a logo mantendo o nav visível no desktop */
+}
+
+.logo img {
+    max-width: 140px;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+nav {    
     text-align: center;
-    margin: 20px;
+    margin-top: 0.8rem;  
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap; /* Permite que os links se reorganizem em telas menores*/
 }
 
-a{
+nav a {
+    position: relative;
+    display: inline-block;
     text-decoration: none;
     font-weight: bold;
     color: black;
+    font-size: clamp(0.85rem, 1vw + 0.2rem, 1.1rem);
+    transition: color 0.3s ease, transform 0.3s ease;
+    white-space: nowrap; /* Impede que o texto de um único link quebre em duas linhas */
 }
 
+/* Linha em baixo do link (invisível por padrão) */
+nav a::after {
+    content: '';
+    position: absolute;
+    width: 0%;
+    height: 2px;
+    bottom: -4px;
+    left: 0;
+    background-color: #038c57;
+    transition: width 0.3s ease;
+}
+
+/* Efeito Hover: Aumenta o tamanho, muda a cor e exibe a linha */
+nav a:hover {
+    color: #038c57;
+    transform: scale(1.08);
+}
+
+nav a:hover::after {
+    width: 100%;
+}
+
+.btn-baixar {
+    color: #038c57;
+}
+
+/*  =======================================================
+    TELA RESPONSIVA
+    ======================================================= */
+
+/*Telas de pc*/
+@media (min-width: 1024px) {
+    body {
+        padding-top: 180px; /* Ajustado para o cabeçalho mais alto */
+    }
+
+    header {
+        padding: 1.8rem 2rem; /* Aumenta o espaço interno do header */
+    }
+
+    .logo img {
+        max-width: 160px; /* Logo maior */
+    }
+
+    nav {
+        margin-top: 1.5rem; /* Distância vertical maior entre a logo e os links */
+        gap: 3rem; /* Distância horizontal maior entre cada link */
+        max-width: 1100px;
+    }
+
+    /* Ajuste esconder a logo */
+    header.esconder-logo {
+        transform: translateY(-105px);
+    }
+}
+
+/* Telas de até 768px */
+@media (max-width: 768px) {
+    body {
+        padding-top: 160px; /* Aumenta o espaço do topo pois o nav ocupa mais espaço vertical */
+    }
+
+    header {
+        padding: 0.8rem 1rem;
+    }
+
+    .logo img {
+        max-width: 110px; /* Reduz a logo em telas menores */
+    }
+
+    /* Recalcula a distância para esconder a logo menor no mobile */
+    header.esconder-logo {
+        transform: translateY(-60px); 
+    }
+
+    nav {
+        gap: 0.6rem 1rem; /* Diminui o espaçamento entre links */
+        margin-top: 0.5rem;
+    }
+}
+
+/* Telas muito pequenas (até 480px) */
+@media (max-width: 480px) {
+    body {
+        padding-top: 175px;
+    }
+
+    nav a {
+        font-size: 0.85rem; /* Ajuste na fonte para caber */
+    }
+}
