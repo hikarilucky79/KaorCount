@@ -1,0 +1,22 @@
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #ffff;
+    z-index: 1000;
+    box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+nav{
+    text-align: center;
+    margin: 20px;
+}
+
+a{
+    text-decoration: none;
+    font-weight: bold;
+    color: black;
+}
+
