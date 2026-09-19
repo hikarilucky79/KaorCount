@@ -7,14 +7,14 @@ html {
     font-family: "Sora", sans-serif;
 }
 
+[id] {
+    scroll-margin-top: 140px;
+}
+
 body {
     padding: 0px;
     margin: 0px;
     padding-top: 140px; /* Espaço inicial para header não tampar*/
-}
-
-.inicio {
-    scroll-margin-top: 1000px;
 }
 
 header {    
@@ -100,6 +100,10 @@ nav a:hover::after {
 
 /*Telas de pc*/
 @media (min-width: 1024px) {
+    [id] {
+        scroll-margin-top: 190px;
+    }
+
     body {
         padding-top: 150px; /* Ajustado para o cabeçalho mais alto */
     }
@@ -133,6 +137,10 @@ nav a:hover::after {
 
 /* Telas de até 768px */
 @media (max-width: 768px) {
+    [id] {
+        scroll-margin-top: 110px;
+    }
+
     body {
         padding-top: 110px; /* Aumenta o espaço do topo */
     }
@@ -166,6 +174,10 @@ nav a:hover::after {
 
 /* Telas muito pequenas (até 480px) */
 @media (max-width: 480px) {
+    [id] {
+        scroll-margin-top: 110px;
+    }
+
     body {
         padding-top: 100px;
     }
