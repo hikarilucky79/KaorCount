@@ -23,6 +23,11 @@ p{
     margin-right: 2rem;
 }
 
+.frase-efeito{
+    background-color: #d3ffe7ee;
+    margin-bottom: 0px;
+}
+
 #text-efeito{
     text-align: center;
 }
@@ -113,8 +118,7 @@ section{
     border-bottom-color: #ffffff;
     border-left-color:white;
     border-right-color: white;
-    padding: 1rem;
-    margin-bottom: 1%;    
+    padding: 1rem; 
 }
 
 .text{
