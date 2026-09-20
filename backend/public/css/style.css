@@ -19,6 +19,8 @@ body {
 
 p{
     font-size: large;
+    margin-left: 2rem;
+    margin-right: 2rem;
 }
 
 #text-efeito{
@@ -197,6 +199,10 @@ h1{
     line-height: 1.6;
 }
 
+#app-text p{
+    text-align: center;
+}
+
 .recursos-grid {
     margin: 0 auto;
     display: grid;
@@ -322,7 +328,7 @@ h1{
     p{
         text-align: center;
     }
-    
+
     .text {
         font-size: 1rem;
     }
