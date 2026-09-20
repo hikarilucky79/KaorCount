@@ -105,15 +105,24 @@ nav a:hover::after {
 section{
     border-style: solid;
     border-top-color: #038c57;
-    border-bottom-color: #038c57;
+    border-bottom-color: #ffffff;
     border-left-color:white;
     border-right-color: white;
     padding: 1rem;
     margin-bottom: 1%;
-    box-shadow: 0 20px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
+.text bold{
+    color: #005e3a;
+}
 
+.text li{
+    margin-bottom: 2%;
+}
+
+.text ul ::marker{
+    color: #038c57;
+}
 
 /*  =======================================================
     TELA RESPONSIVA
