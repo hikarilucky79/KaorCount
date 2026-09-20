@@ -17,6 +17,10 @@ body {
     padding-top: 140px;
 }
 
+p{
+    font-size: large;
+}
+
 #text-efeito{
     text-align: center;
 }
@@ -125,6 +129,72 @@ h1{
 
 .text bold{
     color: #005e3a;
+}
+
+#keenko-text {
+    display: flex;
+    align-items: center; 
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+#keenko-text p {
+    flex: 1;
+    margin: 0; 
+    margin-left: 2rem;
+}
+
+#keenko-text .imagem {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end; 
+}
+
+#keenko-text .imagem img {
+    width: 300px;
+    max-width: 500px; 
+    height: auto;
+    border-radius: 8px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+}
+
+.Keenko-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 1000px;
+    margin: 3rem auto;
+    padding: 0 1rem;
+}
+
+.Keenko-card {
+    background-color: #038c57;
+    color: #ffffff;
+    padding: 2.5rem 2rem;
+    border-radius: 16px;
+    text-align: left;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.Keenko-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 24px rgba(0, 37, 16, 0.4);
+}
+
+.Keenko-card h3 {
+    text-transform: uppercase;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 1.2rem;
+}
+
+.Keenko-card p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
 }
 
 .recursos-grid {
@@ -249,6 +319,10 @@ h1{
         font-size: 2.4rem;
     }
 
+    p{
+        text-align: center;
+    }
+    
     .text {
         font-size: 1rem;
     }
@@ -267,6 +341,25 @@ h1{
     .recurso-card img {
         width: 56px;
         height: 56px;
+    }
+
+    #keenko-text {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+    }
+
+    #keenko-text .imagem {
+        justify-content: center;
+    }
+    
+    #keenko-text .imagem img {
+        max-width: 100%;
+    }
+
+    .Keenko-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
