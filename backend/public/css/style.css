@@ -24,7 +24,7 @@ p{
 }
 
 .frase-efeito{
-    background-color: #d3ffe7ee;
+    background-color: #e3f8e0;
     margin-bottom: 0px;
 }
 
@@ -113,12 +113,9 @@ nav a:hover::after {
 }
 
 section{
-    border-style: solid;
-    border-top-color: #038c57;
-    border-bottom-color: #ffffff;
-    border-left-color:white;
-    border-right-color: white;
+    border-top: 3px solid #038c57;
     padding: 1rem; 
+    margin: 0px;
 }
 
 .text{
@@ -205,6 +202,25 @@ h1{
 
 #app-text p{
     text-align: center;
+}
+
+.sec-app{
+    background-color: antiquewhite;
+}
+
+#app{
+    color: #A63208;
+}
+
+#app-text bold{
+    color: #5e1b02;
+}
+
+#app-logo{
+    width: 100%;
+    max-width: 400px;
+    display: block;
+    margin: 1.5rem auto 2rem auto;
 }
 
 .recursos-grid {
