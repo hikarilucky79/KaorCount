@@ -130,7 +130,7 @@ h1{
     color: #003122;
 }
 
-.text bold{
+.text p strong{
     color: #005e3a;
 }
 
@@ -212,7 +212,7 @@ h1{
     color: #A63208;
 }
 
-#app-text bold{
+#app-text strong{
     color: #5e1b02;
 }
 
