@@ -4,8 +4,18 @@ USE KaorCount;
 
   /* CRIA AS TABELAS */
 
+CREATE TABLE IF NOT EXISTS OBJETIVO (
+  id_objetivo INT PRIMARY KEY,
+  descricao_obj VARCHAR(50) NOT NULL,
+)
+
+CREATE TABLE IF NOT EXISTS NIVEL_ATIVIDADE (
+  id_nivel_atividade INT PRIMARY KEY,
+  descricao_nivel VARCHAR(50) NOT NULL,
+)
+
 CREATE TABLE IF NOT EXISTS USUARIOS (
-  id_user INT PRIMARY KEY AUTO_INCREMENT,
+  id_user VARCHAR(225) PRIMARY KEY,
 
   nome VARCHAR(225) NOT NULL,
   sobrenome VARCHAR(225) NOT NULL,
@@ -13,21 +23,23 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
   data_nascimento DATE NOT NULL, 
   sexo CHAR(1) NOT NULL,
   peso DECIMAL(5,2) NOT NULL, /*peso em Kg*/
-  objetivo CHAR(1) DEFAULT 'P',
-  nivel_atv CHAR(1) NOT NULL,
   email VARCHAR(225) NOT NULL UNIQUE,
   senha VARCHAR(225) NOT NULL, 
   data_cadastro DATE NOT NULL,
   status_conta CHAR(1) DEFAULT 'D',
 
+  id_objetivo INT,
+  id_nivel_atividade INT,
+
   /*Vínculo com o Auth0 (ex.: "auth0|abc123"). Chave JIT de provisionamento.*/
   auth0_sub VARCHAR(255) UNIQUE,
   auth0_email_verified BOOLEAN NOT NULL DEFAULT 0,
 
+  FOREIGN KEY(id_objetivo) REFERENCES OBJETIVO(id_objetivo) ON DELETE CASCADE,
+  FOREIGN KEY(id_nivel_atividade) REFERENCES NIVEL_ATIVIDADE(id_nivel_atividade) ON DELETE CASCADE,
+
   CONSTRAINT chk_email CHECK (email LIKE '%@%'),
-  CONSTRAINT chk_sexo CHECK (sexo IN ('F', 'M')), /*feminino, masculino*/
-  CONSTRAINT chk_objetivo CHECK (objetivo IN ('P', 'M', 'G')), /*perder,manter, ganhar*/
-  CONSTRAINT chk_nivel_atv CHECK (nivel_atv IN ('S', 'L', 'N', 'M')) /*sedentario, levemente_atv, moderadamente_atv, muito_atv*/
+  CONSTRAINT chk_sexo CHECK (sexo IN ('F', 'M')) /*feminino, masculino*/
 );
 
 CREATE TABLE IF NOT EXISTS META_NUTRI (
