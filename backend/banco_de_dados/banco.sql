@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
   altura DECIMAL(3,2) NOT NULL, 
   data_nascimento DATE NOT NULL, 
   sexo CHAR(1) NOT NULL,
-  peso DECIMAL(5,2) NOT NULL, /*peso em Kg*/
   email VARCHAR(225) NOT NULL UNIQUE,
   senha VARCHAR(225) NOT NULL, 
   data_cadastro DATE NOT NULL,
