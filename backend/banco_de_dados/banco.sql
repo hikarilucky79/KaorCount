@@ -87,8 +87,7 @@ CREATE TABLE IF NOT EXISTS TIPO_REFEICAO (
 CREATE TABLE IF NOT EXISTS REFEICOES (
   id_refeicao INT PRIMARY KEY AUTO_INCREMENT,
 
-  data_refeicao DATE NOT NULL,
-  tipo_refeicao CHAR(1) NOT NULL,
+  data_refeicao DATE NOT NULL, /*Apenas a data é necessaria*/
 
   id_user VARCHAR(225) NOT NULL,
   id_tipo_refeicao INT NOT NULL,
@@ -97,16 +96,16 @@ CREATE TABLE IF NOT EXISTS REFEICOES (
   FOREIGN KEY(id_tipo_refeicao) REFERENCES TIPO_REFEICAO ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ALIMENTOS (
+CREATE TABLE IF NOT EXISTS ALIMENTO (
   id_alimento INT PRIMARY KEY AUTO_INCREMENT,
 
   nome_alimento VARCHAR(225) NOT NULL,
   porcao_padrao INT NOT NULL,
-  calorias INT NOT NULL,
-  carboidratos INT NOT NULL,
-  proteinas INT NOT NULL,
-  gorduras INT NOT NULL,
-  origem_dados VARCHAR(225)
+  caloria INT NOT NULL,
+  carboidrato INT NOT NULL,
+  proteina INT NOT NULL,
+  gordura INT NOT NULL,
+  origem_dado VARCHAR(225)
 );
 
 CREATE TABLE IF NOT EXISTS ITEM_REFEICAO (
