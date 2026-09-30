@@ -108,10 +108,9 @@ CREATE TABLE IF NOT EXISTS ALIMENTO (
 );
 
 CREATE TABLE IF NOT EXISTS ITEM_REFEICAO (
-  id_item_refeicao INT
+  id_item_refeicao INT PRIMARY KEY
   id_refeicao INT NOT NULL,
   id_alimento INT NOT NULL,
-  PRIMARY KEY (id_item_refeicao, id_refeicao, id_alimento),
 
   qtd_alimento INT NOT NULL, /*Em gramas(g)*/
 
