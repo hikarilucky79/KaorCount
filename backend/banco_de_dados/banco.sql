@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
 
   /*Vínculo com o Auth0 (ex.: "auth0|abc123"). Chave JIT de provisionamento.*/
   auth0_sub VARCHAR(255) UNIQUE,
-  auth0_email_verified BOOLEAN NOT NULL DEFAULT 0,
+  auth0_email_verified BOOLEAN NOT NULL DEFAULT 'FALSE',
 
   FOREIGN KEY(id_objetivo) REFERENCES OBJETIVO(id_objetivo) ON DELETE CASCADE,
   FOREIGN KEY(id_nivel_atividade) REFERENCES NIVEL_ATIVIDADE(id_nivel_atividade) ON DELETE CASCADE,
@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS META_NUTRI (
   carboidrato_g DECIMAL(5,2),
   proteina_g DECIMAL(5,2) ,
   gordura_g DECIMAL(5,2),
-  data_inicio DATE NOT NULL,
+  inicio_meta DATETIME NOT NULL,
+  agua_ml DECIMAL(6,2 ),
 
   id_user INT NOT NULL,
 
