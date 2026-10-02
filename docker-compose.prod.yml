@@ -1,0 +1,146 @@
+# ─────────────────────────────────────────────────────────────────────
+# KaorCount — stack de PRODUÇÃO
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# (ou, mais simples, pelo script: ./run.sh prod)
+#
+# Diferenças em relação ao compose de desenvolvimento:
+#   • Caddy na frente, com HTTPS automático via Let's Encrypt
+#   • MySQL NÃO expõe porta no host (só a rede interna do Docker)
+#   • API e web só acessíveis de dentro da rede (via o proxy)
+#   • ENVIRONMENT=production → sem fallback silencioso pra SQLite,
+#     e CORS travado nos domínios de CORS_ORIGINS
+#   • Recursos limitados para o servidor não travar
+#   • Log com rotação (evita encher o disco)
+#
+# Requisitos: domínio com DNS apontando para o IP do servidor nas portas
+# 80 e 443. Sem domínio, comente o serviço "caddy" e publique o web direto.
+# ─────────────────────────────────────────────────────────────────────
+
+services:
+  # ─── Proxy reverso + HTTPS automático ─────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: kaorcount-caddy
+    restart: unless-stopped
+    environment:
+      # E-mail para o Let's Encrypt avisar sobre certificados expirando.
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # certificados (persistem entre deploys)
+      - caddy_config:/config
+    depends_on:
+      - web
+    networks:
+      - kaorcount
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Banco de dados ───────────────────────────────────────────────
+  db:
+    restart: always
+    # ⚠️ Nenhuma porta publicada: o MySQL só é acessível pela rede interna.
+    ports: !reset []
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?defina DB_ROOT_PASSWORD no .env}"
+      MYSQL_DATABASE: ${DB_NAME:-kaorcount}
+      MYSQL_USER: ${DB_USER:-kaorcount}
+      MYSQL_PASSWORD: "${DB_PASSWORD:?defina DB_PASSWORD no .env}"
+    # MySQL em produção precisa de mais memória e deve aggressively
+    # descartar conexões ociosas para não segurar RAM à toa.
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=100
+      --innodb-buffer-pool-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --skip-name-resolve
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - kaorcount
+
+  # ─── API REST (FastAPI) ───────────────────────────────────────────
+  api:
+    restart: always
+    # Carrega o arquivo de produção de forma explícita. Assim, o Compose
+    # NÃO depende do .env do desenvolvimento nem dos valores exportados
+    # na sessão do shell — a configuração de produção é sempre a mesma.
+    env_file:
+      - path: .env.prod
+        required: true
+    environment:
+      DATABASE_URL: "mysql+pymysql://${DB_USER:-kaorcount}:${DB_PASSWORD}@db:3306/${DB_NAME:-kaorcount}"
+      SECRET_KEY: "${SECRET_KEY:?defina SECRET_KEY no .env.prod - gere com python -c 'import secrets;print(secrets.token_urlsafe(48))'}"
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+      FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
+      FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
+      # Travas de produção
+      ENVIRONMENT: production
+      CORS_ORIGINS: "${CORS_ORIGINS:?defina CORS_ORIGINS no .env.prod, ex: https://seudominio.com.br}"
+    # ⚠️ Sem porta publicada: só o Caddy fala com a API.
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - kaorcount
+
+  # ─── App web (bundle Expo + nginx) ────────────────────────────────
+  web:
+    restart: always
+    build:
+      args:
+        # URL absoluta da API pública (o bundle é buildado com esse valor).
+        EXPO_PUBLIC_API_URL: "${EXPO_PUBLIC_API_URL:-/api/v1}"
+        EXPO_PUBLIC_AUTH0_DOMAIN: "${EXPO_PUBLIC_AUTH0_DOMAIN:-}"
+        EXPO_PUBLIC_AUTH0_CLIENT_ID: "${EXPO_PUBLIC_AUTH0_CLIENT_ID:-}"
+        EXPO_PUBLIC_AUTH0_AUDIENCE: "${EXPO_PUBLIC_AUTH0_AUDIENCE:-}"
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - kaorcount
+
+networks:
+  kaorcount:
+    driver: bridge
+
+volumes:
+  caddy_data:
+    driver: named
+  caddy_config:
+    driver: named

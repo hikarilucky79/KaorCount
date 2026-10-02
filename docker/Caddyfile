@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────────────
+# KaorCount — Caddy: proxy reverso com HTTPS automático
+#
+# O Caddy obtém e renova o certificado Let's Encrypt sozinho, desde que
+# o domínio já aponte para o IP do servidor nas portas 80 e 443.
+#
+# Para testar SEM domínio: comente o serviço "caddy" no
+# docker-compose.prod.yml e publique o web direto:
+#   web:
+#     ports: ["80:80"]
+#
+# Para testar o certificado localmente, use o domínio "localhost":
+#   CADDY_DOMAIN=localhost  →  Caddy gera certificado interno.
+# ─────────────────────────────────────────────────────────────────────
+
+{
+	# E-mail para avisos do Let's Encrypt (renovação, expiração).
+	email {$ACME_EMAIL}
+
+	# Redireciona todo o tráfego HTTP para HTTPS.
+	admin off
+}
+
+# ─── App web + API no mesmo domínio ────────────────────────────────
+# O bundle web chama /api/v1, que o nginx interno repassa para a API.
+# Tudo numa origem só = sem CORS e sem configuração extra no frontend.
+{$CADDY_DOMAIN} {
+	encode zstd gzip
+
+	# Cabeçalhos de segurança.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Site institucional da Keenko (servido pela API em backend/public).
+	handle_path /site/* {
+		reverse_proxy api:8000
+	}
+
+	# API + documentação.
+	handle /api/* {
+		reverse_proxy api:8000 {
+			transport http {
+				read_timeout 120s
+				write_timeout 120s
+			}
+		}
+	}
+	handle /docs {
+		reverse_proxy api:8000
+	}
+	handle /redoc {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+	handle /health {
+		reverse_proxy api:8000
+	}
+
+	# Bundle do app.
+	handle {
+		reverse_proxy web:80
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+# ─── Redirecionamento de www para o domínio principal ──────────────
+# Ative descomentando e ajustando o domínio abaixo.
+# www.{$CADDY_DOMAIN} {
+# 	redir https://{$CADDY_DOMAIN}{uri} permanent
+# }
