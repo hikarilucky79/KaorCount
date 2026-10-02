@@ -2,9 +2,12 @@
 
 # ─── Dependências ───────────────────────────────────────────────
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+
+# O package-lock.json É versionado de propósito. Ele trava as versões
+# exatas para que todos instalem o mesmo ambiente — sem ele, cada
+# máquina baixa versões diferentes e o app quebra de formas difíceis
+# de diagnosticar (erro de módulo faltando, incompatibilidade de API).
+# O yarn.lock e pnpm-lock.yaml continuam ignorados: use npm neste projeto.
 
 # ─── Backend / Python ───────────────────────────────────────────
 *.db
@@ -30,12 +33,15 @@ expo-env.d.ts
 *.orig.*
 *.orig
 
-# ─── Segredos / env (modelos .env.example seguem versionados) ───
+# ─── Segredos ──────────────────────────────────────────────────
+# Regra defensiva: QUALQUER arquivo .env* é ignorado por padrão.
+# As exceções abaixo liberam só os templates (sem valores reais).
 .env
 .env.*
 .env*.local
 !.env.example
 !.env.example.*
+!.env.prod.example
 
 # ─── IDE / editores ─────────────────────────────────────────────
 .vscode/
@@ -55,6 +61,13 @@ Desktop.ini
 *.p12
 *.key
 *.mobileprovision
+
+# ─── Produção ─────────────────────────────────────────────────
+# Certificados do Caddy e dumps do MySQL nunca devem ir para o git.
+*.sql.gz
+caddy_data/
+caddy_config/
+backup-*.sql
 
 # ─── Debug ──────────────────────────────────────────────────────
 npm-debug.*

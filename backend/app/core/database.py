@@ -23,6 +23,15 @@ def criar_engine():
             print("[Database] Conectado ao MySQL com sucesso.")
             return test_engine
         except Exception as e:
+            # Em produção, cair silenciosamente para SQLite é perigoso: o
+            # container parece saudável, mas os dados ficam num arquivo local
+            # destruído a cada deploy. Melhor falhar alto e deixar o
+            # healthcheck/orquestrador reiniciar o serviço.
+            if settings.is_production:
+                raise RuntimeError(
+                    f"[Database] Falha crítica ao conectar no MySQL ({e}). "
+                    "A API não sobe em produção sem o banco, para não perder dados."
+                ) from e
             print(f"[Database] Aviso: MySQL não disponível ({e}). Usando SQLite local ('sqlite:///./kaorcount.db').")
             return create_engine(
                 "sqlite:///./kaorcount.db",

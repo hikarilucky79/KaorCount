@@ -39,12 +39,32 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+# CORS.
+# Desenvolvimento (padrão): liberado para qualquer origem, como antes.
+# Produção: só os domínios listados em CORS_ORIGINS. Sem essa trava, qualquer
+# site poderia chamar a API com o token do usuário logado.
+_origens = settings.cors_origins_list
+
+if settings.is_production and not _origens:
+    raise RuntimeError(
+        "[CORS] CORS_ORIGINS vazio em produção. Defina os domínios separados por "
+        'vírgula, ex.: CORS_ORIGINS="https://kaorcount.com.br"'
+    )
+
+if not _origens:
+    print("[CORS] Modo desenvolvimento: allow_origins=['*']")
+else:
+    print(f"[CORS] Origens permitidas: {_origens}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    # Com allow_credentials=True o navegador exige uma origem explícita;
+    # "*" seria rejeitado, então usamos a lista configurada.
+    allow_origins=_origens if _origens else ["*"],
+    allow_credentials=bool(_origens),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    max_age=600,
 )
 
 for router in [

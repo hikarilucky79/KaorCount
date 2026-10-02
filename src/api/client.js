@@ -8,10 +8,16 @@ import Constants from 'expo-constants';
 import { obterTokenAutorizacao, limparSessaoGlobal } from '../auth/tokenBridge';
 
 // ↓ URL base da API dinâmica conforme o ambiente:
+//   - EXPO_PUBLIC_API_URL: se definida, tem precedência (usada no Docker/produção
+//     para apontar para um proxy relative como "/api/v1").
 //   - Web / Navegador: http://localhost:8000/api/v1
 //   - Dispositivo Físico (Expo Go): Detecta IP dinâmico da rede local (ex: http://192.168.x.x:8000/api/v1)
 //   - Emulador Android: http://10.0.2.2:8000/api/v1
 const getBaseUrl = () => {
+  const urlConfigurada = process.env.EXPO_PUBLIC_API_URL;
+  if (urlConfigurada) {
+    return urlConfigurada;
+  }
   if (Platform.OS === 'web') {
     return 'http://localhost:8000/api/v1';
   }
