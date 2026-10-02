@@ -1,0 +1,53 @@
+# ─── Contexto de build do bundle web (raiz) ───────────────────────────
+# Mantém o contexto pequeno e evita que artefatos locais entrem na imagem.
+
+# Dependências e builds
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+
+# ─── Segredos ───────────────────────────────────────────────────
+# Espelha EXATAMENTE as regras de env do .gitignore. Se as duas listas
+# divergirem, um .env novo pode entrar no Git OU na imagem — por isso
+# a mesma regra defensiva: tudo .env* é ignorado, exceto os templates.
+.env
+.env.*
+.env*.local
+!.env.example
+!.env.example.*
+!.env.prod.example
+
+# Git
+.git/
+.gitignore
+.github/
+
+# O backend tem build próprio — não é necessário no contexto do bundle web.
+backend/
+
+# Documentação e artefatos que não entram na imagem
+Documentação/
+LICENSE
+SECURITY.md
+README.md
+*.md
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python (build separado em backend/Dockerfile)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+*.sqlite3

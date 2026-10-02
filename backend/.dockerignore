@@ -1,0 +1,57 @@
+# ─── Contexto de build da API (backend) ───────────────────────────────
+
+# Ambiente virtual
+venv/
+.venv/
+env/
+ENV/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Segredos
+# Mesma regra defensiva da raiz: tudo .env* é ignorado, exceto o template.
+.env
+.env.*
+.env*.local
+!.env.example
+
+# Banco SQLite de fallback (quando o MySQL não está disponível)
+*.db
+*.sqlite
+*.sqlite3
+
+# Build / Pastas nativas
+build/
+dist/
+parts/
+sdist/
+var/
+wheels/
+
+# Docker e versionamento
+Dockerfile
+.dockerignore
+
+# IDE / sistema operacional
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# O README do backend foi consolidado no README da raiz.
+README.md

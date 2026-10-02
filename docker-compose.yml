@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────
+# KaorCount — stack completa (MySQL + API FastAPI + app web)
+#
+# Uso:
+#   docker compose up -d --build      # sobe tudo
+#   docker compose logs -f api        # acompanha a API
+#   docker compose down               # derruba (mantém o banco)
+#   docker compose down -v            # derruba e APAGA o banco
+#
+# Acesse:
+#   App .............. http://localhost:8080
+#   API (Swagger) .... http://localhost:8000/docs
+#   Health check ..... http://localhost:8000/health
+# ─────────────────────────────────────────────────────────────────────
+
+services:
+  # ─── Banco de dados ───────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: kaorcount-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-kaorcount_root}
+      MYSQL_DATABASE: ${DB_NAME:-kaorcount}
+      MYSQL_USER: ${DB_USER:-kaorcount}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-kaorcount}
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    ports:
+      # Exposto para permitir acesso via MySQL Workbench/DBeaver.
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      # NOTA: backend/banco_de_dados/banco.sql NÃO é montado aqui de propósito.
+      # Ele descreve um schema legado (tabelas USUARIOS/META_NUTRI em maiúsculas,
+      # PK INT autoincrement) que diverge dos models SQLAlchemy em
+      # backend/app/models (tabelas minúsculas, PK UUID CHAR(36)).
+      # No MySQL do Linux o nome do banco é case-sensitive, então montá-lo criaria
+      # um segundo banco "KaorCount" que o app nunca usaria. O schema correto é
+      # criado automaticamente por Base.metadata.create_all() em app/main.py.
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-kaorcount_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - kaorcount
+
+  # ─── API REST (FastAPI) ───────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kaorcount-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://${DB_USER:-kaorcount}:${DB_PASSWORD:-kaorcount}@db:3306/${DB_NAME:-kaorcount}
+      SECRET_KEY: ${SECRET_KEY:-trocar-esta-chave-em-producao}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+      FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
+      FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - kaorcount
+
+  # ─── App web (bundle Expo + nginx) ────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # URL da API embutida no bundle. "/" relative faz o nginx
+        # encaminhar /api para o container "api" (mesma origem).
+        EXPO_PUBLIC_API_URL: "${EXPO_PUBLIC_API_URL:-/api/v1}"
+        EXPO_PUBLIC_AUTH0_DOMAIN: "${EXPO_PUBLIC_AUTH0_DOMAIN:-}"
+        EXPO_PUBLIC_AUTH0_CLIENT_ID: "${EXPO_PUBLIC_AUTH0_CLIENT_ID:-}"
+        EXPO_PUBLIC_AUTH0_AUDIENCE: "${EXPO_PUBLIC_AUTH0_AUDIENCE:-}"
+    container_name: kaorcount-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - kaorcount
+
+networks:
+  kaorcount:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: named
