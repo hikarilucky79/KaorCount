@@ -469,6 +469,30 @@ O projeto tem dois fluxos de login:
 
 O Auth0 só é ativado no **web**; o mobile continua no fluxo legado.
 
+### Configuração da Custom Database Connection (obrigatória)
+
+O Auth0 **não guarda as senhas** do KaorCount. Ele valida chamando a API
+local via script. Os endpoints consumidos pelo script são:
+
+| Endpoint | Uso |
+|---|---|
+| `POST /api/v1/auth/validar-credenciais` | Confere e-mail e senha |
+| `GET  /api/v1/auth/consultar-usuario?email=` | Devolve o perfil |
+
+No painel do Auth0 (**Authentication → Database Connections →
+Username-Password-Authentication → Custom Database Scripts**) a URL dos dois
+scripts deve apontar para uma **API pública, ativa e com HTTPS válido**
+(cloudflared, ngrok ou o domínio real em produção). Um túnel temporário do
+Cloudflare expira em poucas horas e derruba o login.
+
+Diagnóstico de `403` no `/oauth/token`: leia o `error_description`. O prefixo
+`diag=config:ok` indica que o script rodou e o erro é de rede
+(`getaddrinfo ENOTFOUND ...`) — ou seja, a URL configurada não existe mais.
+Sem esse `diag`, o `invalid_grant` é senha/e-mail realmente inválidos.
+
+> O backend **não** deve ser alcançado em `localhost` pelo script: o Auth0 roda
+> na nuvem e não tem acesso à sua máquina.
+
 ---
 
 ## Documentação da API
