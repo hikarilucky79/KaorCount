@@ -31,14 +31,9 @@ export const login = async (email, senha) => {
 
 /**
  * Buscar o perfil do usuário autenticado.
- * GET /auth/me
- * @param {string} [tokenOverride] Token (ex.: ID Token do Auth0) a usar nessa
- *   requisição, ignorando o provedor padrão do cliente.
+ * GET /auth/me — usa o token salvo no AsyncStorage via interceptor.
  */
-export const getPerfilAtual = async (tokenOverride) => {
-  const config = tokenOverride
-    ? { headers: { Authorization: `Bearer ${tokenOverride}` } }
-    : undefined;
-  const response = await api.get('/auth/me', config);
+export const getPerfilAtual = async () => {
+  const response = await api.get('/auth/me');
   return response.data;
 };

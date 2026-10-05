@@ -39,15 +39,8 @@ COPY . .
 # Vazio = mantém o auto-detect de src/api/client.js (localhost:8000 no browser).
 # Em produção, aponte para o host público da API, ex.: https://api.kaorcount.com/api/v1
 ARG EXPO_PUBLIC_API_URL=""
-# Credenciais Auth0 (opcional). Vazios = mantém o login legado (JWT local).
-ARG EXPO_PUBLIC_AUTH0_DOMAIN=""
-ARG EXPO_PUBLIC_AUTH0_CLIENT_ID=""
-ARG EXPO_PUBLIC_AUTH0_AUDIENCE=""
 
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
-    EXPO_PUBLIC_AUTH0_DOMAIN=$EXPO_PUBLIC_AUTH0_DOMAIN \
-    EXPO_PUBLIC_AUTH0_CLIENT_ID=$EXPO_PUBLIC_AUTH0_CLIENT_ID \
-    EXPO_PUBLIC_AUTH0_AUDIENCE=$EXPO_PUBLIC_AUTH0_AUDIENCE \
     EXPO_NO_TELEMETRY=1 \
     CI=1
 

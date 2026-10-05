@@ -29,14 +29,3 @@ class UsuarioResponse(BaseModel):
 class UsuarioLogin(BaseModel):
     email: EmailStr
     senha: str
-
-
-class CredencialAuth0Login(BaseModel):
-    email: EmailStr
-    senha: str
-
-
-class UsuarioAuth0Response(BaseModel):
-    user_id: str
-    email: EmailStr
-    name: str

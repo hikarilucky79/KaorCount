@@ -71,7 +71,7 @@ acessíveis.
 
 | Módulo | Descrição |
 |---|---|
-| **Autenticação** | Cadastro, login e JWT (HS256). Modo híbrido opcional com Auth0 (RS256 + provisionamento JIT) |
+| **Autenticação** | Cadastro, login e JWT (HS256) emitidos pelo próprio backend |
 | **Perfil nutricional** | Data de nascimento, gênero, objetivo (perder/manter/ganhar) e nível de atividade |
 | **Metas nutricionais** | Calorias e macros por período, com TMB calculada pela fórmula de Mifflin-St Jeor |
 | **Refeições** | Registro por tipo (café, almoço, lanche, jantar) com itens e quantidades em gramas |
@@ -189,7 +189,7 @@ KaorCount/
 ├── metro.config.js            # Config do Metro + shim de gesture-handler no web
 ├── src/
 │   ├── api/                   # Clientes HTTP por domínio (auth, refeicao, metaNutri, ...)
-│   ├── auth/                  # Config do Auth0 e bridge de token
+│   ├── auth/                  # Leitura do token no AsyncStorage
 │   ├── components/            # Componentes reutilizáveis
 │   ├── constants/             # Paleta de cores
 │   ├── contexts/              # AuthContext e ThemeContext
@@ -441,8 +441,6 @@ explicativa.
 | `API_V1_PREFIX` | `/api/v1` | Prefixo de todas as rotas |
 | `FATSECRET_CLIENT_ID` | vazio | Credencial da API FatSecret |
 | `FATSECRET_CLIENT_SECRET` | vazio | Credencial da API FatSecret |
-| `AUTH0_DOMAIN` | vazio | Domínio do tenant Auth0 |
-| `AUTH0_AUDIENCE` | vazio | Audience do Auth0 |
 | `ENVIRONMENT` | `development` | `production` ativa as travas de segurança |
 | `CORS_ORIGINS` | vazio | Domínios permitidos no CORS (obrigatório em produção) |
 
@@ -451,23 +449,50 @@ explicativa.
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | vazio | Sobrescreve a URL da API (ex.: `/api/v1` ou `https://api.exemplo.com/api/v1`) |
-| `EXPO_PUBLIC_AUTH0_DOMAIN` | vazio | Domínio do Auth0 (vazio = login legado com JWT) |
-| `EXPO_PUBLIC_AUTH0_CLIENT_ID` | vazio | Client ID do Auth0 |
-| `EXPO_PUBLIC_AUTH0_AUDIENCE` | vazio | Audience do Auth0 |
 
 As variáveis `EXPO_PUBLIC_*` são **embutidas no bundle em tempo de build** — mudar uma
 delas exige rebuild.
 
-### Modo híbrido de autenticação
+### Autenticação
 
-O projeto tem dois fluxos de login:
+A autenticação é **100% local**, sem provedor externo:
 
-1. **Legado (padrão)** — token HS256 gerado pelo próprio backend.
-2. **Auth0 (opcional)** — habilitado quando `AUTH0_DOMAIN` + `EXPO_PUBLIC_AUTH0_DOMAIN`
-   e `EXPO_PUBLIC_AUTH0_CLIENT_ID` estão preenchidos. O backend valida tokens RS256
-   contra o JWKS público do tenant e faz o provisionamento do usuário pelo `sub`.
+1. O app envia e-mail e senha para `POST /api/v1/auth/login`.
+2. O backend confere a senha com **bcrypt** e devolve um **JWT HS256**.
+3. O token fica salvo no `AsyncStorage` e é injetado automaticamente
+   em toda requisição pelo interceptor do `src/api/client.js`.
 
-O Auth0 só é ativado no **web**; o mobile continua no fluxo legado.
+Endpoints disponíveis:
+
+| Endpoint | Uso |
+|---|---|
+| `POST /api/v1/auth/registrar` | Cria a conta (nome, e-mail e senha) |
+| `POST /api/v1/auth/login` | Valida a senha e emite o token |
+| `GET  /api/v1/auth/me` | Devolve o perfil do usuário logado |
+
+As senhas nunca saem do banco: são armazenadas apenas como hash bcrypt,
+e o `SECRET_KEY` que assina o token é uma variável de ambiente.
+
+> ⚠️ **Migração obrigatória no banco.** O Auth0 foi removido do código, mas
+> as colunas `auth0_sub` e `auth0_email_verified` podem continuar existindo
+> em bancos já criados. Como `auth0_email_verified` é `NOT NULL` sem valor
+> padrão, o `INSERT` de novos usuários passa a falhar e o cadastro passa a
+> responder **409**. Rode **uma vez** o script
+> [`backend/banco_de_dados/migracao_remover_auth0.sql`](backend/banco_de_dados/migracao_remover_auth0.sql)
+> em todo banco que já tenha a tabela `usuario` (MySQL de produção e o
+> SQLite local). Bancos novos, criados a partir do `banco.sql` já
+> atualizado, não precisam do script.
+
+> ⚠️ **Migração obrigatória (Auth0 removido).** Quem já tinha o banco criado
+> precisa remover as colunas `auth0_sub` e `auth0_email_verified` da tabela
+> `usuario`. Sem isso o cadastro falha com `409`, porque
+> `auth0_email_verified` é `NOT NULL` e o código não a preenche mais.
+>
+> ```bash
+> mysql -u USER -p NOME_DO_BANCO < backend/banco_de_dados/migracao_remover_auth0.sql
+> ```
+>
+> Bases novas já nascem corretas a partir de `banco.sql`.
 
 ---
 
@@ -671,7 +696,7 @@ aplicação. Principais entidades:
 
 | Tabela | Descrição | Relação |
 |---|---|---|
-| `usuario` | Usuários (UUID, email único, hash da senha, vínculo Auth0) | — |
+| `usuario` | Usuários (UUID, nome, e-mail único, hash da senha) | — |
 | `perfil_nutri` | Perfil antropométrico e objetivo | 1:1 com usuário |
 | `meta_nutri` | Metas calóricas e de macros por data | 1:N com usuário |
 | `registro_agua` | Ingestão de água por dia | 1:N com usuário |

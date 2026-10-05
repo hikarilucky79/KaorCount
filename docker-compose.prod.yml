@@ -93,8 +93,6 @@ services:
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
       FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}
-      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
       # Travas de produção
       ENVIRONMENT: production
       CORS_ORIGINS: "${CORS_ORIGINS:?defina CORS_ORIGINS no .env.prod, ex: https://seudominio.com.br}"
@@ -119,9 +117,6 @@ services:
       args:
         # URL absoluta da API pública (o bundle é buildado com esse valor).
         EXPO_PUBLIC_API_URL: "${EXPO_PUBLIC_API_URL:-/api/v1}"
-        EXPO_PUBLIC_AUTH0_DOMAIN: "${EXPO_PUBLIC_AUTH0_DOMAIN:-}"
-        EXPO_PUBLIC_AUTH0_CLIENT_ID: "${EXPO_PUBLIC_AUTH0_CLIENT_ID:-}"
-        EXPO_PUBLIC_AUTH0_AUDIENCE: "${EXPO_PUBLIC_AUTH0_AUDIENCE:-}"
     ports: !reset []
     deploy:
       resources:

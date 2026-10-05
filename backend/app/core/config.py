@@ -9,8 +9,6 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     FATSECRET_CLIENT_ID: str = ""
     FATSECRET_CLIENT_SECRET: str = ""
-    AUTH0_DOMAIN: str = ""
-    AUTH0_AUDIENCE: str = ""
 
     # ── Produção ────────────────────────────────────────────────────
     # "development" (padrão) mantém o fallback automático para SQLite,

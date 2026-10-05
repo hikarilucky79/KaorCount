@@ -36,7 +36,7 @@ import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 
 export default function AuthScreen({ navigation }) {
-  const { login, registrar, loginDemo, auth0, logado, carregando } = useAuth();
+  const { login, registrar, loginDemo } = useAuth();
   const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxAuthWidth } = useResponsive();
 
@@ -60,16 +60,6 @@ export default function AuthScreen({ navigation }) {
       setErroMsg('Demo indisponível no momento.');
     }
   };
-
-  // ↓ No modo Auth0 o app recarrega após o retorno do Universal Login.
-  //   Assim que a sessão é restaurada (isAuthenticated = true), avança
-  //   direto para as abas — sem essa ponte o usuário ficaria preso na
-  //   tela de autenticação depois de logar.
-  useEffect(() => {
-    if (auth0 && logado && !carregando) {
-      navigation.replace('AppTabs');
-    }
-  }, [auth0, logado, carregando, navigation]);
 
   // ↓ Valor animado (0 = repouso da tela atual, 1 = banner totalmente estendido cobrindo a tela)
   const animCortina = useRef(new Animated.Value(0)).current;

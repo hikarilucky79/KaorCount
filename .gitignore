@@ -3,6 +3,9 @@
 # ─── Dependências ───────────────────────────────────────────────
 node_modules/
 
+# Logs gerados ao subir o ambiente (api.log, web.log).
+*.log
+
 # O package-lock.json É versionado de propósito. Ele trava as versões
 # exatas para que todos instalem o mesmo ambiente — sem ele, cada
 # máquina baixa versões diferentes e o app quebra de formas difíceis
