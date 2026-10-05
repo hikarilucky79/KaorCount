@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
   Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
-  AlertCircle, Sparkles, Flame,
+  AlertCircle, Sparkles, Flame, Gauge,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -30,7 +30,15 @@ import * as metaNutriApi from '../api/metaNutriApi';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 
 // ↓ Etapas que contam na barra de progresso (boas-vindas não conta).
-const TOTAL_ETAPAS = 6;
+//   1=gênero 2=nascimento 3=medidas 4=atividade 5=objetivo 6=ritmo 7=revisão.
+const TOTAL_ETAPAS = 7;
+
+// ↓ Opções de ritmo para chegar à meta (só exibida p/ perder/ganhar massa).
+const OPCOES_RITMO = [
+  { id: 'sustentavel', label: 'Suave e sustentável', descricao: '~0,25 kg por semana · ajuste leve', Icone: Footprints },
+  { id: 'moderado', label: 'Moderado', descricao: '~0,5 kg por semana · equilíbrio recomendado', Icone: Minus },
+  { id: 'acelerado', label: 'Acelerado', descricao: '~0,75–1 kg por semana · exige mais disciplina', Icone: Zap },
+];
 
 const OPCOES_GENERO = [
   { id: 'masculino', label: 'Masculino' },
@@ -71,6 +79,8 @@ export default function QuizCadastroScreen({ navigation, route }) {
   const [pesoStr, setPesoStr] = useState('');
   const [nivelAtividade, setNivelAtividade] = useState('');
   const [objetivo, setObjetivo] = useState('');
+  // ↓ Ritmo em que a pessoa quer chegar à meta (só p/ perder/ganhar).
+  const [ritmo, setRitmo] = useState('');
 
   // ↓ Animação de transição suave entre etapas.
   const animEtapa = useRef(new Animated.Value(1)).current;
@@ -132,6 +142,10 @@ export default function QuizCadastroScreen({ navigation, route }) {
         return nivelAtividade ? '' : 'Selecione seu nível de atividade.';
       case 5:
         return objetivo ? '' : 'Selecione o seu objetivo.';
+      case 6:
+        // ↓ Ritmo só se aplica a perder/ganhar (etapa pulada p/ manter).
+        if (objetivo === 'manter_peso') return '';
+        return ritmo ? '' : 'Selecione o ritmo que combinam com você.';
       default:
         return '';
     }
@@ -153,11 +167,25 @@ export default function QuizCadastroScreen({ navigation, route }) {
   const avancar = () => {
     const erro = validarEtapa();
     if (erro) { setErroEtapa(erro); return; }
-    if (etapaAtual < TOTAL_ETAPAS) transicionarEtapa(etapaAtual + 1);
+    if (etapaAtual < TOTAL_ETAPAS) {
+      // ↓ Objetivo "manter peso" pula a etapa de ritmo.
+      if (etapaAtual === 5 && objetivo === 'manter_peso') {
+        transicionarEtapa(7); // direto para a revisão
+        return;
+      }
+      transicionarEtapa(etapaAtual + 1);
+    }
   };
 
   const voltar = () => {
-    if (!enviando && etapaAtual > 0) transicionarEtapa(etapaAtual - 1);
+    if (!enviando && etapaAtual > 0) {
+      // ↓ Voltando da revisão, "manter peso" retorna p/ objetivo (pula ritmo).
+      if (etapaAtual === TOTAL_ETAPAS && objetivo === 'manter_peso') {
+        transicionarEtapa(5);
+        return;
+      }
+      transicionarEtapa(etapaAtual - 1);
+    }
   };
 
   // ───────────────────────────────────────────────────────────
@@ -183,13 +211,15 @@ export default function QuizCadastroScreen({ navigation, route }) {
       const objetivoSel = pulando ? 'manter_peso' : objetivo;
       const pesoKg = pulando ? 70 : parseNumeroBr(pesoStr);
       const alturaCm = pulando ? 175 : parseNumeroBr(alturaStr);
+      const ritmoSel = pulando || objetivoSel === 'manter_peso' ? undefined : ritmo;
 
-      // ↓ Calcula o plano (TMB, calorias e macros) espelhando o backend.
+      // ↓ Calcula o plano (TMB, calorias e macros) espelhando o backend,
+      //   já considerando o ritmo escolhido (quando aplicável).
       const plano = pulando
         ? { calorias_diarias: 2000, proteina_g: 150, carboidrato_g: 225, gordura_g: 55 }
         : calcularPlanoNutricional({
             dataNascimento: nascISO, genero: generoSel, pesoKg, alturaCm,
-            nivelAtividade: nivelSel, objetivo: objetivoSel,
+            nivelAtividade: nivelSel, objetivo: objetivoSel, ritmo: ritmoSel,
           });
 
       if (idUser) {
@@ -380,16 +410,39 @@ export default function QuizCadastroScreen({ navigation, route }) {
     </View>
   );
 
+  // ↓ Etapa 6 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
+  const renderRitmo = () => (
+    <View>
+      {renderCabecalhoEtapa(
+        Gauge,
+        'Em quanto tempo você quer chegar lá?',
+        'Escolha um ritmo que você consiga manter no dia a dia.'
+      )}
+      {OPCOES_RITMO.map((opt) =>
+        renderCartaoOpcao(opt, ritmo === opt.id, opt.descricao, () => { setRitmo(opt.id); setErroEtapa(''); })
+      )}
+      {ritmo === 'acelerado' ? (
+        <View style={[styles.avisoRitmo, { backgroundColor: isDark ? '#2A1D13' : '#FFF8E7', borderColor: '#F0C36D' }]}>
+          <AlertCircle size={15} color={cores.textoSuave} />
+          <Text style={[styles.avisoRitmoTxt, { color: cores.textoSuave }]}>
+            Ritmo acelerado exige déficit/superávit maior — combine com sua rotina e, se possível, com um profissional.
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   // ↓ Etapa 6 — Revisão com a prévia das metas calculadas.
   const renderRevisao = () => {
     const pesoKg = parseNumeroBr(pesoStr);
     const alturaCm = parseNumeroBr(alturaStr);
     const nascISO = dataParaISO(dataNascimento);
     const plano = nascISO
-      ? calcularPlanoNutricional({ dataNascimento: nascISO, genero, pesoKg, alturaCm, nivelAtividade, objetivo })
+      ? calcularPlanoNutricional({ dataNascimento: nascISO, genero, pesoKg, alturaCm, nivelAtividade, objetivo, ritmo })
       : null;
     const imc = alturaCm > 0 ? (pesoKg / Math.pow(alturaCm / 100, 2)).toFixed(1) : '—';
     const objetivoLabel = OPCOES_OBJETIVO.find((o) => o.id === objetivo)?.label || '—';
+    const ritmoLabel = objetivo === 'manter_peso' ? '' : OPCOES_RITMO.find((r) => r.id === ritmo)?.label || '';
 
     return (
       <View>
@@ -415,19 +468,25 @@ export default function QuizCadastroScreen({ navigation, route }) {
           </View>
           <View style={styles.divisorResumo} />
           <Text style={[styles.dicaResumo, { color: cores.textoSuave }]}>Objetivo: {objetivoLabel} · IMC estimado: {imc}</Text>
+          {ritmoLabel ? (
+            <Text style={[styles.dicaResumo, { color: cores.textoSuave }]}>Ritmo escolhido: {ritmoLabel}</Text>
+          ) : null}
         </View>
       </View>
     );
   };
 
   // ↓ Despacha a etapa corrente para a função de renderização certa.
-  const ETAPAS = [renderBoasVindas, renderGenero, renderNascimento, renderMedidas, renderAtividade, renderObjetivo, renderRevisao];
+  const ETAPAS = [renderBoasVindas, renderGenero, renderNascimento, renderMedidas, renderAtividade, renderObjetivo, renderRitmo, renderRevisao];
   const renderEtapaAtual = () => ETAPAS[etapaAtual]?.();
 
   // ───────────────────────────────────────────────────────────
   // ↓ Layout principal do wizard
   // ───────────────────────────────────────────────────────────
-  const progresso = Math.min(etapaAtual, TOTAL_ETAPAS) / TOTAL_ETAPAS;
+  // ↓ "Manter peso" não mostra a etapa de ritmo, então o total cai para 6.
+  const totalQuiz = objetivo === 'manter_peso' ? TOTAL_ETAPAS - 1 : TOTAL_ETAPAS;
+  const passoAtual = etapaAtual === TOTAL_ETAPAS ? totalQuiz : Math.min(etapaAtual, totalQuiz);
+  const progresso = passoAtual / totalQuiz;
   const ehUltimaEtapa = etapaAtual === TOTAL_ETAPAS;
 
   return (
@@ -461,7 +520,7 @@ export default function QuizCadastroScreen({ navigation, route }) {
               )}
               {etapaAtual > 0 && (
                 <Text style={[styles.progressoTexto, { color: cores.textoSuave }]}>
-                  {Math.min(etapaAtual, TOTAL_ETAPAS)} de {TOTAL_ETAPAS}
+                  {passoAtual} de {totalQuiz}
                 </Text>
               )}
             </View>
@@ -646,6 +705,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   textoErro: { color: '#E53E3E', fontSize: 11, fontWeight: '600', flex: 1 },
+
+  // Aviso leve na etapa de ritmo acelerado
+  avisoRitmo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  avisoRitmoTxt: { fontSize: 11, lineHeight: 16, flex: 1 },
 
   // Rodapé do wizard
   rodapeQuiz: { paddingBottom: Platform.OS === 'ios' ? 0 : 8, paddingTop: 4 },

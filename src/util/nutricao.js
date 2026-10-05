@@ -32,6 +32,18 @@ const MACROS_POR_OBJETIVO = {
 };
 const MACROS_PADRAO = [0.45, 0.3, 0.25];
 
+// ↓ Ajuste calórico diário por ritmo (déficit p/ perder, superávit p/ ganhar).
+//   Referência: ~0,25 / ~0,5 / ~0,75–1 kg de mudança de peso por semana.
+//   NOTA (backend): quando o endpoint do quiz persistir 'ritmo', o
+//   NutricaoService pode adotar os mesmos deltas para manter paridade.
+const DELTA_POR_RITMO = {
+  perder_peso: { sustentavel: 250, moderado: 500, acelerado: 750 },
+  ganhar_massa: { sustentavel: 200, moderado: 350, acelerado: 500 },
+};
+
+// ↓ Piso mínimo de calorias diárias (segurança) no déficit.
+const CALORIAS_MINIMAS = 1200;
+
 // ↓ Calcula idade a partir da data de nascimento (Date ou 'YYYY-MM-DD').
 export function calcularIdade(dataNascimento) {
   if (!dataNascimento) return 0;
@@ -75,9 +87,25 @@ export function calcularMacros(caloriasDiarias, objetivo = 'manter_peso') {
 }
 
 // ↓ Atalho: devolve tudo calculado a partir das respostas do quiz.
-export function calcularPlanoNutricional({ dataNascimento, genero, pesoKg, alturaCm, nivelAtividade, objetivo }) {
+//   'ritmo' (sustentavel | moderado | acelerado) ajusta a meta calórica
+//   quando o objetivo é perder peso ou ganhar massa. Quando omitido
+//   (ou objetivo = manter_peso), permanece o comportamento legado do
+//   backend (multiplicadores por objetivo).
+export function calcularPlanoNutricional({ dataNascimento, genero, pesoKg, alturaCm, nivelAtividade, objetivo, ritmo }) {
   const tmb = calcularTMB(dataNascimento, genero, pesoKg, alturaCm);
-  const calorias = calcularCaloriasDiarias(tmb, nivelAtividade, objetivo);
+  const fator = FATOR_ATIVIDADE[String(nivelAtividade).toLowerCase()] || 1.2;
+  const tdee = tmb * fator;
+
+  let calorias;
+  const chave = String(objetivo).toLowerCase();
+  const deltas = DELTA_POR_RITMO[chave];
+  if (ritmo && deltas && deltas[ritmo]) {
+    let alvo = chave === 'perder_peso' ? tdee - deltas[ritmo] : tdee + deltas[ritmo];
+    if (chave === 'perder_peso') alvo = Math.max(alvo, tmb, CALORIAS_MINIMAS);
+    calorias = Math.round(alvo);
+  } else {
+    calorias = calcularCaloriasDiarias(tmb, nivelAtividade, objetivo);
+  }
   return { tmb, ...calcularMacros(calorias, objetivo) };
 }
 
