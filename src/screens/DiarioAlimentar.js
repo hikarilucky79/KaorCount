@@ -60,6 +60,7 @@ export default function DiarioAlimentar({ navigation }) {
   const [busca, setBusca] = useState('');
   const [alimentosBuscados, setAlimentosBuscados] = useState([]);
   const [buscandoExterna, setBuscandoExterna] = useState(false);
+  const [avisoExterna, setAvisoExterna] = useState(null);
   const [alimentoSelecionado, setAlimentoSelecionado] = useState(null);
   const [quantidadeG, setQuantidadeG] = useState('100');
   const [salvandoItem, setSalvandoItem] = useState(false);
@@ -323,6 +324,7 @@ export default function DiarioAlimentar({ navigation }) {
     if (!q) {
       setAlimentosBuscados([]);
       setBuscandoExterna(false);
+      setAvisoExterna(null);
       return;
     }
 
@@ -330,12 +332,17 @@ export default function DiarioAlimentar({ navigation }) {
     const timer = setTimeout(async () => {
       try {
         const res = await fatsecretApi.buscarAlimentos(q, 0, 30);
-        if (res?.alimentos && res.alimentos.length > 0) {
-          setAlimentosBuscados(res.alimentos);
-        } else {
-          setAlimentosBuscados([]);
-        }
+        // A base externa pode estar fora do ar (IP não liberado, cota, etc.).
+        // Nesses casos o backend já devolve o catálogo brasileiro e sinaliza
+        // com `fonte_externa_indisponivel`; não é erro para o usuário.
+        setAlimentosBuscados(res?.alimentos || []);
+        setAvisoExterna(
+          res?.fonte_externa_indisponivel
+            ? 'Busca completa apenas na base brasileira (TACO). A base externa está temporariamente indisponível.'
+            : null
+        );
       } catch (err) {
+        setAvisoExterna('Não foi possível consultar as bases de alimentos.');
         try {
           const resLocal = await alimentoApi.buscarPorNome(q, 30);
           setAlimentosBuscados(resLocal || []);
@@ -908,7 +915,7 @@ export default function DiarioAlimentar({ navigation }) {
                       <View style={styles.containerBuscaVazia}>
                         <Search size={48} color={isDark ? '#3D3126' : '#EDD9C3'} style={{ marginBottom: 14 }} />
                         <Text style={[styles.txtInstrucaoBusca, { color: isDark ? '#B8A89A' : cores.textoSuave }]}>
-                          {busca.trim() ? `Nenhum alimento encontrado para "${busca}"` : 'Digite o nome do alimento para buscar no FatSecret'}
+                          {busca.trim() ? `Nenhum alimento encontrado para "${busca}"` : 'Digite o nome do alimento para buscar'}
                         </Text>
                       </View>
                     ) : (
@@ -918,12 +925,19 @@ export default function DiarioAlimentar({ navigation }) {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 30 }}
                         ListHeaderComponent={
-                          buscandoExterna ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 6 }}>
-                              <ActivityIndicator size="small" color={cores.primaria} />
-                              <Text style={{ fontSize: 12, color: cores.textoSuave }}>Buscando alimentos...</Text>
-                            </View>
-                          ) : null
+                          <>
+                            {buscandoExterna ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 6 }}>
+                                <ActivityIndicator size="small" color={cores.primaria} />
+                                <Text style={{ fontSize: 12, color: cores.textoSuave }}>Buscando alimentos...</Text>
+                              </View>
+                            ) : null}
+                            {avisoExterna && !buscandoExterna ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: isDark ? '#2A241C' : '#FFF6E5', borderRadius: 8 }}>
+                                <Text style={{ fontSize: 12, color: isDark ? '#E3C88A' : '#8A6D3B', flex: 1 }}>{avisoExterna}</Text>
+                              </View>
+                            ) : null}
+                          </>
                         }
                         renderItem={({ item }) => (
                           <TouchableOpacity 
