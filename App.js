@@ -17,6 +17,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import DiarioAlimentarScreen from './src/screens/DiarioAlimentar';
 import PerfilScreen from './src/screens/PerfilScreen';
 import ConfiguracaoScreen from './src/screens/ConfiguracaoScreen';
+import QuizCadastroScreen from './src/screens/QuizCadastroScreen';
 
 // ↓ Importando a biblioteca dos ícones em SVG
 import { Home, Book, User, Settings } from 'lucide-react-native';
@@ -98,6 +99,7 @@ export default function App() {
               component={AuthScreen}
               options={{ animationEnabled: false }}
             />
+            <Stack.Screen name="QuizCadastro" component={QuizCadastroScreen} />
             <Stack.Screen name="AppTabs" component={AppTabs} />
             <Stack.Screen name="Configuracao" component={ConfiguracaoScreen} />
           </Stack.Navigator>

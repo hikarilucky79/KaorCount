@@ -31,9 +31,6 @@ import {
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
-import * as perfilNutriApi from '../api/perfilNutriApi';
-import * as historicoProgressoApi from '../api/historicoProgressoApi';
-import * as metaNutriApi from '../api/metaNutriApi';
 
 export default function AuthScreen({ navigation }) {
   const { login, registrar, loginDemo } = useAuth();
@@ -163,51 +160,16 @@ export default function AuthScreen({ navigation }) {
     setCarregandoReq(true);
     try {
       // 1. Criar conta no backend
-      const novoUsuario = await registrar({
+      await registrar({
         nome: nome.trim(),
         email: email.trim(),
         senha: senha,
       });
 
-      // 2. Tentar criar perfil nutricional inicial padrão
-      const idUser = novoUsuario?.id_usuario || novoUsuario?.id;
-      if (idUser) {
-        try {
-          await perfilNutriApi.salvarOuAtualizar(idUser, {
-            data_nascimento: '2000-01-01',
-            genero: 'masculino',
-            objetivo_nutricional: 'manter_peso',
-            nivel_atividade: 'moderado',
-          });
-
-          await historicoProgressoApi.criar({
-            id_usuario: idUser,
-            data_registro: new Date().toISOString().split('T')[0],
-            peso_atual: 70,
-            altura_atual: 175,
-          });
-
-          await metaNutriApi.criar({
-            id_usuario: idUser,
-            calorias_diarias: 2000,
-            proteina_g: 150,
-            carboidrato_g: 225,
-            gordura_g: 55,
-            data_inicio: new Date().toISOString().split('T')[0],
-          });
-        } catch (setupErr) {
-          console.warn('[Cadastro] Configuração inicial pendente:', setupErr?.message);
-        }
-      }
-
-      // 3. Fazer login automático com as novas credenciais
-      try {
-        await login(email.trim(), senha);
-      } catch (loginErr) {
-        console.warn('[Cadastro] Login automático pós-registro falhou:', loginErr?.message);
-      }
-
-      transicionarPara('app');
+      // ↓ 2. Após criar a conta, o usuário segue para o Quiz de Cadastro
+      //   (onboarding) para personalizar o perfil nutricional.
+      //   O registrar() do AuthContext já faz o login automático.
+      navigation.replace('QuizCadastro', { email: email.trim() });
     } catch (error) {
       console.error('[Cadastro] Erro:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível criar a conta. Tente novamente.';
