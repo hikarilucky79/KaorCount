@@ -48,6 +48,18 @@ def decodificar_token(token: str) -> str | None:
         return None
 
 
+def garantir_proprio_usuario(usuario: Usuario, id_alvo: UUID | str) -> None:
+    """
+    Verifica se o recurso pertence ao usuário autenticado (anti-IDOR).
+    Lança 403 se o id do path/body não for o do usuário do token.
+    """
+    if str(usuario.id_usuario) != str(id_alvo):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado: você só pode acessar os seus próprios dados",
+        )
+
+
 def get_usuario_atual(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
