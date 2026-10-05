@@ -30,10 +30,6 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
   id_objetivo INT,
   id_nivel_atividade INT,
 
-  /*Vínculo com o Auth0 (ex.: "auth0|abc123"). Chave JIT de provisionamento.*/
-  auth0_sub VARCHAR(255) UNIQUE,
-  auth0_email_verified BOOLEAN NOT NULL DEFAULT 'FALSE',
-
   FOREIGN KEY(id_objetivo) REFERENCES OBJETIVO(id_objetivo) ON DELETE CASCADE,
   FOREIGN KEY(id_nivel_atividade) REFERENCES NIVEL_ATIVIDADE(id_nivel_atividade) ON DELETE CASCADE,
 

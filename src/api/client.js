@@ -118,7 +118,7 @@ const api = axios.create({
 // ───────────────────────────────────────────────────────────────
 api.interceptors.request.use(
   async (config) => {
-    // ↓ 1. Injetar o token de autenticação (Auth0 ou legado).
+    // ↓ 1. Injetar o token de autenticação guardado no AsyncStorage.
     try {
       const token = await obterTokenAutorizacao();
       if (token && !config.headers.Authorization) {

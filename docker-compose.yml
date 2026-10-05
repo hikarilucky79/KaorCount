@@ -63,8 +63,6 @@ services:
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
       FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}
-      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -82,9 +80,6 @@ services:
         # URL da API embutida no bundle. "/" relative faz o nginx
         # encaminhar /api para o container "api" (mesma origem).
         EXPO_PUBLIC_API_URL: "${EXPO_PUBLIC_API_URL:-/api/v1}"
-        EXPO_PUBLIC_AUTH0_DOMAIN: "${EXPO_PUBLIC_AUTH0_DOMAIN:-}"
-        EXPO_PUBLIC_AUTH0_CLIENT_ID: "${EXPO_PUBLIC_AUTH0_CLIENT_ID:-}"
-        EXPO_PUBLIC_AUTH0_AUDIENCE: "${EXPO_PUBLIC_AUTH0_AUDIENCE:-}"
     container_name: kaorcount-web
     restart: unless-stopped
     ports:
