@@ -11,6 +11,11 @@ from datetime import date
 import uuid
 from app.models.meta_nutri import MetaNutri
 from app.models.perfil_nutri import PerfilNutri
+from app.services.perfil_nutri_service import (
+    GENERO_SEM_QUIZ,
+    NASCIMENTO_DO_SEED,
+    PerfilNutriService,
+)
 
 class AuthService:
     def __init__(self, db: Session):
@@ -39,11 +44,13 @@ class AuthService:
             perfil = PerfilNutri(
                 id_perfil=str(uuid.uuid4()),
                 id_usuario=novo_usuario.id_usuario,
-                data_nascimento=date(1998, 8, 15),
-                genero="masculino",
+                data_nascimento=NASCIMENTO_DO_SEED,
+                genero=GENERO_SEM_QUIZ,
                 objetivo_nutricional="manter_peso",
                 nivel_atividade="moderado",
-                tmb_calculo=1750.0,
+                tmb_calculo=PerfilNutriService(self.repo.db).calcular_tmb(
+                    novo_usuario.id_usuario, NASCIMENTO_DO_SEED, GENERO_SEM_QUIZ
+                ),
             )
             self.repo.db.add(perfil)
             self.repo.db.commit()
