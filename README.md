@@ -27,6 +27,7 @@ Projeto Integrador do Curso Técnico em Desenvolvimento de Sistemas do
 - [Endpoints](#endpoints)
 - [Banco de dados](#banco-de-dados)
 - [CI/CD (GitHub Actions)](#cicd-github-actions)
+- [Backend na Vercel (sem Docker)](#backend-na-vercel-sem-docker)
 - [Mapeamento dos requisitos funcionais](#mapeamento-dos-requisitos-funcionais)
 - [Equipe](#equipe)
 
@@ -978,6 +979,38 @@ Precisa existir no repositório (Settings → Secrets and variables → Actions)
 O `.env.prod` **não** passa pelo GitHub: ele fica no servidor, e é de lá que o
 compose o lê. Se faltar qualquer item, o workflow falha no primeiro passo
 dizendo qual.
+
+---
+
+## Backend na Vercel (sem Docker)
+
+Sobe **só a API** e a página institucional da Keenko; o app Expo e o compose
+ficam de fora.
+
+1. Importe o repositório e defina **Root Directory = `backend`**
+   (Settings → General). É o que limita o deploy à API + `public/`.
+2. Copie `.env.vercel.example` para as **Environment Variables** do painel
+   (Settings → Environment Variables). `DATABASE_URL`, `SECRET_KEY`,
+   `CORS_ORIGINS` e `ENVIRONMENT=production` são obrigatórios — a API recusa
+   subir sem eles.
+3. `backend/vercel.json` já traz o resto: região `gru1` (São Paulo), 1024 MB /
+   30 s de `maxDuration` (o PDF de relatório é o que mais demora) e os
+   cabeçalhos de segurança que hoje só o Caddy aplica.
+
+Não precisa criar `api/index.py` nem `asgi.py`: o Vercel detecta FastAPI e procura
+a instância `app` em `app/main.py`, que é exatamente onde ela já está.
+
+**O banco tem que ser alcançável pela internet.** O MySQL do `docker-compose` não
+serve — ele escuta só na rede interna do host. Com `ENVIRONMENT=production` a API
+recusa a cair para SQLite e falha no import; e mesmo em desenvolvimento o SQLite
+não teria onde persistir, porque o disco da function é somente leitura fora de
+`/tmp` e efêmero a cada invocação.
+
+Dois efeitos colaterais, ambos bons: na Vercel o `backend/public/` é servido na
+raiz, então `/img/logo_KaorCount.svg` passa a existir (conserta as imagens que hoje
+quebram porque a API monta só `/css` e `/js`), e a landing page vira arquivo
+estático de CDN — o `vercel.json` reescreve `/` e `/index.html` para
+`/html/index.html` em vez de depender do `FileResponse` dentro da function.
 
 ---
 
