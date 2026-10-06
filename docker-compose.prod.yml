@@ -25,8 +25,14 @@ services:
     container_name: kaorcount-caddy
     restart: unless-stopped
     environment:
+      # Endereço do site no Caddyfile ({$CADDY_DOMAIN}). Precisam chegar ao
+      # container: o env_file do .env.prod está atrelado só ao serviço api, e
+      # --env-file do run.sh serve apenas para a interpolação do Compose no host.
+      CADDY_DOMAIN: "${CADDY_DOMAIN:?defina CADDY_DOMAIN no .env.prod}"
       # E-mail para o Let's Encrypt avisar sobre certificados expirando.
-      ACME_EMAIL: ${ACME_EMAIL:-}
+      # Também não pode chegar vazio: {$ACME_EMAIL} sem valor quebra o parse do
+      # Caddyfile ("email" global exige um argumento) e o container não sobe.
+      ACME_EMAIL: "${ACME_EMAIL:?defina ACME_EMAIL no .env.prod}"
     ports:
       - "80:80"
       - "443:443"

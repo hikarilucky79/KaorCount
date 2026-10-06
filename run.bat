@@ -52,7 +52,7 @@ goto :main
         exit /b 1
     )
     set "ERROS=0"
-    for %%V in (SECRET_KEY DB_PASSWORD DB_ROOT_PASSWORD CORS_ORIGINS CADDY_DOMAIN) do (
+    for %%V in (SECRET_KEY DB_PASSWORD DB_ROOT_PASSWORD CORS_ORIGINS CADDY_DOMAIN ACME_EMAIL) do (
         findstr /B /R /C:"^%%V=." "%ENV_PROD%" >nul 2>&1
         if errorlevel 1 (
             echo ERRO: variavel %%V vazia ou ausente no %ENV_PROD%.
