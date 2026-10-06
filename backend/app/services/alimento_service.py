@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from app.models.alimento import Alimento
 from app.repositories.alimento_repo import AlimentoRepository
-from app.schemas.alimento import AlimentoCreate, AlimentoUpdate
 from app.services.base_service import BaseService
 
 

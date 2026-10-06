@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.security import get_usuario_atual
 from app.models.usuario import Usuario
 from app.services.alimento_service import AlimentoService
-from app.schemas.alimento import AlimentoCreate, AlimentoUpdate, AlimentoResponse
+from app.schemas.alimento import AlimentoCreate, AlimentoResponse
 
 router = APIRouter(prefix="/alimentos", tags=["Alimentos"])
 
@@ -55,22 +55,7 @@ def criar_alimento(
     return service.criar(dados)
 
 
-@router.put("/{id_alimento}", response_model=AlimentoResponse)
-def atualizar_alimento(
-    id_alimento: UUID,
-    dados: AlimentoUpdate,
-    db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_usuario_atual),
-):
-    service = AlimentoService(db)
-    return service.atualizar(id_alimento, dados)
-
-
-@router.delete("/{id_alimento}", status_code=status.HTTP_204_NO_CONTENT)
-def deletar_alimento(
-    id_alimento: UUID,
-    db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_usuario_atual),
-):
-    service = AlimentoService(db)
-    service.deletar(id_alimento)
+# Sem PUT/DELETE: o catálogo é compartilhado entre todos os usuários. Editar ou
+# remover uma linha mudaria (ou quebraria, via FK) as refeições já registradas
+# por outras pessoas. A única escrita permitida é a inclusão, usada quando o
+# alimento ainda não existe na base.
