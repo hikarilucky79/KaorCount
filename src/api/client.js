@@ -170,8 +170,13 @@ api.interceptors.response.use(
       }
 
       // ↓ Retornar a mensagem de erro do back-end quando disponível.
+      //   O Error carrega a resposta original: chamadores dependem de
+      //   error.response.status (ex: 404 vira "sem meta cadastrada" no
+      //   metaNutriApi e "criar perfil" no perfilNutriApi.salvarOuAtualizar).
       const mensagem = data?.detail || data?.message || 'Erro inesperado no servidor.';
-      return Promise.reject(new Error(mensagem));
+      const tratada = new Error(mensagem);
+      tratada.response = error.response;
+      return Promise.reject(tratada);
     }
 
     // ↓ Erro de rede / sem conexão.

@@ -426,7 +426,7 @@ explicativa.
 | `CADDY_DOMAIN` | Domínio que receberá o HTTPS. O DNS precisa apontar para o servidor |
 | `ACME_EMAIL` | E-mail para avisos do Let's Encrypt sobre o certificado |
 | `CORS_ORIGINS` | Domínios liberados no CORS, separados por vírgula |
-| `SECRET_KEY` | **Obrigatória.** Chave de assinatura do JWT |
+| `SECRET_KEY` | **Obrigatória.** Chave de assinatura do JWT — a API recusa subir em produção se ela for a padrão do repositório ou tiver menos de 32 caracteres |
 | `DB_PASSWORD` | **Obrigatória.** Senha do usuário do banco |
 | `DB_ROOT_PASSWORD` | **Obrigatória.** Senha do root do MySQL |
 
@@ -583,8 +583,8 @@ curl http://localhost:8000/api/v1/auth/me \
 | GET | `/alimentos/buscar?nome=...` | Busca alimentos por nome |
 | GET | `/alimentos/{id_alimento}` | Busca alimento por id |
 | POST | `/alimentos/` | Cadastra alimento |
-| PUT | `/alimentos/{id_alimento}` | Atualiza alimento |
-| DELETE | `/alimentos/{id_alimento}` | Remove alimento |
+
+Sem `PUT` nem `DELETE`: o catálogo é compartilhado entre os usuários, então editar ou remover um alimento alteraria refeições já registradas por outras contas. A API aceita apenas inclusão.
 
 ### Bases externas (FatSecret e TACO)
 
