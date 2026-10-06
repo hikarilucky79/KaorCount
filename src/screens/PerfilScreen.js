@@ -46,6 +46,7 @@ import * as metaNutriApi from '../api/metaNutriApi';
 import * as dashboardApi from '../api/dashboardApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as usuarioApi from '../api/usuarioApi';
+import { calcularIdade, calcularPlanoNutricional } from '../util/nutricao';
 
 export default function PerfilScreen({ navigation }) {
   const { usuario, atualizarUsuario } = useAuth();
@@ -114,18 +115,9 @@ export default function PerfilScreen({ navigation }) {
   };
   const objetivoTexto = objetivoMap[perfilNutri?.objetivo_nutricional] || objetivoMap[perfilNutri?.objetivo] || '—';
 
-  // ↓ Calcular idade a partir da data de nascimento
-  const calcularIdade = (dataNasc) => {
-    if (!dataNasc) return '—';
-    const nasc = new Date(dataNasc);
-    const hoje = new Date();
-    let idade = hoje.getFullYear() - nasc.getFullYear();
-    const mDiff = hoje.getMonth() - nasc.getMonth();
-    if (mDiff < 0 || (mDiff === 0 && hoje.getDate() < nasc.getDate())) idade--;
-    return `${idade > 0 ? idade : 0} anos`;
-  };
-
-  const idadeTexto = calcularIdade(perfilNutri?.data_nascimento);
+  // ↓ Idade a partir da data de nascimento (mesma função do quiz e do backend)
+  const idade = calcularIdade(perfilNutri?.data_nascimento);
+  const idadeTexto = idade > 0 ? `${idade} anos` : '—';
 
   // ↓ Estatísticas
   const diasRegistrados = resumo?.dias_registrados || resumo?.streak_dias || 0;
@@ -322,37 +314,27 @@ export default function PerfilScreen({ navigation }) {
       }
 
       // 4. Calcular e Criar Nova Meta Nutricional
-      const hoje = new Date();
-      let idade = hoje.getFullYear() - anoNasc;
-      if (hoje.getMonth() < (mesNasc - 1) || (hoje.getMonth() === (mesNasc - 1) && hoje.getDate() < diaNasc)) {
-        idade--;
-      }
-      idade = Math.max(idade, 12);
-
-      const baseTmb = 10 * pesoNum + 6.25 * alturaFinalCm - 5 * idade;
-      const ajusteGen = (generoEdit || '').toLowerCase() === 'masculino' ? 5 : -161;
-      const tmb = Math.max(baseTmb + ajusteGen, 1000);
-
-      const fatores = { sedentario: 1.2, leve: 1.375, moderado: 1.55, muito_ativo: 1.9, ativo: 1.725 };
-      const ajustesObj = { perder_peso: 0.8, manter_peso: 1.0, ganhar_massa: 1.2, ganhar_peso: 1.15 };
-      const fator = fatores[nivelAtividadeEdit] || 1.2;
-      const ajusteObj = ajustesObj[objetivoEdit] || 1.0;
-      const cals = Math.max(Math.round(tmb * fator * ajusteObj), 1200);
-
-      const macrosMap = {
-        perder_peso: { carb: 0.35, prot: 0.40, gord: 0.25 },
-        ganhar_massa: { carb: 0.50, prot: 0.30, gord: 0.20 },
-        manter_peso: { carb: 0.45, prot: 0.30, gord: 0.25 },
-      };
-      const dist = macrosMap[objetivoEdit] || macrosMap.manter_peso;
+      //   Tudo sai de util/nutricao — a mesma fonte do quiz e o espelho do
+      //   backend (nutricao_service.py). Antes esta tela refazia as fórmulas e
+      //   chegava a números diferentes do resto do app.
+      const plano = calcularPlanoNutricional({
+        dataNascimento: dataNascimentoISO,
+        // Mesmo valor persistido no perfil em (2): a meta tem que nascer do
+        // gênero que ficou gravado, não do que estava no formulário.
+        genero: generoEdit || 'masculino',
+        pesoKg: pesoNum,
+        alturaCm: alturaFinalCm,
+        nivelAtividade: nivelAtividadeEdit,
+        objetivo: objetivoEdit,
+      });
 
       try {
         const dataHoje = new Date().toISOString().split('T')[0];
         const payloadMeta = {
-          calorias_diarias: cals,
-          proteina_g: Math.round((cals * dist.prot) / 4),
-          carboidrato_g: Math.round((cals * dist.carb) / 4),
-          gordura_g: Math.round((cals * dist.gord) / 9),
+          calorias_diarias: plano.calorias_diarias,
+          proteina_g: plano.proteina_g,
+          carboidrato_g: plano.carboidrato_g,
+          gordura_g: plano.gordura_g,
           data_inicio: dataHoje,
         };
         // Atualiza a meta atual no lugar (evita linhas duplicadas no mesmo dia,

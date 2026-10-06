@@ -41,7 +41,7 @@ const DELTA_POR_RITMO = {
   ganhar_massa: { sustentavel: 200, moderado: 350, acelerado: 500 },
 };
 
-// ↓ Piso mínimo de calorias diárias (segurança) no déficit.
+// ↓ Piso mínimo de calorias diárias (segurança) para qualquer objetivo.
 const CALORIAS_MINIMAS = 1200;
 
 // ↓ Calcula idade a partir da data de nascimento (Date ou 'YYYY-MM-DD').
@@ -100,13 +100,17 @@ export function calcularPlanoNutricional({ dataNascimento, genero, pesoKg, altur
   const chave = String(objetivo).toLowerCase();
   const deltas = DELTA_POR_RITMO[chave];
   if (ritmo && deltas && deltas[ritmo]) {
-    let alvo = chave === 'perder_peso' ? tdee - deltas[ritmo] : tdee + deltas[ritmo];
-    if (chave === 'perder_peso') alvo = Math.max(alvo, tmb, CALORIAS_MINIMAS);
-    calorias = Math.round(alvo);
+    calorias = chave === 'perder_peso' ? tdee - deltas[ritmo] : tdee + deltas[ritmo];
   } else {
     calorias = calcularCaloriasDiarias(tmb, nivelAtividade, objetivo);
   }
-  return { tmb, ...calcularMacros(calorias, objetivo) };
+  // Déficits não caem abaixo da própria TMB; e nenhuma meta cai abaixo do piso
+  // geral. Vale para as duas rotas — quem edita o perfil fora do quiz chega aqui
+  // sem 'ritmo' e precisa receber a mesma trava de segurança.
+  if (chave === 'perder_peso') calorias = Math.max(calorias, tmb);
+  calorias = Math.max(calorias, CALORIAS_MINIMAS);
+
+  return { tmb, ...calcularMacros(Math.round(calorias), objetivo) };
 }
 
 // ↓ Conversões aceitando vírgula ou ponto (pt-BR) para altura e peso.
