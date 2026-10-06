@@ -1,11 +1,10 @@
 # syntax=docker/dockerfile:1
 # ─────────────────────────────────────────────────────────────────────
-# KaorCount — imagem da API REST (FastAPI)
+# KaorCount — imagem única: API REST (FastAPI) + site estático (public/)
 # Contexto de build: ./backend
 # ─────────────────────────────────────────────────────────────────────
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
-# Evita emojis/acentos quebrados nos logs do container e buffering do stdout.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONIOENCODING=UTF-8 \
@@ -14,8 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Dependências de sistema necessárias para wheels nativos
-# (cryptography / reportlab / uvicorn[standard]).
+# Deps de sistema para wheels nativos (cryptography / reportlab / uvicorn[standard])
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
@@ -23,23 +21,22 @@ RUN apt-get update \
         libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Camada de dependências: cacheada enquanto o requirements.txt não muda.
+# Dependências Python (cacheadas enquanto requirements.txt não muda)
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Código da aplicação.
+# Código da aplicação — inclui app/ e public/ (html, css, js)
 COPY . .
 
-# Usuário sem privilégios.
+# Usuário sem privilégios
 RUN useradd --create-home --uid 1000 kaorcount \
     && chown -R kaorcount:kaorcount /app
 USER kaorcount
 
 EXPOSE 8000
 
-# O healthcheck usa o próprio /health exposto pela API (sem depender de curl
-# no host). Uvicorn com 1 worker para não duplicar conexões do pool MySQL.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
     CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Render injeta $PORT; local cai no 8000
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
