@@ -1,0 +1,24 @@
+# O que NUNCA deve sair da máquina no deploy da Vercel.
+#
+# .env é o ponto crítico: ele tem a senha real do banco. Se fosse para o bundle,
+# uma URL pública ficaria com credencial de acesso ao TiDB embutida — e o
+# pydantic (env_file=".env" em core/config.py) a usaria de verdade.
+.env
+.env.local
+.env.*.local
+
+# Artefatos locais
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coisas que só interessam ao Docker ou à máquina de dev
+Dockerfile
+.dockerignore
+run.bat
+banco_de_dados/
+audit_seguranca.py
+bench_api.py
