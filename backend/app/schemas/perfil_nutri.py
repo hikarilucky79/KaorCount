@@ -10,6 +10,9 @@ class PerfilNutriCreate(BaseModel):
     genero: str = Field(..., max_length=20)
     objetivo_nutricional: str = Field(..., max_length=50)
     nivel_atividade: str = Field(..., max_length=50)
+    # O quiz calcula a TMB com o peso informado pelo usuário e manda junto; sem
+    # este campo o valor era descartado no POST e recriado com 70 kg.
+    tmb_calculo: float | None = None
 
 
 class PerfilNutriUpdate(BaseModel):
