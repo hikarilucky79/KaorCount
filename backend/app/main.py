@@ -34,10 +34,12 @@ app = FastAPI(
     title="KaorCount API",
     description="API REST do aplicativo mobile de nutrição KaorCount",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    # Em produção: sem docs, sem redoc, sem schema público
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
+
 
 # CORS.
 # Desenvolvimento (padrão): liberado para qualquer origem, como antes.
