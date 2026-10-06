@@ -1,0 +1,132 @@
+# ─────────────────────────────────────────────────────────────────────
+# KaorCount — Deploy
+#
+# Deploy manual (botão "Run workflow") por SSH, rodando o mesmo
+# ./run.sh check && ./run.sh prod que você roda à mão no servidor.
+#
+# Configuração que precisa existir no repo (Settings → Secrets and
+# variables → Actions). O workflow falha com mensagem clara se faltar algo:
+#
+#   Secrets (valores):
+#     DEPLOY_SSH_KEY      chave PRIVADA correspondente à authorized_keys do servidor
+#     DEPLOY_HOST         host/IP de acesso SSH (não é o domínio do site)
+#     DEPLOY_USER         usuário SSH (o mesmo que executa docker)
+#     DEPLOY_KNOWN_HOSTS  saída de `ssh-keyscan -t ed25519,rsa <host>` (evita TOFU)
+#
+#   Variables (não sensíveis):
+#     DEPLOY_PATH         caminho do repositório no servidor   (padrão: KaorCount)
+#     DEPLOY_BRANCH       branch publicada                     (padrão: main)
+#
+# O .env.prod fica no servidor e nunca passa por aqui: o compose de produção
+# lê o arquivo do disco, então a CI nunca carrega as senhas reais.
+# ─────────────────────────────────────────────────────────────────────
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Um deploy por vez. Cancelar no meio deixaria o servidor com a stack pela
+# metade (compose derrubado, banco sem migrar, Caddy sem certificado).
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Produção (SSH)
+    runs-on: ubuntu-latest
+    environment: producao
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      APP_PATH: ${{ vars.DEPLOY_PATH || 'KaorCount' }}
+      APP_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+
+    steps:
+      - name: Exigir a configuração de acesso
+        run: |
+          faltando=""
+          for varivel in DEPLOY_HOST DEPLOY_USER; do
+            if [ -z "$(printenv "$varivel")" ]; then
+              faltando="$faltando $varivel"
+            fi
+          done
+          if [ -n "$faltando" ]; then
+            echo "ERRO: falta(m) o(s) secret(s):$faltando"
+            echo "Crie em Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+
+      # known_hosts vem de secret em vez de ssh-keyscan: sem ele o StrictHostKeyChecking
+      # não tem como falhar, e um interpassador no caminho aceitaria qualquer chave.
+      - name: Configurar SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "ERRO: faltam os secrets DEPLOY_SSH_KEY e/ou DEPLOY_KNOWN_HOSTS."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          {
+            echo "Host kaorcount-deploy"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  User $DEPLOY_USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+            echo "  UserKnownHostsFile ~/.ssh/known_hosts"
+          } >> ~/.ssh/config
+
+      - name: Testar conexão
+        run: ssh -o BatchMode=yes -o ConnectTimeout=10 kaorcount-deploy 'echo "conectou como $(whoami) em $(hostname)"'
+
+      # Os valores entram por argumento posicional ($1/$2), não interpolados no
+      # script: um caminho com espaços ou aspas não consegue quebrar o comando.
+      - name: Sincronizar código e publicar
+        run: |
+          ssh kaorcount-deploy '
+            set -euo pipefail
+            cd -- "$1"
+            echo "== $PWD ($2) =="
+            git fetch --quiet origin
+            git checkout --quiet "$2"
+            git pull --ff-only --quiet origin "$2"
+            ./run.sh check
+            ./run.sh prod
+          ' _ "$APP_PATH" "$APP_BRANCH"
+
+      - name: Conferir saúde dos containers
+        run: |
+          ssh kaorcount-deploy '
+            set -euo pipefail
+            cd -- "$1"
+            containers="kaorcount-caddy kaorcount-web kaorcount-db"
+            # O healthcheck roda a cada 30s, então o primeiro "healthy" pode tardar.
+            for tentativa in $(seq 1 18); do
+              pendentes=""
+              for c in $containers; do
+                campo=$(docker inspect --format "{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" "$c" 2>/dev/null || echo "ausente|ausente")
+                case "$campo" in
+                  "running|healthy"|"running|none") ;;
+                  *) pendentes="$pendentes $c($campo)" ;;
+                esac
+              done
+              if [ -z "$pendentes" ]; then
+                echo "stack saudável:$containers"
+                exit 0
+              fi
+              echo "tentativa $tentativa, aguardando:$pendentes"
+              sleep 10
+            done
+            echo "ERRO: a stack nao ficou saudavel apos 3 min:$pendentes"
+            docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+            exit 1
+          ' _ "$APP_PATH"
