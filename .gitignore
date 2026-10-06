@@ -47,6 +47,12 @@ expo-env.d.ts
 !.env.prod.example
 !.env.vercel.example
 
+# ─── Vercel ──────────────────────────────────────────────────────
+# .vercel/ guarda o projectId e o orgId do link do CLI. Nao e segredo, mas e
+# especifico da maquina e do usuario logado: versionar faz o link apontar para
+# o projeto de quem criou.
+.vercel/
+
 # ─── IDE / editores ─────────────────────────────────────────────
 .vscode/
 .idea/
