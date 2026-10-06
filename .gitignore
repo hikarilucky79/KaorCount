@@ -45,6 +45,7 @@ expo-env.d.ts
 !.env.example
 !.env.example.*
 !.env.prod.example
+!.env.vercel.example
 
 # ─── IDE / editores ─────────────────────────────────────────────
 .vscode/
