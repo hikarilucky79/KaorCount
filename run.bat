@@ -33,7 +33,9 @@ if errorlevel 1 (
     set "COMPOSE=docker compose"
 )
 
-if "%~1"=="" set "COMANDO=up"
+REM Sem a cláusula else o COMANDO ficava vazio sempre que um argumento era
+REM passado, e todo "run.bat prod|check|logs" caia no erro de uso lá embaixo.
+if "%~1"=="" (set "COMANDO=up") else (set "COMANDO=%~1")
 
 REM ─── Configuração de produção ────────────────────────────────────
 REM O .env.prod é passado via --env-file para que o Compose NÃO leia o
