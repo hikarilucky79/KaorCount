@@ -26,6 +26,7 @@ Projeto Integrador do Curso Técnico em Desenvolvimento de Sistemas do
 - [Documentação da API](#documentação-da-api)
 - [Endpoints](#endpoints)
 - [Banco de dados](#banco-de-dados)
+- [CI/CD (GitHub Actions)](#cicd-github-actions)
 - [Mapeamento dos requisitos funcionais](#mapeamento-dos-requisitos-funcionais)
 - [Equipe](#equipe)
 
@@ -935,6 +936,48 @@ EXPO_PUBLIC_API_URL=https://seudominio.com.br/api/v1
 ./run.sh down      # derruba (mantém banco e certificados)
 ./run.sh reset     # ⚠️ apaga o banco (pede confirmação)
 ```
+
+---
+
+## CI/CD (GitHub Actions)
+
+Dois workflows em `.github/workflows/`.
+
+### `ci.yml` — verificação
+
+Roda em todo push e em toda PR para `main`, em três jobs independentes:
+
+| Job | O que confere |
+|---|---|
+| **API (FastAPI)** | compila os módulos, **importa `app.main`** (um import quebrado passa pelo `compileall` e só apareceria no deploy), e confirma que a produção continua recusando `SECRET_KEY` padrão ou curta e que `/alimentos` continua sem `PUT`/`DELETE` |
+| **Compose + Caddy** | `docker compose config` dos dois arquivos, `CADDY_DOMAIN` chegando de fato ao container, MySQL sem porta publicada no host, e `caddy validate` no Caddyfile |
+| **App (Expo web)** | `npm ci` + `npx expo export --platform web` — o mesmo build do Dockerfile, e o único passo que faz o parse das telas (o `tsconfig.json` é um stub sem nenhum `.ts`) |
+
+O repositório ainda não tem testes automatizados, então a CI é um gate
+**estrutural**, não de comportamento. E ela nunca vê as senhas reais: a validação
+do compose de produção usa o `.env.prod.example` versionado.
+
+### `deploy.yml` — publicação
+
+Disparado à mão (Actions → *Deploy* → **Run workflow**). Entra por SSH no
+servidor, faz `git pull`, roda `./run.sh check` e `./run.sh prod`, e espera os
+containers `kaorcount-caddy`, `kaorcount-web` e `kaorcount-db` ficarem
+saudáveis. A concorrência é serializada de propósito: cancelar um deploy no
+meio deixaria a stack pela metade.
+
+Precisa existir no repositório (Settings → Secrets and variables → Actions):
+
+| Tipo | Nome | Conteúdo |
+|---|---|---|
+| Secret | `DEPLOY_SSH_KEY` | chave **privada** cujo par público está no `authorized_keys` do servidor |
+| Secret | `DEPLOY_HOST`, `DEPLOY_USER` | host e usuário do SSH — não é o domínio do site |
+| Secret | `DEPLOY_KNOWN_HOSTS` | saída de `ssh-keyscan -t ed25519,rsa <host>` |
+| Variable | `DEPLOY_PATH` | caminho do repositório no servidor (padrão `KaorCount`) |
+| Variable | `DEPLOY_BRANCH` | branch publicada (padrão `main`) |
+
+O `.env.prod` **não** passa pelo GitHub: ele fica no servidor, e é de lá que o
+compose o lê. Se faltar qualquer item, o workflow falha no primeiro passo
+dizendo qual.
 
 ---
 
