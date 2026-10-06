@@ -87,15 +87,22 @@ app.add_exception_handler(OperationalError, operational_error_handler)
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 INDEX_HTML = PUBLIC_DIR / "html" / "index.html"
 
-# Servir arquivos estáticos (CSS e JS)
-app.mount("/css", StaticFiles(directory=PUBLIC_DIR / "css"), name="css")
-app.mount("/js", StaticFiles(directory=PUBLIC_DIR / "js"), name="js")
+# Servir arquivos estáticos (CSS e JS).
+# Na Vercel o public/ é promovido ao CDN e não acompanha o bundle da função, e
+# um StaticFiles de diretório ausente derruba o import inteiro. Onde os arquivos
+# existem (Docker) o mount acontece; onde não existem, o CDN já atende a rota.
+for _prefixo in ("css", "js"):
+    _pasta = PUBLIC_DIR / _prefixo
+    if _pasta.is_dir():
+        app.mount(f"/{_prefixo}", StaticFiles(directory=_pasta), name=_prefixo)
 
-# Rota para a raiz e para /index.html
-@app.get("/", include_in_schema=False)
-@app.get("/index.html", include_in_schema=False)
-def root():
-    return FileResponse(INDEX_HTML)
+# Raiz e /index.html — só quando o HTML está no bundle. Na Vercel o vercel.json
+# reescreve "/" para /html/index.html, servido direto do CDN.
+if INDEX_HTML.is_file():
+    @app.get("/", include_in_schema=False)
+    @app.get("/index.html", include_in_schema=False)
+    def root():
+        return FileResponse(INDEX_HTML)
 
 @app.get("/health")
 def health():
