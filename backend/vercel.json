@@ -1,13 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
   "regions": ["gru1"],
-  "functions": {
-    "app/main.py": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     { "source": "/", "destination": "/html/index.html" },
     { "source": "/index.html", "destination": "/html/index.html" }
