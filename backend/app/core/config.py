@@ -31,6 +31,29 @@ class Settings(BaseSettings):
     # Em produção, ex.: "https://kaorcount.com.br,https://www.kaorcount.com.br"
     CORS_ORIGINS: str = ""
 
+    # ── Rate limit ──────────────────────────────────────────────────────
+    # O firewall da Vercel só tem bloqueio por regra/IP no plano pago, e não tem
+    # rate limiting no Hobby, então o teto mora na aplicação. Contador no banco:
+    # em memória cada função serverless vê só o próprio quintal.
+    LIMITE_LOGINS_POR_IP: int = 10
+    LIMITE_JANELA_LOGIN_SEGUNDOS: int = 60
+
+    LIMITE_REGISTROS_POR_IP: int = 3
+    LIMITE_JANELA_REGISTRO_SEGUNDOS: int = 3600
+
+    # Teto global de contas novas por dia corrido. 0 desliga o teto global e
+    # deixa só o por IP, útil em teste de carga controlado.
+    LIMITE_CADASTROS_POR_DIA: int = 50
+
+    # Busca no FatSecret gasta a cota da NOSSA chave, não a do usuário.
+    LIMITE_FATSECRET_POR_USUARIO: int = 30
+    LIMITE_JANELA_FATSECRET_SEGUNDOS: int = 60
+
+    # Gerar sugestões faz várias chamadas externas de uma vez, então o orçamento
+    # é separado e mais apertado que o da busca.
+    LIMITE_SUGESTOES_POR_USUARIO: int = 5
+    LIMITE_JANELA_SUGESTAO_SEGUNDOS: int = 3600
+
     @property
     def is_production(self) -> bool:
         return (self.ENVIRONMENT or self.APP_ENV).strip().lower() in {

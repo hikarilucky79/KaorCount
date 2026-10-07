@@ -125,7 +125,7 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
     <TouchableOpacity
       onPress={aoSelecionar}
       activeOpacity={0.9}
-      accessibilityRole="radiobutton"
+      accessibilityRole="radio"
       accessibilityState={{ selected: selecionado }}
       accessibilityLabel={descricao ? `${label}. ${descricao}` : label}
     >
@@ -196,7 +196,7 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
     <TouchableOpacity
       onPress={aoSelecionar}
       activeOpacity={0.9}
-      accessibilityRole="radiobutton"
+      accessibilityRole="radio"
       accessibilityState={{ selected: selecionado }}
       accessibilityLabel={label}
     >
@@ -568,14 +568,12 @@ export default function QuizCadastroScreen({ navigation }) {
   const renderBoasVindas = () => (
     <View>
       <View style={[styles.hero, SombraBotao, { backgroundColor: cores.marcaEscura }]}>
-        {/* ↓ O logo é escuro, então vive numa placa clara para ler sobre o marrom. */}
-        <View style={styles.heroLogoChip}>
-          <Image
-            source={require('../../assets/kaorcount1-removebg-preview.png')}
-            style={styles.heroLogo}
-            resizeMode="contain"
-          />
-        </View>
+        {/* ↓ Versão clara do logo: o original é marrom-escuro e some sobre o marrom do hero. */}
+        <Image
+          source={require('../../assets/kaorcount1-claro.png')}
+          style={styles.heroLogo}
+          resizeMode="contain"
+        />
         <Text style={styles.heroTitulo}>
           {primeiroNome ? `${primeiroNome}, vamos montar o seu plano` : 'Vamos montar o seu plano'}
         </Text>
@@ -1146,11 +1144,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  heroLogoChip: {
-    backgroundColor: '#FDFBF7', borderRadius: 14,
-    paddingHorizontal: 10, paddingVertical: 6, marginBottom: 14,
-  },
-  heroLogo: { width: 116, height: 58 },
+  heroLogo: { width: 116, height: 58, marginBottom: 14 },
   heroTitulo: { color: '#FFFFFF', fontSize: 21, fontWeight: '800', lineHeight: 27 },
   heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: 13, lineHeight: 19, marginTop: 6 },
 

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.limite import limitador_usuario
 from app.core.security import get_usuario_atual
 from app.models.usuario import Usuario
 from app.services import fatsecret_service
@@ -9,7 +11,18 @@ from app.services.fatsecret_service import FatSecretService, FatSecretIndisponiv
 from app.services.alimento_service import AlimentoService
 from app.schemas.alimento import AlimentoCreate, AlimentoResponse
 
-router = APIRouter(prefix="/fatsecret", tags=["FatSecret - Base externa de alimentos"])
+# Toda a base externa sai da NOSSA chave do FatSecret, então o teto é por
+# usuário autenticado: sem ele, uma conta bastava para drenar a cota do dia.
+limitar_fatsecret = limitador_usuario(
+    settings.LIMITE_FATSECRET_POR_USUARIO,
+    settings.LIMITE_JANELA_FATSECRET_SEGUNDOS,
+)
+
+router = APIRouter(
+    prefix="/fatsecret",
+    tags=["FatSecret - Base externa de alimentos"],
+    dependencies=[Depends(limitar_fatsecret)],
+)
 
 
 @router.get("/status")

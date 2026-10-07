@@ -22,3 +22,4 @@ run.bat
 banco_de_dados/
 audit_seguranca.py
 bench_api.py
+testa_limite.py

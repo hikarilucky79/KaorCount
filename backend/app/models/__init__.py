@@ -7,6 +7,7 @@ from app.models.refeicao import Refeicao
 from app.models.registro_agua import RegistroAgua
 from app.models.sugestao_refeicao import SugestaoRefeicao
 from app.models.lembrete_config import LembreteConfig
+from app.models.limite_requisicao import LimiteRequisicao
 from app.models.usuario import Usuario
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "HistoricoProgresso",
     "ItemRefeicao",
     "LembreteConfig",
+    "LimiteRequisicao",
     "MetaNutri",
     "PerfilNutri",
     "Refeicao",

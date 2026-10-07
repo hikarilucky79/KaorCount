@@ -3,13 +3,22 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.limite import limitador_usuario
 from app.core.security import get_usuario_atual
 from app.models.usuario import Usuario
 from app.schemas.sugestao import SugestaoAceitaResponse, SugestaoRefeicaoResponse
 from app.services.sugestao_service import SugestaoService
 
 router = APIRouter(prefix="/sugestoes", tags=["Sugestões de Refeições"])
+
+# gerar_todas() bate no FatSecret várias vezes numa só chamada; sem teto, um
+# script com um token bastava para esvaziar a cota do dia.
+limitar_geracao = limitador_usuario(
+    settings.LIMITE_SUGESTOES_POR_USUARIO,
+    settings.LIMITE_JANELA_SUGESTAO_SEGUNDOS,
+)
 
 
 def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
@@ -29,7 +38,11 @@ def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
     return str(id_usuario)
 
 
-@router.post("/gerar/{id_usuario}", response_model=list[SugestaoRefeicaoResponse])
+@router.post(
+    "/gerar/{id_usuario}",
+    response_model=list[SugestaoRefeicaoResponse],
+    dependencies=[Depends(limitar_geracao)],
+)
 def gerar_sugestoes(
     id_usuario: UUID,
     db: Session = Depends(get_db),

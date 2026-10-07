@@ -5,14 +5,16 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 
-def _error_response(request: Request, status_code: int, detail: str, **extra) -> JSONResponse:
+def _error_response(request: Request, status_code: int, detail: str, headers: dict | None = None, **extra) -> JSONResponse:
     content = {"erro": True, "status": status_code, "detail": detail, "path": str(request.url.path)}
     content.update(extra)
-    return JSONResponse(status_code=status_code, content=content)
+    return JSONResponse(status_code=status_code, content=content, headers=headers)
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-    return _error_response(request, exc.status_code, exc.detail)
+    # Sem repassar exc.headers, um 429 com Retry-After chegava ao cliente sem a
+    # informação de quando tentar de novo — justamente o que o cliente precisa.
+    return _error_response(request, exc.status_code, exc.detail, headers=dict(exc.headers or {}))
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
