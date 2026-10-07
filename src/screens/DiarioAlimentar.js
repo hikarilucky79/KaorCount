@@ -27,13 +27,7 @@ import * as registroAguaApi from '../api/registroAguaApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import * as alimentoApi from '../api/alimentoApi';
 import * as fatsecretApi from '../api/fatsecretApi';
-
-const formatarDataAPI = (data) => {
-  const ano = data.getFullYear();
-  const mes = String(data.getMonth() + 1).padStart(2, '0');
-  const dia = String(data.getDate()).padStart(2, '0');
-  return `${ano}-${mes}-${dia}`;
-};
+import { formatarDataAPI } from '../util/data';
 
 const normalizarTexto = (txt) => 
   (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();

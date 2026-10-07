@@ -47,6 +47,7 @@ import * as dashboardApi from '../api/dashboardApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as usuarioApi from '../api/usuarioApi';
 import { calcularIdade, calcularPlanoNutricional } from '../util/nutricao';
+import { dataDeHoje } from '../util/data';
 
 export default function PerfilScreen({ navigation }) {
   const { usuario, atualizarUsuario } = useAuth();
@@ -301,7 +302,7 @@ export default function PerfilScreen({ navigation }) {
       });
 
       // 3. Registrar novo Histórico de Progresso
-      const dataHojeStr = new Date().toISOString().split('T')[0];
+      const dataHojeStr = dataDeHoje();
       try {
         await historicoProgressoApi.criar({
           id_usuario: idUsuario,
@@ -329,7 +330,7 @@ export default function PerfilScreen({ navigation }) {
       });
 
       try {
-        const dataHoje = new Date().toISOString().split('T')[0];
+        const dataHoje = dataDeHoje();
         const payloadMeta = {
           calorias_diarias: plano.calorias_diarias,
           proteina_g: plano.proteina_g,

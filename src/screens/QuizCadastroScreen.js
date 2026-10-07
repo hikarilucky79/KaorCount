@@ -28,6 +28,7 @@ import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
+import { dataDeHoje } from '../util/data';
 
 // ↓ Etapas que contam na barra de progresso (boas-vindas não conta).
 //   1=gênero 2=nascimento 3=medidas 4=atividade 5=objetivo 6=ritmo 7=revisão.
@@ -202,7 +203,7 @@ export default function QuizCadastroScreen({ navigation, route }) {
     setEnviando(true);
     try {
       const idUser = usuario?.id_usuario || usuario?.id;
-      const hoje = new Date().toISOString().split('T')[0];
+      const hoje = dataDeHoje();
 
       // ↓ Se pulou: mantém o comportamento anterior do cadastro (defaults).
       const nascISO = pulando ? '2000-01-01' : dataParaISO(dataNascimento);
