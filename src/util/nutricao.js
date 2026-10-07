@@ -113,6 +113,22 @@ export function calcularPlanoNutricional({ dataNascimento, genero, pesoKg, altur
   return { tmb, ...calcularMacros(Math.round(calorias), objetivo) };
 }
 
+// ↓ Distribuição do que foi consumido em % das CALORIAS (proteína/carbo ×4,
+//   gordura ×9). É a mesma unidade em que MACROS_POR_OBJETIVO define a meta;
+//   medir em gramas trataria 1 g de gordura igual a 1 g de carboidrato.
+export function distribuicaoCalorica(proteinaG = 0, carboidratoG = 0, gorduraG = 0) {
+  const kcalProteina = (proteinaG || 0) * 4;
+  const kcalCarboidrato = (carboidratoG || 0) * 4;
+  const kcalGordura = (gorduraG || 0) * 9;
+  const total = kcalProteina + kcalCarboidrato + kcalGordura;
+  if (total <= 0) return { proteina: 0, carboidratos: 0, gorduras: 0 };
+  return {
+    proteina: Math.round((kcalProteina / total) * 100),
+    carboidratos: Math.round((kcalCarboidrato / total) * 100),
+    gorduras: Math.round((kcalGordura / total) * 100),
+  };
+}
+
 // ↓ Conversões aceitando vírgula ou ponto (pt-BR) para altura e peso.
 export function parseNumeroBr(valor) {
   if (valor === null || valor === undefined) return NaN;

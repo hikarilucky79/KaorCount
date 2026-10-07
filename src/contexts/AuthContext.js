@@ -5,7 +5,7 @@
 // Autenticação 100% local: o backend valida e-mail/senha (bcrypt)
 // e emite um token JWT HS256, que fica salvo no AsyncStorage.
 // As telas usam useAuth(): usuario, token, carregando, logado,
-// login, registrar, loginDemo, logout, atualizarUsuario.
+// login, registrar, logout, atualizarUsuario.
 // ───────────────────────────────────────────────────────────────
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,47 +85,6 @@ export function AuthProvider({ children }) {
     return perfil;
   }, [login]);
 
-  // ↓ Login Demo / Convidado: autentica com conta de demonstração
-  //   (criada no primeiro uso).
-  const loginDemo = useCallback(async () => {
-    const emailDemo = 'demo@kaorcount.com';
-    const senhaDemo = 'demo123456';
-    try {
-      // 1. Tentar login direto
-      try {
-        const perfil = await login(emailDemo, senhaDemo);
-        return perfil;
-      } catch (loginErr) {
-        // Se não existir, criar usuário demo no backend
-        try {
-          const perfil = await registrar({
-            nome: 'Reginaldo (Demo)',
-            email: emailDemo,
-            senha: senhaDemo,
-          });
-          return perfil;
-        } catch (regErr) {
-          console.warn('[AuthContext] Usando fallback local para demo:', regErr?.message);
-        }
-      }
-
-      // 2. Fallback de sessão local caso o backend não esteja respondendo
-      const usuarioLocal = {
-        id_usuario: '00000000-0000-0000-0000-000000000001',
-        nome: 'Reginaldo (Demo)',
-        email: emailDemo,
-      };
-      const tokenDemo = 'demo-jwt-token-kaorcount';
-      await AsyncStorage.setItem(TOKEN_KEY, tokenDemo);
-      await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(usuarioLocal));
-      setToken(tokenDemo);
-      setUsuario(usuarioLocal);
-      return usuarioLocal;
-    } catch (e) {
-      console.error('[AuthContext] Erro ao iniciar demo:', e);
-    }
-  }, [login, registrar]);
-
   // ↓ Logout: limpa toda a sessão.
   const logout = useCallback(async () => {
     await limparSessao();
@@ -159,7 +118,6 @@ export function AuthProvider({ children }) {
         logado: !!token,
         login,
         registrar,
-        loginDemo,
         logout,
         atualizarUsuario,
       }}

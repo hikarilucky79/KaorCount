@@ -14,6 +14,7 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
+import { distribuicaoCalorica } from '../util/nutricao';
 
 function BarraSemanalAnimada({ altura, cor, diaNome, corTexto, delay = 0, larguraBarra = 14, alturaTrilho = 65 }) {
   const animAltura = useRef(new Animated.Value(0)).current;
@@ -127,11 +128,12 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
-  // ↓ Distribuição de macros
-  const totalMacrosG = proteinaConsumida + carboidratoConsumido + gorduraConsumida;
-  const distProteina = totalMacrosG > 0 ? Math.round((proteinaConsumida / totalMacrosG) * 100) : 0;
-  const distCarboidrato = totalMacrosG > 0 ? Math.round((carboidratoConsumido / totalMacrosG) * 100) : 0;
-  const distGordura = totalMacrosG > 0 ? Math.round((gorduraConsumida / totalMacrosG) * 100) : 0;
+  // ↓ Distribuição de macros em % calórica (4/4/9), não em gramas.
+  const {
+    proteina: distProteina,
+    carboidratos: distCarboidrato,
+    gorduras: distGordura,
+  } = distribuicaoCalorica(proteinaConsumida, carboidratoConsumido, gorduraConsumida);
 
   // ↓ Dados do gráfico semanal
   const diasDaSemanaAbrev = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];

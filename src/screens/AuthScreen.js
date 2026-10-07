@@ -33,7 +33,7 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 
 export default function AuthScreen({ navigation }) {
-  const { login, registrar, loginDemo } = useAuth();
+  const { login, registrar } = useAuth();
   const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxAuthWidth } = useResponsive();
 
@@ -45,18 +45,6 @@ export default function AuthScreen({ navigation }) {
   const [carregandoReq, setCarregandoReq] = useState(false);
   const [erroMsg, setErroMsg] = useState('');
   const [animando, setAnimando] = useState(false);
-
-  const handleEntrarDemo = async () => {
-    try {
-      if (loginDemo) {
-        await loginDemo();
-      }
-      transicionarPara('app');
-    } catch (e) {
-      console.warn('[AuthScreen] Erro ao carregar demo:', e?.message);
-      setErroMsg('Demo indisponível no momento.');
-    }
-  };
 
   // ↓ Valor animado (0 = repouso da tela atual, 1 = banner totalmente estendido cobrindo a tela)
   const animCortina = useRef(new Animated.Value(0)).current;
@@ -306,14 +294,6 @@ export default function AuthScreen({ navigation }) {
                 >
                   <Text style={[styles.txtBtnSecundario, { color: cores.primaria, fontSize: rf(15, 13, 17) }]}>Criar conta grátis</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.btnDemo}
-                  onPress={handleEntrarDemo}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.txtBtnDemo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>Entrar como convidado (demo)</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
@@ -419,17 +399,6 @@ export default function AuthScreen({ navigation }) {
                         <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                       </>
                     )}
-                  </TouchableOpacity>
-
-                  <View style={[styles.divisorLinha, { backgroundColor: cores.borda }]} />
-
-                  {/* Botão Demo */}
-                  <TouchableOpacity 
-                    style={[styles.btnDemoCard, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: cores.borda }]}
-                    onPress={handleEntrarDemo}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.txtBtnDemoCard, { color: cores.primaria, fontSize: rf(12, 11, 14) }]}>Entrar com conta de demonstração</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -746,16 +715,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
-  btnDemo: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txtBtnDemo: {
-    color: CORES.textoSuave,
-    fontSize: 12,
-    fontWeight: '600',
-  },
 
   // Estilos de Navegação Superior nos Formulários
   navBarTop: {
@@ -843,23 +802,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: CORES.textoEscuro,
-  },
-  divisorLinha: {
-    height: 1,
-    backgroundColor: CORES.borda,
-    marginVertical: 14,
-  },
-  btnDemoCard: {
-    backgroundColor: '#F7EFE6',
-    borderRadius: 14,
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txtBtnDemoCard: {
-    color: CORES.textoSuave,
-    fontSize: 12,
-    fontWeight: '600',
   },
   rodapeLink: {
     flexDirection: 'row',
