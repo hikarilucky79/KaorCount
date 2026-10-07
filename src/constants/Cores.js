@@ -16,7 +16,7 @@ export const CORES_CLARO = {
   proteina: '#C88242',       // Caramelo para proteínas
   gordura: '#9B59B6',        // Roxo suave para gorduras
   borda: '#E1D5C7',          // Borda suave e clara
-  mutado: '#EDD9C3',         // Bege claro para botões secundários/demo
+  mutado: '#EDD9C3',         // Bege claro de fundo para opção não selecionada
   erro: '#D94F4F',           // Vermelho para erros e avisos
 };
 
