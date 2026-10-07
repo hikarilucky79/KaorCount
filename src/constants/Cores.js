@@ -5,6 +5,7 @@
 
 export const CORES_CLARO = {
   primaria: '#C88242',       // Laranja caramelo / marrom quente oficial
+  marcaEscura: '#85461E',    // Marrom da marca usado em banners e cards de destaque
   fundo: '#F4E6D6',          // Bege claro suave acolhedor para fundo das telas
   fundoInput: '#FAF3EC',     // Bege ultra claro para caixas de texto e inputs
   textoEscuro: '#2D1E12',    // Marrom café escuro para títulos e textos com alta legibilidade
@@ -22,6 +23,7 @@ export const CORES_CLARO = {
 
 export const CORES_ESCURO = {
   primaria: '#C88242',       // Laranja caramelo / marrom quente oficial
+  marcaEscura: '#6E3A18',    // Marrom da marca, escurecido para o tema escuro
   fundo: '#121212',          // Fundo oficial do tema escuro (#121212)
   fundoCard: '#1E1E1E',      // Fundo dos cards no tema escuro
   fundoInput: '#262626',     // Fundo das caixas de texto e inputs

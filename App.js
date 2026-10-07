@@ -92,6 +92,10 @@ export default function App() {
             screenOptions={{
               headerShown: false,
               cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              // ↓ No web o card padrão vem com min-height:100% e cresce com o
+              //   conteúdo, então a tela nunca fica presa à altura da janela e
+              //   o rodapé (botão principal) sai da vista.
+              cardStyle: { flex: 1, minHeight: 0 },
             }}
           >
             <Stack.Screen
