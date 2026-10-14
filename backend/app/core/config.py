@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "mysql+pymysql://root:senha@localhost:3306/kaorcount"
     SECRET_KEY: str = SECRET_KEY_PADRAO
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # Sessão persistente: o JWT permanece válido por 30 dias por padrão.
+    # O valor continua sobrescrevível por variável de ambiente.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200
     API_V1_PREFIX: str = "/api/v1"
     FATSECRET_CLIENT_ID: str = ""
     FATSECRET_CLIENT_SECRET: str = ""

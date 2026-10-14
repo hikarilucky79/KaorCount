@@ -21,6 +21,8 @@ export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [token, setToken] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  // Credenciais do cadastro ficam apenas em memória até o quiz ser concluído.
+  const [cadastroPendente, setCadastroPendente] = useState(null);
 
   // ↓ Ao montar o app: tenta recuperar a sessão salva.
   useEffect(() => {
@@ -40,12 +42,15 @@ export function AuthProvider({ children }) {
           const perfil = await authApi.getPerfilAtual();
           setUsuario(perfil);
           await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(perfil));
-        } catch {
-          // ↓ Token expirado ou inválido → usar dados do cache se disponível.
-          if (usuarioSalvo) {
+        } catch (errorPerfil) {
+          // Token rejeitado pelo servidor: encerra a sessão local. Se a rede
+          // estiver indisponível, mantém o cache para não pedir login à toa.
+          const credenciaisRejeitadas = [401, 403].includes(errorPerfil?.response?.status);
+          if (credenciaisRejeitadas) {
+            await limparSessao();
+          } else if (usuarioSalvo) {
             setUsuario(JSON.parse(usuarioSalvo));
           } else {
-            // ↓ Sem cache → deslogar.
             await limparSessao();
           }
         }
@@ -71,23 +76,28 @@ export function AuthProvider({ children }) {
     const perfil = await authApi.getPerfilAtual();
     setUsuario(perfil);
     await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(perfil));
+    setCadastroPendente(null);
 
     return perfil;
   }, []);
 
-  // ↓ Registrar: cria a conta e faz login automático.
-  const registrar = useCallback(async (dados) => {
-    // ↓ 1. Criar a conta no backend.
-    await authApi.registrar(dados);
+  // Guarda o cadastro temporariamente; nenhum dado é enviado ao backend ainda.
+  const iniciarCadastro = useCallback((dados) => {
+    setCadastroPendente(dados);
+  }, []);
 
-    // ↓ 2. Fazer login automático com as credenciais recém-criadas.
+  // Só é chamado ao concluir o quiz: cria a conta e autentica a pessoa.
+  const registrar = useCallback(async (dados) => {
+    await authApi.registrar(dados);
     const perfil = await login(dados.email, dados.senha);
+    setCadastroPendente(null);
     return perfil;
   }, [login]);
 
   // ↓ Logout: limpa toda a sessão.
   const logout = useCallback(async () => {
     await limparSessao();
+    setCadastroPendente(null);
   }, []);
 
   const limparSessao = async () => {
@@ -117,7 +127,9 @@ export function AuthProvider({ children }) {
         carregando,
         logado: !!token,
         login,
+        iniciarCadastro,
         registrar,
+        cadastroPendente,
         logout,
         atualizarUsuario,
       }}

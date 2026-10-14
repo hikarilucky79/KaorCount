@@ -32,7 +32,7 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 
 export default function AuthScreen({ navigation }) {
-  const { login, registrar } = useAuth();
+  const { login, iniciarCadastro } = useAuth();
   const { cores, isDark } = useTheme();
   const { height, isLandscape, rf, getContainer, maxAuthWidth } = useResponsive();
 
@@ -157,26 +157,9 @@ export default function AuthScreen({ navigation }) {
       return;
     }
 
-    setCarregandoReq(true);
-    try {
-      // 1. Criar conta no backend
-      await registrar({
-        nome: nome.trim(),
-        email: email.trim(),
-        senha: senha,
-      });
-
-      // ↓ 2. Após criar a conta, o usuário segue para o Quiz de Cadastro
-      //   (onboarding) para personalizar o perfil nutricional.
-      //   O registrar() do AuthContext já faz o login automático.
-      navigation.replace('QuizCadastro', { email: email.trim() });
-    } catch (error) {
-      console.error('[Cadastro] Erro:', error);
-      const msg = error?.response?.data?.detail || error?.message || 'Não foi possível criar a conta. Tente novamente.';
-      setErroMsg(typeof msg === 'string' ? msg : 'Erro ao cadastrar.');
-    } finally {
-      setCarregandoReq(false);
-    }
+    // Mantém as credenciais só em memória até a última etapa do quiz.
+    iniciarCadastro({ nome: nome.trim(), email: email.trim(), senha });
+    navigation.navigate('QuizCadastro');
   };
 
   // ───────────────────────────────────────────────────────────

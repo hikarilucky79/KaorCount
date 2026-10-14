@@ -439,7 +439,7 @@ explicativa.
 | `DATABASE_URL` | `mysql+pymysql://root:senha@localhost:3306/kaorcount` | String de conexão |
 | `SECRET_KEY` | `trocar-esta-chave-em-producao` | Chave de assinatura do JWT |
 | `ALGORITHM` | `HS256` | Algoritmo do JWT |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Validade do token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `43200` (30 dias) | Validade da sessão; configure menor se necessário |
 | `API_V1_PREFIX` | `/api/v1` | Prefixo de todas as rotas |
 | `FATSECRET_CLIENT_ID` | vazio | Credencial da API FatSecret |
 | `FATSECRET_CLIENT_SECRET` | vazio | Credencial da API FatSecret |

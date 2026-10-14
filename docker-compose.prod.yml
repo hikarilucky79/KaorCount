@@ -95,7 +95,7 @@ services:
       DATABASE_URL: "mysql+pymysql://${DB_USER:-kaorcount}:${DB_PASSWORD}@db:3306/${DB_NAME:-kaorcount}"
       SECRET_KEY: "${SECRET_KEY:?defina SECRET_KEY no .env.prod - gere com python -c 'import secrets;print(secrets.token_urlsafe(48))'}"
       ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-43200}
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
       FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}

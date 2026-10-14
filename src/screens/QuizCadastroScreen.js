@@ -380,7 +380,7 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
 
 export default function QuizCadastroScreen({ navigation }) {
   // ↓ Dados do usuário já autenticado no cadastro.
-  const { usuario } = useAuth();
+  const { usuario, cadastroPendente, registrar } = useAuth();
   const { cores, isDark } = useTheme();
   const { rf, getContainer, maxAuthWidth } = useResponsive();
 
@@ -420,7 +420,8 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Sentido do slide: avança para a esquerda, volta para a direita.
   const [direcao, setDirecao] = useState(1);
 
-  const primeiroNome = usuario?.nome ? usuario.nome.split(' ')[0] : '';
+  const nomeResultado = usuario?.nome || cadastroPendente?.nome;
+  const primeiroNome = nomeResultado ? nomeResultado.split(' ')[0] : '';
 
   useEffect(() => {
     Animated.timing(animProgresso, {
@@ -566,7 +567,6 @@ export default function QuizCadastroScreen({ navigation }) {
     setErroGeral('');
     setEnviando(true);
     try {
-      const idUser = usuario?.id_usuario || usuario?.id;
       const hoje = dataDeHoje();
 
       const nascISO = dataParaISO(dataNascimento);
@@ -584,38 +584,43 @@ export default function QuizCadastroScreen({ navigation }) {
         nivelAtividade: nivelSel, objetivo: objetivoSel, ritmo: ritmoSel,
       });
 
-      if (idUser) {
-        await perfilNutriApi.salvarOuAtualizar(idUser, {
-          data_nascimento: nascISO,
-          genero: generoSel,
-          objetivo_nutricional: objetivoSel,
-          nivel_atividade: nivelSel,
-          ...(plano.tmb ? { tmb_calculo: plano.tmb } : {}),
-        });
-
-        await pesquisaInicialApi.salvarOuAtualizar(idUser, {
-          origem_app: origemApp,
-          ja_contou_calorias: jaContouCalorias,
-          peso_objetivo_kg: parseNumeroBr(pesoObjetivoStr),
-        });
-
-        await historicoProgressoApi.criar({
-          id_usuario: idUser,
-          data_registro: hoje,
-          peso_atual: pesoKg,
-          altura_atual: alturaCm,
-        });
-
-        await metaNutriApi.criar({
-          id_usuario: idUser,
-          data_inicio: hoje,
-          calorias_diarias: plano.calorias_diarias,
-          proteina_g: plano.proteina_g,
-          carboidrato_g: plano.carboidrato_g,
-          gordura_g: plano.gordura_g,
-        });
-
+      // O cadastro só é enviado depois que a pessoa completa e confirma o quiz.
+      let usuarioFinal = usuario;
+      if (!usuarioFinal && cadastroPendente) {
+        usuarioFinal = await registrar(cadastroPendente);
       }
+      const idUser = usuarioFinal?.id_usuario || usuarioFinal?.id;
+      if (!idUser) throw new Error('Não foi possível identificar a conta para salvar suas respostas.');
+
+      await perfilNutriApi.salvarOuAtualizar(idUser, {
+        data_nascimento: nascISO,
+        genero: generoSel,
+        objetivo_nutricional: objetivoSel,
+        nivel_atividade: nivelSel,
+        ...(plano.tmb ? { tmb_calculo: plano.tmb } : {}),
+      });
+
+      await pesquisaInicialApi.salvarOuAtualizar(idUser, {
+        origem_app: origemApp,
+        ja_contou_calorias: jaContouCalorias,
+        peso_objetivo_kg: parseNumeroBr(pesoObjetivoStr),
+      });
+
+      await historicoProgressoApi.criar({
+        id_usuario: idUser,
+        data_registro: hoje,
+        peso_atual: pesoKg,
+        altura_atual: alturaCm,
+      });
+
+      await metaNutriApi.criar({
+        id_usuario: idUser,
+        data_inicio: hoje,
+        calorias_diarias: plano.calorias_diarias,
+        proteina_g: plano.proteina_g,
+        carboidrato_g: plano.carboidrato_g,
+        gordura_g: plano.gordura_g,
+      });
 
       setResumoFinal({
         plano,
@@ -953,7 +958,7 @@ export default function QuizCadastroScreen({ navigation }) {
           <View style={[styles.rodapeQuiz, styles.rodapeConclusao, { borderTopColor: cores.borda }]}>
             <TouchableOpacity
               style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.primaria }]}
-              onPress={() => navigation.replace('AppTabs')}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] })}
               activeOpacity={0.85}
               accessibilityRole="button"
             >

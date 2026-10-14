@@ -38,7 +38,8 @@ import {
   Zap,
   Armchair,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Settings,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import * as perfilNutriApi from '../api/perfilNutriApi';
@@ -366,6 +367,7 @@ export default function PerfilScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
       <ScrollView 
+        style={{ backgroundColor: cores.fundo }}
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
@@ -379,8 +381,17 @@ export default function PerfilScreen({ navigation }) {
         <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
           {/* ↓ Cabeçalho do Perfil */}
           <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-          <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 }]}>
-            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontSize: rf(24, 20, 28) }]}>Meu Perfil</Text>
+          <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginHorizontal: -20, marginTop: -20, marginBottom: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, minHeight: 92, backgroundColor: cores.fundo }]}>
+            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(52, 42, 64), fontWeight: '900', letterSpacing: 1.5 }]}>Perfil</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Configuracao')}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir configurações"
+              style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }}
+            >
+              <Settings size={26} color={cores.textoEscuro} strokeWidth={3} />
+            </TouchableOpacity>
           </View>
 
           {/* ↓ Loading (apenas no carregamento inicial) */}

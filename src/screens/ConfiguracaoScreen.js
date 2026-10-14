@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, Animated, Easing, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
-import { DoorOpen, ChevronLeft, Check, Flame, Scale, Dumbbell, Info, Moon, Sun } from 'lucide-react-native';
+import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, Moon, Sun, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, X } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
@@ -115,6 +115,7 @@ export default function ConfiguracaoScreen({ navigation }) {
   const [perfilCompleto, setPerfilCompleto] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [deslogando, setDeslogando] = useState(false);
+  const [secaoSelecionada, setSecaoSelecionada] = useState(null);
 
   // ↓ Lista de níveis de atividade
   const niveisAtividade = [
@@ -274,157 +275,191 @@ export default function ConfiguracaoScreen({ navigation }) {
     }
   };
 
+  const itensMenu = [
+    { id: 'conta', titulo: 'Conta', Icone: LockKeyhole },
+    { id: 'perfil', titulo: 'Perfil', Icone: UserRound },
+    { id: 'objetivos', titulo: 'Meus objetivos', Icone: Flag },
+    { id: 'diario', titulo: 'Diário & Monitor de água', Icone: BookMarked },
+    { id: 'lembretes', titulo: 'Lembretes', Icone: BellRing },
+    { id: 'unidades', titulo: 'Unidades', Icone: Ruler },
+    { id: 'pais', titulo: 'País da base de dados dos alimentos', Icone: Database },
+    { id: 'ajuda', titulo: 'Ajuda & Perguntas frequentes', Icone: CircleHelp },
+    { id: 'sobre', titulo: 'Sobre o KaorCount', Icone: Info },
+  ];
+
+  const selecionarItem = (id) => {
+    if (id === 'perfil' || id === 'diario') {
+      navigation.navigate('AppTabs', { screen: id === 'perfil' ? 'Perfil' : 'Diário' });
+      return;
+    }
+    setSecaoSelecionada(id);
+  };
+
+  const corFundoMenu = isDark ? '#111A27' : cores.fundo;
+  const corTextoMenu = isDark ? '#F5F7FA' : cores.textoEscuro;
+  const tituloSecao = itensMenu.find((item) => item.id === secaoSelecionada)?.titulo;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
-          {/* ↓ Cabeçalho com botão Voltar */}
-          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-          <View style={styles.headerConfig}>
-            <TouchableOpacity
-              style={[styles.btnVoltar, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-              onPress={() => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                } else {
-                  navigation.navigate('Início');
-                }
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ChevronLeft size={16} color={cores.textoEscuro} />
-                <Text style={[styles.txtVoltar, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Voltar</Text>
-              </View>
-            </TouchableOpacity>
-            <Text style={[styles.tituloTela, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Configurações</Text>
-            <View style={{ width: 60 }} />
-          </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: corFundoMenu }}>
+      <View style={[styles.menuHeader, { borderBottomColor: isDark ? '#263243' : cores.borda }]}>
+        <TouchableOpacity
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('AppTabs', { screen: 'Perfil' })}
+          accessibilityRole="button"
+          accessibilityLabel="Fechar configurações"
+          style={styles.menuFechar}
+        >
+          <X size={26} color={corTextoMenu} />
+        </TouchableOpacity>
+        <Text style={[styles.menuTitulo, { color: corTextoMenu, fontSize: rf(22, 20, 26) }]}>Configurações</Text>
+      </View>
 
-          {/* ↓ Bloco Preferências & Aparência */}
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>PREFERÊNCIAS & APARÊNCIA</Text>
-          <View style={[styles.cardConfig, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-
-            {/* Switch de Tema Escuro */}
-            <View style={styles.linhaSwitch}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {isDark ? (
-                    <Moon size={18} color={cores.primaria} style={{ marginRight: 8 }} />
-                  ) : (
-                    <Sun size={18} color={cores.primaria} style={{ marginRight: 8 }} />
-                  )}
-                  <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Tema Escuro</Text>
-                </View>
-                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Fundo escuro profundo para descanso visual</Text>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTema}
-                trackColor={{ false: cores.borda, true: cores.primaria }}
-                thumbColor={Platform.OS === 'android' ? (isDark ? cores.primaria : '#f4f3f4') : undefined}
-              />
-            </View>
-
-            <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Notificações push</Text>
-                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Alertas de metas e lembretes</Text>
-              </View>
-              <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} />
-            </View>
-
-            <View style={[styles.linhaSwitch, { marginTop: 15, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 15 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.tituloItemSwitch, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}>Lembrete de refeição</Text>
-                <Text style={[styles.subItemSwitch, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Horários programados</Text>
-              </View>
-              <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} />
-            </View>
-          </View>
-
-          {/* ↓ Objetivo */}
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>OBJETIVO</Text>
-          <View style={styles.rowObjetivos}>
-            {objetivos.map((obj) => (
-              <BotaoObjetivoAnimado
-                key={obj.id}
-                obj={obj}
-                ativo={objetivo === obj.id}
-                cores={cores}
-                isDark={isDark}
-                onPress={() => alterarObjetivo(obj.id)}
-                rf={rf}
-                moderateScale={moderateScale}
-              />
-            ))}
-          </View>
-
-          {/* ↓ Nível de Atividade */}
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>NÍVEL DE ATIVIDADE</Text>
-
-          <View style={styles.containerAtividades}>
-            {niveisAtividade.map((nivel) => (
-              <BotaoAtividadeAnimado
-                key={nivel.id}
-                nivel={nivel}
-                ativo={nivelAtividade === nivel.id}
-                cores={cores}
-                isDark={isDark}
-                onPress={() => alterarNivelAtividade(nivel.id)}
-                rf={rf}
-              />
-            ))}
-          </View>
-
-          {/* ↓ Informações do App */}
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>INFORMAÇÕES</Text>
-          <View style={[styles.cardConfig, { backgroundColor: cores.branco }]}>
-            <View style={styles.linhaInfo}>
-              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>App</Text>
-              <Text style={[styles.txtInfoValor, { color: cores.textoEscuro, fontSize: rf(13, 11, 15) }]}>KaorCount v1.0</Text>
-            </View>
-            <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
-              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Banco de dados</Text>
-              <Text style={[styles.txtInfoValor, { color: cores.textoEscuro, fontSize: rf(13, 11, 15) }]}>Catálogo Inteligente</Text>
-            </View>
-            <View style={[styles.linhaInfo, { borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10, marginTop: 10 }]}>
-              <Text style={[styles.txtInfoLabel, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Tema Ativo</Text>
-              <Text style={[styles.txtInfoValor, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>{isDark ? 'Escuro (#121212)' : 'Claro'}</Text>
-            </View>
-          </View>
-
-          {/* Ação de Deslogar da Conta */}
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>CONTA</Text>
+      <ScrollView contentContainerStyle={[styles.menuLista, getContainer(maxContentWidth)]} showsVerticalScrollIndicator={false}>
+        {itensMenu.map(({ id, titulo, Icone }) => (
           <TouchableOpacity
-            style={[
-              styles.botaoLogoutCard,
-              {
-                backgroundColor: isDark ? 'rgba(235, 87, 87, 0.12)' : '#FFF5F5',
-                borderColor: isDark ? 'rgba(235, 87, 87, 0.35)' : '#EB5757',
-              },
-              deslogando && { opacity: 0.6 }
-            ]}
-            onPress={handleLogout}
-            disabled={deslogando}
+            key={id}
+            style={styles.menuLinha}
+            onPress={() => selecionarItem(id)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
           >
-            {deslogando ? (
-              <ActivityIndicator color="#EB5757" />
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <DoorOpen color="#EB5757" size={20} style={{ marginRight: 8 }} />
-                <Text style={[styles.botaoLogoutTexto, { fontSize: rf(15, 13, 17) }]}>Desconectar / Sair da Conta</Text>
-              </View>
-            )}
+            <Icone size={29} color={corTextoMenu} fill={['conta', 'perfil', 'objetivos', 'lembretes'].includes(id) ? corTextoMenu : 'none'} strokeWidth={2.6} />
+            <Text style={[styles.menuLinhaTexto, { color: corTextoMenu, fontSize: rf(18, 16, 21) }]}>{titulo}</Text>
+            <ChevronRight size={17} color={isDark ? '#718096' : cores.textoSuave} />
           </TouchableOpacity>
-          </Animated.View>
-        </View>
-
+        ))}
       </ScrollView>
+
+      <Modal transparent visible={!!secaoSelecionada} animationType="slide" onRequestClose={() => setSecaoSelecionada(null)}>
+        <View style={styles.modalFundo}>
+          <View style={[styles.modalConfig, { backgroundColor: isDark ? '#1B2635' : cores.branco, borderColor: cores.borda }]}>
+            <View style={styles.modalHeaderConfig}>
+              <Text style={[styles.modalTituloConfig, { color: corTextoMenu }]}>{tituloSecao}</Text>
+              <TouchableOpacity onPress={() => setSecaoSelecionada(null)} accessibilityLabel="Fechar">
+                <X size={22} color={corTextoMenu} />
+              </TouchableOpacity>
+            </View>
+
+            {secaoSelecionada === 'conta' ? (
+              <View>
+                <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>{usuario?.email || 'Conta KaorCount'}</Text>
+                <TouchableOpacity style={styles.acaoLogout} onPress={() => { setSecaoSelecionada(null); handleLogout(); }} disabled={deslogando}>
+                  {deslogando ? <ActivityIndicator color="#EB5757" /> : <><DoorOpen color="#EB5757" size={20} /><Text style={styles.botaoLogoutTexto}>Sair da conta</Text></>}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {secaoSelecionada === 'objetivos' ? (
+              <ScrollView style={{ maxHeight: 430 }}>
+                <Text style={[styles.modalSubtitulo, { color: cores.textoSuave }]}>OBJETIVO</Text>
+                <View style={styles.rowObjetivos}>
+                  {objetivos.map((obj) => (
+                    <BotaoObjetivoAnimado key={obj.id} obj={obj} ativo={objetivo === obj.id} cores={cores} isDark={isDark} onPress={() => alterarObjetivo(obj.id)} rf={rf} moderateScale={moderateScale} />
+                  ))}
+                </View>
+                <Text style={[styles.modalSubtitulo, { color: cores.textoSuave }]}>NÍVEL DE ATIVIDADE</Text>
+                {niveisAtividade.map((nivel) => (
+                  <BotaoAtividadeAnimado key={nivel.id} nivel={nivel} ativo={nivelAtividade === nivel.id} cores={cores} isDark={isDark} onPress={() => alterarNivelAtividade(nivel.id)} rf={rf} />
+                ))}
+              </ScrollView>
+            ) : null}
+
+            {secaoSelecionada === 'lembretes' ? (
+              <View>
+                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Notificações push</Text><Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} /></View>
+                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Lembrete de refeição</Text><Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} /></View>
+                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Tema escuro</Text><Switch value={isDark} onValueChange={toggleTema} trackColor={{ true: cores.primaria }} /></View>
+              </View>
+            ) : null}
+
+            {secaoSelecionada === 'unidades' ? <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>Unidades métricas: peso em kg, altura em cm e água em ml.</Text> : null}
+            {secaoSelecionada === 'pais' ? <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>Base de alimentos atual: Brasil (TACO).</Text> : null}
+            {secaoSelecionada === 'ajuda' ? <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>Acompanhe suas calorias, macronutrientes e hidratação pelo Diário. Você pode editar seus dados e objetivos nas opções Perfil e Meus objetivos.</Text> : null}
+            {secaoSelecionada === 'sobre' ? <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>KaorCount · Seu companheiro de nutrição · versão 1.0</Text> : null}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  menuHeader: {
+    minHeight: 68,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  menuFechar: {
+    width: 38,
+    height: 48,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  menuTitulo: { fontWeight: '700', letterSpacing: 0.1 },
+  menuLista: {
+    width: '100%',
+    paddingTop: 8,
+    paddingBottom: 28,
+    alignSelf: 'center',
+  },
+  menuLinha: {
+    minHeight: 76,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 34,
+  },
+  menuLinhaTexto: {
+    flex: 1,
+    fontWeight: '400',
+    lineHeight: 23,
+  },
+  modalFundo: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.52)',
+  },
+  modalConfig: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 30,
+  },
+  modalHeaderConfig: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTituloConfig: { fontSize: 20, fontWeight: '700', flex: 1 },
+  modalSubtitulo: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, marginBottom: 12 },
+  modalDescricao: { fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  modalLinhaSwitch: {
+    minHeight: 58,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(128,128,128,0.25)',
+  },
+  acaoLogout: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(235,87,87,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(235,87,87,0.35)',
+  },
   responsivoWrapper: {
     width: '100%',
   },
