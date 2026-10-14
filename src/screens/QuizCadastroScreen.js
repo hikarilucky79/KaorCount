@@ -291,7 +291,6 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
             { scale: Math.max(0.78, 1 - distancia * 0.1) },
           ],
         },
-        selecionada && { backgroundColor: cores.mutado, borderColor: cores.borda, borderWidth: 1 },
       ]}>
         <Text style={[
           styles.textoRoda,
@@ -304,20 +303,27 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
         ]}>
           {texto}
         </Text>
-        {selecionada && unidade ? (
-          <View style={styles.unidadeRoda}>
-            <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
-          </View>
-        ) : null}
       </View>
     );
   });
 
   return (
     <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]} {...responder.panHandlers}>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.selecaoRodaFixa,
+          { top: ITEM_ALTURA * 2, backgroundColor: cores.mutado, borderColor: cores.borda },
+        ]}
+      />
       <Animated.View style={{ transform: [{ translateY: deslocamentoVertical }] }}>
         {linhas}
       </Animated.View>
+      {unidade ? (
+        <View pointerEvents="none" style={[styles.unidadeRodaFixa, { top: ITEM_ALTURA * 2 }]}>
+          <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1086,6 +1092,7 @@ const styles = StyleSheet.create({
   perguntaEtapa: { textAlign: 'center', lineHeight: 21 },
   dicaEtapa: { fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 17 },
   rodaContainer: { position: 'relative', width: '90%', alignSelf: 'center', overflow: 'hidden', marginTop: 18, marginBottom: 8 },
+  selecaoRodaFixa: { position: 'absolute', left: 0, right: 0, height: 48, borderRadius: 14, borderWidth: 1, zIndex: 0 },
   seletorEtapaCentralizado: { flex: 1, justifyContent: 'center' },
   rotulosRodasData: { width: '90%', alignSelf: 'center', flexDirection: 'row', justifyContent: 'center', gap: 7, marginTop: 8 },
   rotuloRodaData: { width: '31%', textAlign: 'center', fontSize: 12, fontWeight: '700' },
@@ -1093,7 +1100,7 @@ const styles = StyleSheet.create({
   rodaDataColuna: { width: '31%', alignSelf: 'auto', marginTop: 0, marginBottom: 8 },
   itemRoda: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderRadius: 14 },
   textoRoda: { fontSize: 24, lineHeight: 30, textAlign: 'center' },
-  unidadeRoda: { position: 'absolute', left: '65%', top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  unidadeRodaFixa: { position: 'absolute', left: '65%', right: 0, height: 48, justifyContent: 'center', alignItems: 'center' },
   reservaRotuloRegua: { height: 19 },
   instrucaoRegua: { fontSize: 12, fontWeight: '600', marginTop: 18 },
 
