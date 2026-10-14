@@ -253,10 +253,10 @@ export default function HomeScreen({ navigation }) {
           {/* Header com Saudação */}
           <Animated.View style={[styles.header, { opacity: fadeHeader, transform: [{ translateX: slideHeader }] }]}>
             <View>
-              <Text style={[styles.textoOla, { color: cores.textoEscuro, fontSize: rf(18, 15, 22) }]}>Olá,</Text>
+              <Text style={[styles.textoOla, { color: cores.textoSuave, fontFamily: 'PlusJakartaSansSemiBold', fontSize: rf(18, 16, 20), lineHeight: rf(22, 20, 24), marginBottom: -4 }]}>Olá,</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontSize: rf(28, 22, 34) }]}>{nomeUsuario}</Text>
-                <HandMetal color={cores.textoEscuro} size={rf(26, 22, 30)} style={{ marginLeft: 8 }} />
+                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(52, 42, 64), fontWeight: '900', letterSpacing: 1.5 }]}>{nomeUsuario}</Text>
+                <HandMetal color={cores.textoEscuro} size={rf(32, 28, 36)} style={{ marginLeft: 8 }} />
               </View>
             </View>
           </Animated.View>
@@ -447,9 +447,8 @@ const styles = StyleSheet.create({
   header: { 
     marginBottom: 20, 
     marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   btnTema: {
     flexDirection: 'row',
