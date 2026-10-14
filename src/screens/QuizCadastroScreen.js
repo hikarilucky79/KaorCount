@@ -229,7 +229,9 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const quantidade = Math.round((maximo - minimo) / passo) + 1;
   const indiceInicial = Math.max(0, Math.min(quantidade - 1, Math.round((valor - minimo) / passo)));
   const listaRef = useRef(null);
+  const scrollY = useRef(new Animated.Value(indiceInicial * ITEM_ALTURA)).current;
   const [indicePrevia, setIndicePrevia] = useState(indiceInicial);
+  const indiceAtualRef = useRef(indiceInicial);
   const valoresRoda = useMemo(() => Array.from({ length: quantidade }, (_, indice) => (
     Number((minimo + indice * passo).toFixed(casas))
   )), [quantidade, minimo, passo, casas]);
@@ -248,9 +250,19 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const indiceNoCentro = (offsetY) => Math.max(0, Math.min(quantidade - 1, Math.round(offsetY / ITEM_ALTURA)));
   const atualizarIndice = (offsetY, confirmar = false) => {
     const indice = indiceNoCentro(offsetY);
-    setIndicePrevia(indice);
+    if (indice !== indiceAtualRef.current) {
+      indiceAtualRef.current = indice;
+      setIndicePrevia(indice);
+    }
     if (confirmar) aoMudar(valoresRoda[indice]);
   };
+  const eventoScroll = useMemo(() => Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: Platform.OS !== 'web',
+      listener: (evento) => atualizarIndice(evento.nativeEvent.contentOffset.y),
+    },
+  ), [scrollY, quantidade, ITEM_ALTURA, valoresRoda]);
 
   // O Picker nativo do iOS é o equivalente ao .wheel do SwiftUI.
   // No Android/web, a lista virtualizada mantém o comportamento de roda sem mover um bloco fixo de cinco números.
@@ -287,7 +299,7 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
           { top: ITEM_ALTURA * 2, height: ITEM_ALTURA, backgroundColor: cores.mutado, borderColor: cores.borda },
         ]}
       />
-      <FlatList
+      <Animated.FlatList
         ref={listaRef}
         style={{ flex: 1 }}
         data={dadosLista}
@@ -296,12 +308,12 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
         getItemLayout={(_, indice) => ({ length: ITEM_ALTURA, offset: indice * ITEM_ALTURA, index: indice })}
         snapToInterval={ITEM_ALTURA}
         snapToAlignment="start"
-        decelerationRate="fast"
+        decelerationRate="normal"
         showsVerticalScrollIndicator={false}
         overScrollMode="never"
         scrollEventThrottle={16}
         extraData={indicePrevia}
-        onScroll={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y)}
+        onScroll={eventoScroll}
         onScrollEndDrag={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
         onMomentumScrollEnd={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
         renderItem={({ item: indiceValor }) => {
@@ -309,36 +321,51 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
             return <View style={{ height: ITEM_ALTURA }} />;
           }
           const item = valoresRoda[indiceValor];
-          const deslocamento = indiceValor - indicePrevia;
-          const selecionada = deslocamento === 0;
-          const distancia = Math.abs(deslocamento);
+          const deslocamento = Animated.subtract(indiceValor, Animated.divide(scrollY, ITEM_ALTURA));
+          const rotacao = deslocamento.interpolate({
+            inputRange: [-3, -2, -1, 0, 1, 2, 3],
+            outputRange: ['66deg', '44deg', '22deg', '0deg', '-22deg', '-44deg', '-66deg'],
+            extrapolate: 'clamp',
+          });
+          const escala = deslocamento.interpolate({
+            inputRange: [-3, -2, -1, 0, 1, 2, 3],
+            outputRange: [0.78, 0.82, 0.91, 1, 0.91, 0.82, 0.78],
+            extrapolate: 'clamp',
+          });
+          const opacidade = deslocamento.interpolate({
+            inputRange: [-3, -2, -1, 0, 1, 2, 3],
+            outputRange: [0.06, 0.15, 0.42, 1, 0.42, 0.15, 0.06],
+            extrapolate: 'clamp',
+          });
+          const selecionada = indiceValor === indicePrevia;
+          const distancia = Math.abs(indiceValor - indicePrevia);
           const texto = formatarValor
             ? formatarValor(item)
             : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
           return (
-            <View style={[
+            <Animated.View style={[
               styles.itemRoda,
               {
                 height: ITEM_ALTURA,
                 transform: [
                   { perspective: 350 },
-                  { rotateX: `${-deslocamento * 22}deg` },
-                  { scale: Math.max(0.78, 1 - distancia * 0.1) },
+                  { rotateX: rotacao },
+                  { scale: escala },
                 ],
               },
             ]}>
-              <Text style={[
+              <Animated.Text style={[
                 styles.textoRoda,
                 {
                   color: selecionada ? cores.textoEscuro : cores.textoSuave,
-                  opacity: selecionada ? 1 : Math.max(0.06, 0.74 - distancia * 0.28),
+                  opacity: opacidade,
                   fontWeight: selecionada ? '800' : '500',
                   fontSize: selecionada ? 27 : Math.max(17, 24 - distancia * 3),
                 },
               ]}>
                 {texto}
-              </Text>
-            </View>
+              </Animated.Text>
+            </Animated.View>
           );
         }}
       />
