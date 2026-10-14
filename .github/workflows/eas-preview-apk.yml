@@ -17,6 +17,7 @@ jobs:
   build:
     name: APK Android (EAS preview)
     runs-on: ubuntu-latest
+    environment: Configurar Expo
     steps:
       - name: Baixar o código
         uses: actions/checkout@v4
