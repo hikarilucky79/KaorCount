@@ -3,6 +3,7 @@ from app.models.historico_progresso import HistoricoProgresso
 from app.models.item_refeicao import ItemRefeicao
 from app.models.meta_nutri import MetaNutri
 from app.models.perfil_nutri import PerfilNutri
+from app.models.pesquisa_inicial import PesquisaInicial
 from app.models.refeicao import Refeicao
 from app.models.registro_agua import RegistroAgua
 from app.models.sugestao_refeicao import SugestaoRefeicao
@@ -18,6 +19,7 @@ __all__ = [
     "LimiteRequisicao",
     "MetaNutri",
     "PerfilNutri",
+    "PesquisaInicial",
     "Refeicao",
     "RegistroAgua",
     "SugestaoRefeicao",
