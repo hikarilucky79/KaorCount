@@ -4,22 +4,22 @@
 //
 // Exibido logo após o cadastro (AuthScreen → QuizCadastro).
 // Coleta, em etapas, gênero, data de nascimento, altura/peso,
-// nível de atividade e objetivo. Ao final, mostra uma prévia das
-// metas calculadas (TMB Mifflin-St Jeor, espelhada do backend),
-// salva nos endpoints existentes e termina na tela "plano pronto".
+// nível de atividade e objetivo. Ao final, salva as respostas e mostra
+// o resultado personalizado do plano nutricional.
 // Quando o backend dedicado do quiz for criado por outro agente, o
 // ponto de integração é a função salvarTudo().
 // ───────────────────────────────────────────────────────────────
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Image,
+  StyleSheet, Text, View, TouchableOpacity, ScrollView, PanResponder,
+  ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
   Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
-  AlertCircle, Flame, Gauge, Clock, Target, Trophy, ArrowRight,
+  AlertCircle, Flame, Gauge, Target, Utensils, Salad,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -31,7 +31,7 @@ import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
 
 // ↓ Etapas que contam nos marcadores de progresso (boas-vindas não conta).
-//   1=gênero 2=nascimento 3=medidas 4=atividade 5=objetivo 6=ritmo 7=revisão.
+//   1=gênero 2=nascimento 3=altura 4=peso 5=atividade 6=objetivo 7=ritmo.
 const TOTAL_ETAPAS = 7;
 
 // ↓ Ritmo em que a pessoa quer chegar à meta (só exibida p/ perder/ganhar massa).
@@ -59,16 +59,6 @@ const OPCOES_OBJETIVO = [
   { id: 'perder_peso', label: 'Perder peso', descricao: 'Déficit calórico para reduzir gordura', Icone: TrendingDown },
   { id: 'manter_peso', label: 'Manter peso', descricao: 'Equilíbrio calórico para o dia a dia', Icone: Minus },
   { id: 'ganhar_massa', label: 'Ganhar massa', descricao: 'Superávit calórico para hipertrofia', Icone: TrendingUp },
-];
-
-// ↓ O que o quiz vai perguntar, mostrado na tela de boas-vindas.
-const ROTA_QUIZ = [
-  { rotulo: 'Gênero', Icone: User },
-  { rotulo: 'Nascimento', Icone: Calendar },
-  { rotulo: 'Medidas', Icone: Ruler },
-  { rotulo: 'Rotina', Icone: Footprints },
-  { rotulo: 'Objetivo', Icone: Target },
-  { rotulo: 'Ritmo', Icone: Gauge },
 ];
 
 // ↓ Sombra discreta para cards de superfície.
@@ -111,6 +101,25 @@ function NumeroAnimado({ valor, estilo }) {
   return <Text style={estilo}>{exibido}</Text>;
 }
 
+function caminhoArcoRosquinha(inicio, fim, raioExterno, raioInterno, centro = 150) {
+  const ponto = (raio, angulo) => {
+    const radianos = (angulo * Math.PI) / 180;
+    return { x: centro + raio * Math.cos(radianos), y: centro + raio * Math.sin(radianos) };
+  };
+  const externoInicio = ponto(raioExterno, inicio);
+  const externoFim = ponto(raioExterno, fim);
+  const internoFim = ponto(raioInterno, fim);
+  const internoInicio = ponto(raioInterno, inicio);
+  const arcoMaior = fim - inicio > 180 ? 1 : 0;
+  return [
+    `M ${externoInicio.x} ${externoInicio.y}`,
+    `A ${raioExterno} ${raioExterno} 0 ${arcoMaior} 1 ${externoFim.x} ${externoFim.y}`,
+    `L ${internoFim.x} ${internoFim.y}`,
+    `A ${raioInterno} ${raioInterno} 0 ${arcoMaior} 0 ${internoInicio.x} ${internoInicio.y}`,
+    'Z',
+  ].join(' ');
+}
+
 // ↓ Cartão de opção com seleção animada (acento, borda e check).
 function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores, tom, rf }) {
   const pop = useRef(new Animated.Value(0)).current;
@@ -123,6 +132,7 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
 
   return (
     <TouchableOpacity
+      style={styles.opcaoToque}
       onPress={aoSelecionar}
       activeOpacity={0.9}
       accessibilityRole="radio"
@@ -134,48 +144,39 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
           styles.cartaoOpcao,
           SombraCartao,
           {
-            backgroundColor: selecionado ? tom.cartaoSel : cores.branco,
+            backgroundColor: selecionado ? cores.primaria : cores.branco,
             borderColor: selecionado ? cores.primaria : cores.borda,
           },
-          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.012] }) }] },
+          // Evita que o cartão selecionado ultrapasse a largura do ScrollView.
+          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] }) }] },
         ]}
       >
-        <Animated.View
-          style={[styles.cartaoAcento, { backgroundColor: cores.primaria, opacity: pop }]}
-        />
-
-        <View style={[styles.iconeOpcaoBox, { backgroundColor: selecionado ? tom.suave : cores.mutado }]}>
-          <Icone size={rf(18, 16, 21)} color={selecionado ? cores.primaria : cores.textoSuave} />
+        <View style={[styles.iconeOpcaoBox, { backgroundColor: selecionado ? 'rgba(255,255,255,0.18)' : cores.mutado }]}>
+          <Icone size={rf(18, 16, 21)} color={selecionado ? '#FFFFFF' : cores.textoSuave} />
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={[styles.cartaoOpcaoRotulo, { color: cores.textoEscuro, fontSize: rf(15, 13, 17) }]}>
+          <Text style={[styles.cartaoOpcaoRotulo, { color: selecionado ? '#FFFFFF' : cores.textoEscuro, fontSize: rf(15, 13, 17) }]}>
             {label}
           </Text>
           {descricao ? (
-            <Text style={[styles.cartaoOpcaoDesc, { color: cores.textoSuave, fontSize: rf(12, 11, 13) }]}>
+            <Text style={[styles.cartaoOpcaoDesc, { color: selecionado ? 'rgba(255,255,255,0.88)' : cores.textoSuave, fontSize: rf(12, 11, 13) }]}>
               {descricao}
             </Text>
           ) : null}
         </View>
 
-        <View
-          style={[
-            styles.radio,
-            {
-              borderColor: selecionado ? cores.primaria : cores.borda,
-              backgroundColor: selecionado ? cores.primaria : 'transparent',
-            },
-          ]}
-        >
-          <Animated.View
-            style={{
-              opacity: pop,
-              transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
-            }}
-          >
-            <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
-          </Animated.View>
+        <View style={styles.indicadorOpcao}>
+          {selecionado ? (
+            <Animated.View
+              style={{
+                opacity: pop,
+                transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+              }}
+            >
+              <Check size={22} color="#FFFFFF" strokeWidth={3} />
+            </Animated.View>
+          ) : null}
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -194,6 +195,7 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
 
   return (
     <TouchableOpacity
+      style={styles.opcaoToque}
       onPress={aoSelecionar}
       activeOpacity={0.9}
       accessibilityRole="radio"
@@ -207,7 +209,8 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
             borderColor: selecionado ? cores.primaria : cores.borda,
             backgroundColor: selecionado ? cores.primaria : cores.branco,
           },
-          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) }] },
+          // Mantém as bordas arredondadas visíveis mesmo em telas estreitas.
+          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] },
         ]}
       >
         <Text
@@ -224,76 +227,77 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
 }
 
 // ↓ Campo numérico/data com anel de foco e sufixo de unidade.
-function CampoMedida({ rotulo, unidade, placeholder, valor, aoMudar, Icone, cores, tom, rf, teclado, maxLength }) {
-  const [focado, setFocado] = useState(false);
+// Seletor vertical no estilo de roda, usado nas medidas do corpo.
+function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', cores, estilo, formatarValor }) {
+  const ITEM_ALTURA = 48;
+  const QUANTIDADE_LINHAS = 5;
+  const ALTURA_LISTA = ITEM_ALTURA * QUANTIDADE_LINHAS;
+  const casas = passo < 1 ? 1 : 0;
+  const pixelsPorPasso = passo < 1 ? 6 : 12;
+  const valorInicial = useRef(valor);
+  const valorAtual = useRef(valor);
+  const parametrosAtuais = useRef({ minimo, maximo, passo, casas, aoMudar });
+  valorAtual.current = valor;
+  parametrosAtuais.current = { minimo, maximo, passo, casas, aoMudar };
+  const responder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_, gesto) => Math.abs(gesto.dy) > 4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
+    onPanResponderGrant: () => { valorInicial.current = valorAtual.current; },
+    onPanResponderMove: (_, gesto) => {
+      const parametros = parametrosAtuais.current;
+      const deslocamento = Math.round(-gesto.dy / pixelsPorPasso) * parametros.passo;
+      const novoValor = Math.min(parametros.maximo, Math.max(parametros.minimo,
+        Number((valorInicial.current + deslocamento).toFixed(parametros.casas))));
+      parametros.aoMudar(novoValor);
+    },
+  })).current;
 
-  return (
-    <View>
-      <View style={styles.linhaRotuloCampo}>
-        <Text style={[styles.rotuloInput, { color: cores.textoEscuro, fontSize: rf(13, 12, 15) }]}>{rotulo}</Text>
-        {unidade ? (
-          <View style={[styles.chipUnidade, { backgroundColor: tom.suave }]}>
-            <Text style={[styles.chipUnidadeTexto, { color: cores.primaria }]}>{unidade}</Text>
+  const linhas = Array.from({ length: QUANTIDADE_LINHAS }, (_, i) => {
+    const deslocamento = i - Math.floor(QUANTIDADE_LINHAS / 2);
+    const item = Number((valor + deslocamento * passo).toFixed(casas));
+    const selecionada = deslocamento === 0;
+    const distancia = Math.abs(deslocamento);
+    const dentroDosLimites = item >= minimo && item <= maximo;
+    const texto = formatarValor
+      ? formatarValor(item)
+      : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
+    return (
+      <View key={deslocamento} style={[
+        styles.itemRoda,
+        {
+          height: ITEM_ALTURA,
+          opacity: dentroDosLimites ? 1 : 0,
+          transform: [
+            { perspective: 350 },
+            { rotateX: `${-deslocamento * 22}deg` },
+            { scale: Math.max(0.78, 1 - distancia * 0.1) },
+          ],
+        },
+        selecionada && { backgroundColor: cores.mutado, borderColor: cores.borda, borderWidth: 1 },
+      ]}>
+        <Text style={[
+          styles.textoRoda,
+          {
+            color: selecionada ? cores.textoEscuro : cores.textoSuave,
+            opacity: selecionada ? 1 : Math.max(0.06, 0.74 - distancia * 0.28),
+            fontWeight: selecionada ? '800' : '500',
+            fontSize: selecionada ? 27 : Math.max(17, 24 - distancia * 3),
+          },
+        ]}>
+          {texto}
+        </Text>
+        {selecionada && unidade ? (
+          <View style={styles.unidadeRoda}>
+            <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
           </View>
         ) : null}
       </View>
-      <View
-        style={[
-          styles.inputGrande,
-          {
-            backgroundColor: focado ? cores.branco : cores.fundoInput,
-            borderColor: focado ? cores.primaria : cores.borda,
-          },
-        ]}
-      >
-        <Icone size={18} color={focado ? cores.primaria : cores.textoSuave} />
-        <TextInput
-          style={[styles.inputGrandeTexto, { color: cores.textoEscuro, fontSize: rf(18, 16, 22) }]}
-          placeholder={placeholder}
-          placeholderTextColor={cores.textoSuave}
-          keyboardType={teclado}
-          value={valor}
-          onChangeText={aoMudar}
-          maxLength={maxLength}
-          onFocus={() => setFocado(true)}
-          onBlur={() => setFocado(false)}
-        />
-      </View>
-    </View>
-  );
-}
-
-// ↓ Barra horizontal de participação de um macronutriente.
-function BarraMacro({ rotulo, gramas, pct, cor, cores, textoSuave, rf }) {
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: pct, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-    }).start();
-  }, [pct, anim]);
+    );
+  });
 
   return (
-    <View style={styles.blocoBarraMacro}>
-      <View style={styles.linhaBarraMacroTopo}>
-        <View style={styles.linhaBarraMacroRotulo}>
-          <View style={[styles.pontoMacro, { backgroundColor: cor }]} />
-          <Text style={[styles.rotuloMacroBarra, { color: textoSuave }]}>{rotulo}</Text>
-        </View>
-        <Text style={[styles.valorMacroBarra, { color: cores.textoEscuro, fontSize: rf(13, 12, 15) }]}>
-          {gramas}g · {pct}%
-        </Text>
-      </View>
-      <View style={[styles.trilhoMacro, { backgroundColor: cor === cores.primaria ? cores.mutado : `${cor}22` }]}>
-        <Animated.View
-          style={{
-            height: '100%',
-            width: anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' }),
-            backgroundColor: cor,
-            borderRadius: 4,
-          }}
-        />
-      </View>
+    <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]} {...responder.panHandlers}>
+      {linhas}
     </View>
   );
 }
@@ -309,8 +313,8 @@ export default function QuizCadastroScreen({ navigation }) {
     ? { suave: '#2A1D13', cartaoSel: '#241B14', trilho: '#3A3230', aviso: '#241C0E', avisoBorda: '#6B5A32', erro: 'rgba(231,76,60,0.14)' }
     : { suave: '#FDF3E7', cartaoSel: '#FFF9F3', trilho: 'rgba(133,70,30,0.22)', aviso: '#FFF8E7', avisoBorda: '#F0C36D', erro: '#FFF5F5' };
 
-  // ↓ Etapa atual do wizard (0 = boas-vindas; 1..6 = perguntas; 7 = revisão).
-  const [etapaAtual, setEtapaAtual] = useState(0);
+  // O quiz começa diretamente na primeira pergunta.
+  const [etapaAtual, setEtapaAtual] = useState(1);
   const [erroEtapa, setErroEtapa] = useState('');
   const [erroGeral, setErroGeral] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -321,9 +325,9 @@ export default function QuizCadastroScreen({ navigation }) {
 
   // ↓ Respostas coletadas.
   const [genero, setGenero] = useState('');
-  const [dataNascimento, setDataNascimento] = useState(''); // DD/MM/AAAA
-  const [alturaStr, setAlturaStr] = useState('');
-  const [pesoStr, setPesoStr] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('2000'); // ano de nascimento
+  const [alturaStr, setAlturaStr] = useState('170');
+  const [pesoStr, setPesoStr] = useState('70,0');
   const [nivelAtividade, setNivelAtividade] = useState('');
   const [objetivo, setObjetivo] = useState('');
   // ↓ Ritmo em que a pessoa quer chegar à meta (só p/ perder/ganhar).
@@ -331,6 +335,7 @@ export default function QuizCadastroScreen({ navigation }) {
 
   // ↓ Animação de transição suave entre etapas.
   const animEtapa = useRef(new Animated.Value(1)).current;
+  const animProgresso = useRef(new Animated.Value(1 / TOTAL_ETAPAS)).current;
   const animFim = useRef(new Animated.Value(0)).current;
   const refScroll = useRef(null);
   // ↓ Sentido do slide: avança para a esquerda, volta para a direita.
@@ -338,39 +343,38 @@ export default function QuizCadastroScreen({ navigation }) {
 
   const primeiroNome = usuario?.nome ? usuario.nome.split(' ')[0] : '';
 
+  useEffect(() => {
+    Animated.timing(animProgresso, {
+      toValue: etapaAtual / TOTAL_ETAPAS,
+      duration: 360,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [etapaAtual, animProgresso]);
+
   // ───────────────────────────────────────────────────────────
   // ↓ Helpers de máscara/parsing
   // ───────────────────────────────────────────────────────────
 
-  // ↓ Aplica máscara DD/MM/AAAA enquanto o usuário digita.
-  const mascararData = (texto) => {
-    const digitos = texto.replace(/\D/g, '').slice(0, 8);
-    if (digitos.length <= 2) return digitos;
-    if (digitos.length <= 4) return `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
-    return `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
-  };
-
-  // ↓ Valida a data DD/MM/AAAA (calendário real, ano ≥ 1900, não futura).
+  // ↓ Valida o ano de nascimento (1900 até o ano atual).
   const validarDataNascimento = (valor) => {
-    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
-    if (!match) return null;
-    const [, dia, mes, ano] = match;
-    const dataObj = new Date(parseInt(ano, 10), parseInt(mes, 10) - 1, parseInt(dia, 10));
-    const validaCalendario =
-      dataObj.getFullYear() === parseInt(ano, 10) &&
-      dataObj.getMonth() === parseInt(mes, 10) - 1 &&
-      dataObj.getDate() === parseInt(dia, 10);
-    if (!validaCalendario || parseInt(ano, 10) < 1900 || dataObj > new Date()) return null;
-    return dataObj;
+    if (!/^\d{4}$/.test(valor)) return null;
+    const ano = Number(valor);
+    const anoAtual = new Date().getFullYear();
+    if (ano < 1900 || ano > anoAtual) return null;
+    return new Date(ano, 0, 1);
   };
 
-  // ↓ Converte 'DD/MM/AAAA' → 'YYYY-MM-DD' (formato aceito pelo backend).
+  // ↓ Usa 1º de janeiro como data aproximada, já que só coletamos o ano.
   const dataParaISO = (valor) => {
     const dataObj = validarDataNascimento(valor);
     if (!dataObj) return null;
-    const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
-    const dia = String(dataObj.getDate()).padStart(2, '0');
-    return `${dataObj.getFullYear()}-${mes}-${dia}`;
+    return `${dataObj.getFullYear()}-01-01`;
+  };
+
+  const atualizarAnoNascimento = (ano) => {
+    setDataNascimento(String(ano));
+    setErroEtapa('');
   };
 
   // ───────────────────────────────────────────────────────────
@@ -381,21 +385,23 @@ export default function QuizCadastroScreen({ navigation }) {
       case 1:
         return genero ? '' : 'Selecione uma opção para continuar.';
       case 2:
-        if (!dataNascimento || dataNascimento.length < 10) return 'Informe a data no formato DD/MM/AAAA.';
-        if (!validarDataNascimento(dataNascimento)) return 'Insira uma data de nascimento válida.';
+        if (!validarDataNascimento(dataNascimento)) return 'Selecione um ano de nascimento válido.';
         return '';
       case 3: {
         const altura = parseNumeroBr(alturaStr);
         if (isNaN(altura) || altura < 100 || altura > 260) return 'Informe uma altura válida em cm (ex: 175).';
+        return '';
+      }
+      case 4: {
         const peso = parseNumeroBr(pesoStr);
         if (isNaN(peso) || peso < 20 || peso > 350) return 'Informe um peso válido em kg (ex: 70.5).';
         return '';
       }
-      case 4:
-        return nivelAtividade ? '' : 'Selecione seu nível de atividade.';
       case 5:
-        return objetivo ? '' : 'Selecione o seu objetivo.';
+        return nivelAtividade ? '' : 'Selecione seu nível de atividade.';
       case 6:
+        return objetivo ? '' : 'Selecione o seu objetivo.';
+      case 7:
         // ↓ Ritmo só se aplica a perder/ganhar (etapa pulada p/ manter).
         if (objetivo === 'manter_peso') return '';
         return ritmo ? '' : 'Selecione o ritmo que combina com você.';
@@ -438,9 +444,9 @@ export default function QuizCadastroScreen({ navigation }) {
       return;
     }
     if (etapaAtual < TOTAL_ETAPAS) {
-      // ↓ Objetivo "manter peso" pula a etapa de ritmo.
-      if (etapaAtual === 5 && objetivo === 'manter_peso') {
-        transicionarEtapa(7, 1); // direto para a revisão
+      // ↓ Objetivo "manter peso" pula o ritmo e conclui o quiz direto.
+      if (etapaAtual === 6 && objetivo === 'manter_peso') {
+        handleFinalizar();
         return;
       }
       transicionarEtapa(etapaAtual + 1, 1);
@@ -448,13 +454,11 @@ export default function QuizCadastroScreen({ navigation }) {
   };
 
   const voltar = () => {
-    if (!enviando && etapaAtual > 0) {
-      // ↓ Voltando da revisão, "manter peso" retorna p/ objetivo (pula ritmo).
-      if (etapaAtual === TOTAL_ETAPAS && objetivo === 'manter_peso') {
-        transicionarEtapa(5, -1);
-        return;
-      }
+    if (enviando) return;
+    if (etapaAtual > 1) {
       transicionarEtapa(etapaAtual - 1, -1);
+    } else if (navigation?.canGoBack?.()) {
+      navigation.goBack();
     }
   };
 
@@ -467,30 +471,27 @@ export default function QuizCadastroScreen({ navigation }) {
   //     • historicoProgressoApi.criar      → peso/altura iniciais
   //     • metaNutriApi.criar               → meta de kcal e macros
   // ───────────────────────────────────────────────────────────
-  const salvarTudo = async ({ pulando = false } = {}) => {
+  const salvarTudo = async () => {
     setErroGeral('');
     setEnviando(true);
     try {
       const idUser = usuario?.id_usuario || usuario?.id;
       const hoje = dataDeHoje();
 
-      // ↓ Se pulou: mantém o comportamento anterior do cadastro (defaults).
-      const nascISO = pulando ? '2000-01-01' : dataParaISO(dataNascimento);
-      const generoSel = pulando ? 'masculino' : genero;
-      const nivelSel = pulando ? 'moderado' : nivelAtividade;
-      const objetivoSel = pulando ? 'manter_peso' : objetivo;
-      const pesoKg = pulando ? 70 : parseNumeroBr(pesoStr);
-      const alturaCm = pulando ? 175 : parseNumeroBr(alturaStr);
-      const ritmoSel = pulando || objetivoSel === 'manter_peso' ? undefined : ritmo;
+      const nascISO = dataParaISO(dataNascimento);
+      const generoSel = genero;
+      const nivelSel = nivelAtividade;
+      const objetivoSel = objetivo;
+      const pesoKg = parseNumeroBr(pesoStr);
+      const alturaCm = parseNumeroBr(alturaStr);
+      const ritmoSel = objetivoSel === 'manter_peso' ? undefined : ritmo;
 
       // ↓ Calcula o plano (TMB, calorias e macros) espelhando o backend,
       //   já considerando o ritmo escolhido (quando aplicável).
-      const plano = pulando
-        ? { calorias_diarias: 2000, proteina_g: 150, carboidrato_g: 225, gordura_g: 55 }
-        : calcularPlanoNutricional({
-            dataNascimento: nascISO, genero: generoSel, pesoKg, alturaCm,
-            nivelAtividade: nivelSel, objetivo: objetivoSel, ritmo: ritmoSel,
-          });
+      const plano = calcularPlanoNutricional({
+        dataNascimento: nascISO, genero: generoSel, pesoKg, alturaCm,
+        nivelAtividade: nivelSel, objetivo: objetivoSel, ritmo: ritmoSel,
+      });
 
       if (idUser) {
         await perfilNutriApi.salvarOuAtualizar(idUser, {
@@ -518,12 +519,6 @@ export default function QuizCadastroScreen({ navigation }) {
         });
       }
 
-      // ↓ Quem pulou entra direto no app; quem respondeu vê a conclusão.
-      if (pulando) {
-        navigation.replace('AppTabs');
-        return;
-      }
-
       setResumoFinal({
         plano,
         objetivoLabel: OPCOES_OBJETIVO.find((o) => o.id === objetivoSel)?.label || '',
@@ -538,8 +533,7 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
-  const handlePular = () => salvarTudo({ pulando: true });
-  const handleFinalizar = () => salvarTudo({ pulando: false });
+  const handleFinalizar = () => salvarTudo();
 
   useEffect(() => {
     if (!concluido) return;
@@ -554,64 +548,10 @@ export default function QuizCadastroScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
 
   // ↓ Cabeçalho de cada etapa: ícone em círculo + título + pergunta.
-  const renderCabecalhoEtapa = (IconeEtapa, titulo, pergunta) => (
+  const renderCabecalhoEtapa = (_IconeEtapa, titulo, pergunta) => (
     <View style={styles.headerEtapa}>
-      <View style={[styles.iconeEtapaBox, { backgroundColor: tom.suave, borderColor: cores.borda }]}>
-        <IconeEtapa size={rf(21, 19, 25)} color={cores.primaria} />
-      </View>
       <Text style={[styles.tituloEtapa, { color: cores.textoEscuro, fontSize: rf(21, 19, 26) }]}>{titulo}</Text>
       <Text style={[styles.perguntaEtapa, { color: cores.textoSuave, fontSize: rf(14, 13, 16) }]}>{pergunta}</Text>
-    </View>
-  );
-
-  // ↓ Etapa 0 — Boas-vindas da personalização.
-  const renderBoasVindas = () => (
-    <View>
-      <View style={[styles.hero, SombraBotao, { backgroundColor: cores.marcaEscura }]}>
-        {/* ↓ Versão clara do logo: o original é marrom-escuro e some sobre o marrom do hero. */}
-        <Image
-          source={require('../../assets/kaorcount1-claro.png')}
-          style={styles.heroLogo}
-          resizeMode="contain"
-        />
-        <Text style={styles.heroTitulo}>
-          {primeiroNome ? `${primeiroNome}, vamos montar o seu plano` : 'Vamos montar o seu plano'}
-        </Text>
-        <Text style={styles.heroSub}>
-          São poucas perguntas e no final você já vê suas metas de calorias e macros calculadas para o seu corpo.
-        </Text>
-      </View>
-
-      <View style={[styles.cardInfo, SombraCartao, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-        <View style={styles.cardInfoLinha}>
-          <View style={[styles.cardInfoIcone, { backgroundColor: tom.suave }]}>
-            <Flame size={15} color={cores.primaria} />
-          </View>
-          <Text style={[styles.cardInfoTxt, { color: cores.textoEscuro }]}>Metas calculadas pelo seu perfil</Text>
-        </View>
-        <View style={styles.cardInfoLinha}>
-          <View style={[styles.cardInfoIcone, { backgroundColor: tom.suave }]}>
-            <Clock size={15} color={cores.primaria} />
-          </View>
-          <Text style={[styles.cardInfoTxt, { color: cores.textoEscuro }]}>Leva menos de 1 minuto</Text>
-        </View>
-        <View style={[styles.cardInfoLinha, { marginBottom: 0 }]}>
-          <View style={[styles.cardInfoIcone, { backgroundColor: tom.suave }]}>
-            <Check size={15} color={cores.sucesso} />
-          </View>
-          <Text style={[styles.cardInfoTxt, { color: cores.textoEscuro }]}>Você pode mudar tudo depois em Perfil</Text>
-        </View>
-      </View>
-
-      <Text style={[styles.rotuloRota, { color: cores.textoSuave }]}>O QUE VAMOS PERGUNTAR</Text>
-      <View style={styles.linhaChips}>
-        {ROTA_QUIZ.map(({ rotulo, Icone }) => (
-          <View key={rotulo} style={[styles.chipRota, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-            <Icone size={12} color={cores.primaria} />
-            <Text style={[styles.chipRotaTexto, { color: cores.textoEscuro }]}>{rotulo}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 
@@ -631,71 +571,59 @@ export default function QuizCadastroScreen({ navigation }) {
           />
         ))}
       </View>
-      <Text style={[styles.dicaEtapa, { color: cores.textoSuave, textAlign: 'left' }]}>
-        Usamos isso apenas na fórmula que estima o seu gasto energético.
-      </Text>
     </View>
   );
 
-  // ↓ Etapa 2 — Data de nascimento com máscara DD/MM/AAAA.
-  const renderNascimento = () => (
-    <View>
-      {renderCabecalhoEtapa(Calendar, 'Sobre você', 'Qual é a sua data de nascimento?')}
-      <CampoMedida
-        rotulo="Data de nascimento"
-        placeholder="DD/MM/AAAA"
-        valor={dataNascimento}
-        aoMudar={(txt) => { setDataNascimento(mascararData(txt)); setErroEtapa(''); }}
-        Icone={Calendar}
-        cores={cores}
-        tom={tom}
-        rf={rf}
-        teclado={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
-        maxLength={10}
-      />
-      <Text style={[styles.dicaEtapa, { color: cores.textoSuave, textAlign: 'left' }]}>
-        Usada para calcular seu gasto metabólico.
-      </Text>
+  // ↓ Etapa 2 — Ano de nascimento.
+  const renderNascimento = () => {
+    const ano = Number(dataNascimento) || 2000;
+    const anoAtual = new Date().getFullYear();
+
+    return (
+      <View style={styles.etapaRoda}>
+        {renderCabecalhoEtapa(Calendar, 'Em que ano você nasceu?', 'Só precisamos saber o ano.')}
+        <View style={styles.seletorEtapaCentralizado}>
+          <SeletorRoda
+            valor={ano} aoMudar={atualizarAnoNascimento}
+            minimo={1900} maximo={anoAtual} passo={1}
+            cores={cores}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  // ↓ Etapa 3 — Altura.
+  const renderAltura = () => (
+    <View style={styles.etapaRoda}>
+      {renderCabecalhoEtapa(Ruler, 'Qual é a sua altura?', 'Um valor aproximado está ótimo.')}
+      <View style={styles.seletorEtapaCentralizado}>
+        <SeletorRoda
+          valor={parseNumeroBr(alturaStr) || 170}
+          aoMudar={(valor) => { setAlturaStr(String(valor)); setErroEtapa(''); }}
+          minimo={100} maximo={260} passo={1} unidade="cm"
+          cores={cores}
+        />
+      </View>
     </View>
   );
 
-  // ↓ Etapa 3 — Altura e peso (guardados no histórico de progresso).
-  const renderMedidas = () => (
-    <View>
-      {renderCabecalhoEtapa(Ruler, 'Suas medidas', 'Qual é a sua altura e o seu peso atual?')}
-      <CampoMedida
-        rotulo="Altura"
-        unidade="cm"
-        placeholder="Ex: 175"
-        valor={alturaStr}
-        aoMudar={(txt) => { setAlturaStr(txt); setErroEtapa(''); }}
-        Icone={Ruler}
-        cores={cores}
-        tom={tom}
-        rf={rf}
-        teclado="decimal-pad"
-        maxLength={5}
-      />
-      <CampoMedida
-        rotulo="Peso atual"
-        unidade="kg"
-        placeholder="Ex: 70,5"
-        valor={pesoStr}
-        aoMudar={(txt) => { setPesoStr(txt); setErroEtapa(''); }}
-        Icone={Scale}
-        cores={cores}
-        tom={tom}
-        rf={rf}
-        teclado="decimal-pad"
-        maxLength={6}
-      />
-      <Text style={[styles.dicaEtapa, { color: cores.textoSuave, textAlign: 'left' }]}>
-        Você poderá atualizar esses dados depois.
-      </Text>
+  // ↓ Etapa 4 — Peso atual.
+  const renderPeso = () => (
+    <View style={styles.etapaRoda}>
+      {renderCabecalhoEtapa(Scale, 'Qual é o seu peso?', 'Um valor aproximado está ótimo.')}
+      <View style={styles.seletorEtapaCentralizado}>
+        <SeletorRoda
+          valor={parseNumeroBr(pesoStr) || 70}
+          aoMudar={(valor) => { setPesoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
+          minimo={20} maximo={350} passo={0.1} unidade="kg"
+          cores={cores}
+        />
+      </View>
     </View>
   );
 
-  // ↓ Etapa 4 — Nível de atividade física.
+  // ↓ Etapa 5 — Nível de atividade física.
   const renderAtividade = () => (
     <View>
       {renderCabecalhoEtapa(Zap, 'Sua rotina', 'Com que frequência você se exercita?')}
@@ -715,7 +643,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapa 5 — Objetivo principal.
+  // ↓ Etapa 6 — Objetivo principal.
   const renderObjetivo = () => (
     <View>
       {renderCabecalhoEtapa(TrendingUp, 'Seu objetivo', 'O que você quer alcançar com o KaorCount?')}
@@ -735,7 +663,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapa 6 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
+  // ↓ Etapa 7 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
   const renderRitmo = () => (
     <View>
       {renderCabecalhoEtapa(Gauge, 'Em quanto tempo quer chegar lá?', 'Escolha um ritmo que você consiga manter no dia a dia.')}
@@ -763,110 +691,28 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapa 7 — Revisão com a prévia das metas calculadas.
-  const renderRevisao = () => {
-    const pesoKg = parseNumeroBr(pesoStr);
-    const alturaCm = parseNumeroBr(alturaStr);
-    const nascISO = dataParaISO(dataNascimento);
-    // ↓ Mesmo critério do salvamento: com "manter peso" o ritmo não se aplica
-    //   (a resposta pode ter ficado de uma escolha anterior de objetivo).
-    const plano = nascISO
-      ? calcularPlanoNutricional({
-          dataNascimento: nascISO, genero, pesoKg, alturaCm, nivelAtividade, objetivo,
-          ritmo: objetivo === 'manter_peso' ? undefined : ritmo,
-        })
-      : null;
-    const calorias = plano?.calorias_diarias || 0;
-    const imc = alturaCm > 0 ? (pesoKg / Math.pow(alturaCm / 100, 2)).toFixed(1).replace('.', ',') : '—';
-    const objetivoLabel = OPCOES_OBJETIVO.find((o) => o.id === objetivo)?.label || '—';
-    const ritmoLabel = objetivo === 'manter_peso' ? '' : OPCOES_RITMO.find((r) => r.id === ritmo)?.label || '';
-
-    // ↓ Participação de cada macro em kcal (4 kcal/g para carbos e proteínas,
-    //   9 kcal/g para gorduras), conferindo com o cálculo de util/nutricao.
-    const macros = [
-      { rotulo: 'Carboidratos', rotuloCurto: 'Carbos', gramas: plano?.carboidrato_g || 0, cor: cores.carboidrato, kcalPorGrama: 4 },
-      { rotulo: 'Proteínas', rotuloCurto: 'Proteínas', gramas: plano?.proteina_g || 0, cor: cores.proteina, kcalPorGrama: 4 },
-      { rotulo: 'Gorduras', rotuloCurto: 'Gorduras', gramas: plano?.gordura_g || 0, cor: cores.gordura, kcalPorGrama: 9 },
-    ].map((m) => ({ ...m, pct: calorias > 0 ? Math.round((m.gramas * m.kcalPorGrama / calorias) * 100) : 0 }));
-
-    const informações = [
-      { rotulo: 'Objetivo', valor: objetivoLabel },
-      ritmoLabel ? { rotulo: 'Ritmo', valor: ritmoLabel } : null,
-      { rotulo: 'Peso / altura', valor: `${String(pesoStr).replace('.', ',')} kg · ${alturaStr} cm` },
-      { rotulo: 'IMC estimado', valor: imc },
-      plano?.tmb ? { rotulo: 'Metabolismo basal', valor: `${Math.round(plano.tmb)} kcal` } : null,
-    ].filter(Boolean);
-
-    return (
-      <View>
-        {renderCabecalhoEtapa(Check, 'Tudo certo!', 'Este é o plano personalizado calculado para você:')}
-
-        <View style={[styles.heroPlano, SombraBotao, { backgroundColor: cores.marcaEscura }]}>
-          <Text style={styles.heroPlanoRotulo}>SUA META DIÁRIA</Text>
-          <View style={styles.heroPlanoLinha}>
-            {plano ? (
-              <NumeroAnimado valor={calorias} estilo={styles.heroPlanoValor} />
-            ) : (
-              <Text style={styles.heroPlanoValor}>—</Text>
-            )}
-            <Text style={styles.heroPlanoUnidade}>kcal</Text>
-          </View>
-          <View style={styles.heroPlanoPills}>
-            {macros.map((m) => (
-              <View key={m.rotulo} style={styles.heroPlanoPill}>
-                <Text style={styles.heroPlanoPillValor}>{m.gramas}g</Text>
-                <Text style={styles.heroPlanoPillRotulo} numberOfLines={1}>{m.rotuloCurto}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={[styles.cardSuperficie, SombraCartao, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-          <Text style={[styles.rotuloCard, { color: cores.textoEscuro }]}>Distribuição dos macros</Text>
-          {macros.map((m) => (
-            <BarraMacro
-              key={m.rotulo}
-              rotulo={m.rotulo}
-              gramas={m.gramas}
-              pct={m.pct}
-              cor={m.cor}
-              cores={cores}
-              textoSuave={cores.textoSuave}
-              rf={rf}
-            />
-          ))}
-        </View>
-
-        <View style={[styles.cardSuperficie, SombraCartao, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-          <Text style={[styles.rotuloCard, { color: cores.textoEscuro }]}>Resumo das respostas</Text>
-          {informações.map((item, indice) => (
-            <View
-              key={item.rotulo}
-              style={[
-                styles.linhaInfo,
-                indice > 0 && { borderTopWidth: 1, borderTopColor: cores.borda },
-              ]}
-            >
-              <Text style={[styles.linhaInfoRotulo, { color: cores.textoSuave }]}>{item.rotulo}</Text>
-              <Text style={[styles.linhaInfoValor, { color: cores.textoEscuro }]}>{item.valor}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={[styles.dicaEtapa, { color: cores.textoSuave, textAlign: 'left', marginTop: 12 }]}>
-          Nada disso é travado: você ajusta peso, objetivo e metas quando quiser em Perfil.
-        </Text>
-      </View>
-    );
-  };
-
   // ↓ Tela de conclusão — aparece depois que as respostas são salvas.
   const renderConclusao = () => {
     const plano = resumoFinal?.plano;
+    const macrosResultado = [
+      { rotulo: 'Carboidratos', rotuloCurto: 'Carbos', gramas: plano?.carboidrato_g || 0, kcal: (plano?.carboidrato_g || 0) * 4, cor: cores.carboidrato },
+      { rotulo: 'Proteínas', rotuloCurto: 'Proteínas', gramas: plano?.proteina_g || 0, kcal: (plano?.proteina_g || 0) * 4, cor: cores.proteina },
+      { rotulo: 'Gorduras', rotuloCurto: 'Gorduras', gramas: plano?.gordura_g || 0, kcal: (plano?.gordura_g || 0) * 9, cor: cores.gordura },
+    ];
+    const kcalMacros = macrosResultado.reduce((total, macro) => total + macro.kcal, 0) || 1;
+    let anguloAtual = -90;
+    const macrosComArcos = macrosResultado.map((macro) => {
+      const percentual = Math.round((macro.kcal / kcalMacros) * 100);
+      const anguloFim = anguloAtual + (macro.kcal / kcalMacros) * 360;
+      // Sobrepõe levemente as fatias para evitar frestas de antialiasing no SVG.
+      const arco = caminhoArcoRosquinha(anguloAtual - 0.7, anguloFim + 0.7, 139, 91);
+      anguloAtual = anguloFim;
+      return { ...macro, percentual, arco };
+    });
     const proximosPassos = [
-      { Icone: Flame, texto: 'Registre sua primeira refeição no Diário' },
-      { Icone: Target, texto: `Fique de olho na meta de ${plano?.calorias_diarias || 0} kcal por dia` },
-      { Icone: User, texto: 'Confira seu perfil e ajuste o que quiser' },
+      { Icone: Utensils, texto: 'Registre sua alimentação — crie um hábito saudável!' },
+      { Icone: Flame, destaque: true, texto: 'Siga sua recomendação diária de calorias' },
+      { Icone: Salad, texto: 'Equilibre carboidratos, proteínas e gorduras' },
     ];
 
     return (
@@ -874,7 +720,7 @@ export default function QuizCadastroScreen({ navigation }) {
         <View style={[styles.responsivoWrapper, styles.conclusaoWrapper, getContainer(maxAuthWidth)]}>
           <ScrollView
             style={{ flex: 1, minHeight: 0 }}
-            contentContainerStyle={styles.conclusaoScroll}
+            contentContainerStyle={[styles.conclusaoScroll, { justifyContent: 'flex-start' }]}
             showsVerticalScrollIndicator={false}
           >
           <Animated.View
@@ -885,68 +731,82 @@ export default function QuizCadastroScreen({ navigation }) {
               transform: [{ translateY: animFim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
             }}
           >
-            <View style={styles.seloConclusao}>
-              <View style={[styles.seloConclusaoHalo, { backgroundColor: tom.suave, borderColor: cores.borda }]} />
-              <View style={[styles.seloConclusaoNucleo, SombraBotao, { backgroundColor: cores.primaria }]}>
-                <Trophy size={rf(30, 26, 36)} color="#FFFFFF" />
-              </View>
+            <View style={[styles.conclusaoProgresso, { backgroundColor: tom.trilho }]}>
+              <View style={[styles.conclusaoProgressoCheio, { backgroundColor: cores.primaria }]} />
             </View>
 
             <Text style={[styles.conclusaoTitulo, { color: cores.textoEscuro, fontSize: rf(25, 22, 30) }]}>
-              {primeiroNome ? `Plano pronto, ${primeiroNome}!` : 'Plano pronto!'}
+              {primeiroNome ? `Parabéns, ${primeiroNome}!` : 'Parabéns!'}
             </Text>
             <Text style={[styles.conclusaoSub, { color: cores.textoSuave, fontSize: rf(14, 13, 16) }]}>
-              Suas metas já estão salvas na sua conta.
+              Seu plano de saúde personalizado está pronto!
             </Text>
 
-            <View style={[styles.heroPlano, SombraBotao, { backgroundColor: cores.marcaEscura, marginTop: 22, alignSelf: 'stretch' }]}>
-              <Text style={styles.heroPlanoRotulo}>META DIÁRIA</Text>
-              <View style={styles.heroPlanoLinha}>
-                <NumeroAnimado valor={plano?.calorias_diarias || 0} estilo={styles.heroPlanoValor} />
-                <Text style={styles.heroPlanoUnidade}>kcal</Text>
-              </View>
-              <View style={styles.heroPlanoPills}>
-                {[
-                  { rotulo: 'Carbos', gramas: plano?.carboidrato_g },
-                  { rotulo: 'Proteínas', gramas: plano?.proteina_g },
-                  { rotulo: 'Gorduras', gramas: plano?.gordura_g },
-                ].map((m) => (
-                  <View key={m.rotulo} style={styles.heroPlanoPill}>
-                    <Text style={styles.heroPlanoPillValor}>{m.gramas || 0}g</Text>
-                    <Text style={styles.heroPlanoPillRotulo} numberOfLines={1}>{m.rotulo}</Text>
-                  </View>
+            <View style={styles.graficoConclusao}>
+              <Svg width={300} height={300} viewBox="0 0 300 300" style={styles.svgGraficoConclusao}>
+                {macrosComArcos.map((macro) => (
+                  <Path key={macro.rotulo} d={macro.arco} fill={macro.cor} />
                 ))}
+              </Svg>
+              <View style={[styles.centroGrafico, { backgroundColor: cores.branco }, SombraCartao]}>
+                <NumeroAnimado valor={plano?.calorias_diarias || 0} estilo={styles.kcalConclusao} />
+                <Text style={[styles.unidadeKcalConclusao, { color: cores.textoSuave }]}>kcal / dia</Text>
               </View>
-              {resumoFinal?.objetivoLabel ? (
-                <Text style={styles.conclusaoObjetivo}>
-                  Objetivo: {resumoFinal.objetivoLabel}
-                  {resumoFinal.ritmoLabel ? ` · ritmo ${resumoFinal.ritmoLabel.toLowerCase()}` : ''}
-                </Text>
-              ) : null}
+              {macrosComArcos.map((macro, indice) => (
+                <View
+                  key={macro.rotulo}
+                  style={[styles.bolhaMacroConclusao, indice === 0 ? styles.bolhaCarboidrato : indice === 1 ? styles.bolhaProteina : styles.bolhaGordura, { backgroundColor: cores.branco, borderColor: macro.cor, borderWidth: 2 }, SombraCartao]}
+                >
+                  <Text style={[styles.valorBolhaMacro, { color: macro.cor }]}>{macro.gramas} g</Text>
+                </View>
+              ))}
             </View>
 
-            <View style={[styles.cardSuperficie, SombraCartao, { backgroundColor: cores.branco, borderColor: cores.borda, marginTop: 16, alignSelf: 'stretch' }]}>
+            <View style={styles.legendaMacrosConclusao}>
+              {macrosComArcos.map((macro) => (
+                <View key={macro.rotulo} style={styles.itemLegendaMacro}>
+                  <View style={[styles.pontoLegendaMacro, { backgroundColor: macro.cor }]} />
+                  <Text style={[styles.textoLegendaMacro, { color: cores.textoEscuro }]}>
+                    {macro.rotuloCurto} ({macro.percentual}%)
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[styles.dicaConclusao, { color: cores.textoSuave }]}>Você pode editar suas metas quando quiser.</Text>
+
+            <Text style={[styles.tituloProximosPassos, { color: cores.textoEscuro }]}>Como alcançar seus objetivos</Text>
+            <View style={styles.listaProximosPassos}>
               {proximosPassos.map((passo) => (
-                <View key={passo.texto} style={styles.linhaPasso}>
-                  <View style={[styles.cardInfoIcone, { backgroundColor: tom.suave }]}>
-                    <passo.Icone size={15} color={cores.primaria} />
+                <View
+                  key={passo.texto}
+                  style={[
+                    styles.cardProximoPasso,
+                    passo.destaque && styles.cardProximoPassoDestaque,
+                    { backgroundColor: cores.branco, borderColor: passo.destaque ? cores.primaria : cores.borda },
+                    passo.destaque ? SombraBotao : SombraCartao,
+                  ]}
+                >
+                  <View style={[styles.iconeProximoPasso, { backgroundColor: tom.suave }]}>
+                    <passo.Icone size={20} color={cores.primaria} />
                   </View>
                   <Text style={[styles.textoPasso, { color: cores.textoEscuro }]}>{passo.texto}</Text>
                 </View>
               ))}
             </View>
+
+            <Text style={[styles.tituloBeneficios, { color: cores.textoEscuro }]}>Em breve você verá benefícios na sua saúde</Text>
+            <Text style={[styles.textoBeneficios, { color: cores.textoSuave }]}>Menor risco de diabetes, pressão mais baixa e melhora do colesterol.</Text>
           </Animated.View>
           </ScrollView>
 
-          <View style={styles.rodapeQuiz}>
+          <View style={[styles.rodapeQuiz, styles.rodapeConclusao, { borderTopColor: cores.borda }]}>
             <TouchableOpacity
-              style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.primaria }]}
+              style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.marcaEscura }]}
               onPress={() => navigation.replace('AppTabs')}
               activeOpacity={0.85}
               accessibilityRole="button"
             >
-              <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 14, 17) }]}>Começar a usar o KaorCount</Text>
-              <ArrowRight size={17} color="#FFFFFF" />
+              <Text style={[styles.txtBtnPrincipal, { fontSize: rf(17, 16, 19) }]}>Vamos começar!</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -955,7 +815,7 @@ export default function QuizCadastroScreen({ navigation }) {
   };
 
   // ↓ Despacha a etapa corrente para a função de renderização certa.
-  const ETAPAS = [renderBoasVindas, renderGenero, renderNascimento, renderMedidas, renderAtividade, renderObjetivo, renderRitmo, renderRevisao];
+  const ETAPAS = [null, renderGenero, renderNascimento, renderAltura, renderPeso, renderAtividade, renderObjetivo, renderRitmo];
 
   // ───────────────────────────────────────────────────────────
   // ↓ Layout principal do wizard
@@ -963,9 +823,9 @@ export default function QuizCadastroScreen({ navigation }) {
   if (concluido) return renderConclusao();
 
   const ehUltimaEtapa = etapaAtual === TOTAL_ETAPAS;
+  const vaiFinalizar = ehUltimaEtapa || (etapaAtual === 6 && objetivo === 'manter_peso');
   // ↓ "Manter peso" pula a etapa do ritmo: o marcador correspondente fica
   //   esmaecido em vez de encolher a fileira no meio do fluxo.
-  const ritmoPulado = objetivo === 'manter_peso';
   const deslize = animEtapa.interpolate({
     inputRange: [0, 1],
     outputRange: [direcao >= 0 ? 26 : -26, 0],
@@ -978,7 +838,7 @@ export default function QuizCadastroScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
-          {/* ↓ Header: voltar + marcadores de progresso + botão "Pular" */}
+          {/* ↓ Header: voltar + progresso */}
           <View style={styles.headerQuiz}>
             {etapaAtual > 0 && !enviando ? (
               <TouchableOpacity
@@ -986,7 +846,7 @@ export default function QuizCadastroScreen({ navigation }) {
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar etapa"
-                style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+                style={styles.btnVoltarCircular}
               >
                 <ChevronLeft size={18} color={cores.textoEscuro} />
               </TouchableOpacity>
@@ -995,37 +855,14 @@ export default function QuizCadastroScreen({ navigation }) {
             )}
 
             <View style={styles.progressoContainer}>
-              {etapaAtual > 0 && (
-                <View style={styles.pips}>
-                  {Array.from({ length: TOTAL_ETAPAS }, (_, i) => {
-                    const n = i + 1;
-                    const pulado = n === 6 && ritmoPulado;
-                    return (
-                      <View
-                        key={n}
-                        style={[
-                          styles.pip,
-                          {
-                            backgroundColor: etapaAtual >= n && !pulado ? cores.primaria : tom.trilho,
-                            opacity: pulado ? 0.45 : 1,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
+              {etapaAtual > 0 ? (
+                <View style={[styles.progressoTrilho, { backgroundColor: tom.trilho }]}>
+                  <Animated.View style={[styles.progressoPreenchimento, { backgroundColor: cores.primaria, width: animProgresso.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
                 </View>
-              )}
+              ) : null}
             </View>
 
-            {/* ↓ Na revisão pular jogaria os valores padrão por cima do plano
-                recém-calculado, então o link só aparece antes dela. */}
-            {ehUltimaEtapa ? (
-              <View style={styles.txtPularPlaceholder} />
-            ) : (
-              <TouchableOpacity onPress={handlePular} disabled={enviando} activeOpacity={0.7}>
-                <Text style={[styles.txtPular, { color: cores.textoSuave }]}>Pular</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.btnVoltarPlaceholder} />
           </View>
 
           {/* ↓ Legenda em linha própria: dentro do header ela empurrava a
@@ -1044,13 +881,19 @@ export default function QuizCadastroScreen({ navigation }) {
               //   (min-height: auto) e o rodapé sai da tela.
               minHeight: 0,
               opacity: animEtapa,
-              transform: [{ translateX: deslize }],
+              transform: [
+                { translateX: deslize },
+                { scale: animEtapa.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] }) },
+              ],
             }}
           >
             <ScrollView
               ref={refScroll}
               style={{ flex: 1, minHeight: 0 }}
-              contentContainerStyle={styles.scrollConteudo}
+              contentContainerStyle={[
+                styles.scrollConteudo,
+                [2, 3, 4].includes(etapaAtual) && styles.scrollConteudoRodas,
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -1071,7 +914,7 @@ export default function QuizCadastroScreen({ navigation }) {
           <View style={styles.rodapeQuiz}>
             <TouchableOpacity
               style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.primaria, opacity: enviando ? 0.7 : 1 }]}
-              onPress={ehUltimaEtapa ? handleFinalizar : avancar}
+              onPress={vaiFinalizar ? handleFinalizar : avancar}
               disabled={enviando}
               activeOpacity={0.85}
               accessibilityRole="button"
@@ -1080,10 +923,9 @@ export default function QuizCadastroScreen({ navigation }) {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 14, 17) }]}>
-                    {etapaAtual === 0 ? 'Vamos começar' : ehUltimaEtapa ? 'Gerar meu plano' : 'Continuar'}
+                  <Text style={[styles.txtBtnPrincipal, { fontSize: rf(17, 16, 18) }]}>
+                    {vaiFinalizar ? 'Gerar meu plano' : 'Seguinte'}
                   </Text>
-                  <ArrowRight size={17} color="#FFFFFF" />
                 </>
               )}
             </TouchableOpacity>
@@ -1108,79 +950,56 @@ const styles = StyleSheet.create({
   headerQuiz: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
     gap: 12,
   },
   btnVoltarCircular: {
     width: 36, height: 36, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
+    backgroundColor: 'transparent', borderWidth: 0,
   },
   btnVoltarPlaceholder: { width: 36, height: 36 },
-  progressoContainer: { flex: 1 },
-  pips: { flexDirection: 'row', gap: 4 },
-  pip: { flex: 1, height: 4, borderRadius: 2 },
-  progressoTexto: { fontSize: 11, fontWeight: '600', marginTop: 7, textAlign: 'center' },
-  txtPular: { fontSize: 13, fontWeight: '600' },
-  txtPularPlaceholder: { width: 40 },
+  progressoContainer: { flex: 1, alignItems: 'center' },
+  progressoTrilho: { width: '70%', maxWidth: 180, height: 4, borderRadius: 2, overflow: 'hidden' },
+  progressoPreenchimento: { height: '100%', borderRadius: 2 },
+  progressoTexto: { fontSize: 11, fontWeight: '600', marginTop: 10, textAlign: 'center' },
 
-  scrollConteudo: { paddingBottom: 24, paddingTop: 10 },
+  scrollConteudo: { paddingBottom: 24, paddingTop: 14 },
+  scrollConteudoRodas: { flexGrow: 1 },
+  etapaRoda: { flex: 1 },
 
   // Etapas
-  headerEtapa: { alignItems: 'flex-start', marginBottom: 20, marginTop: 4 },
+  headerEtapa: { alignItems: 'center', marginBottom: 20, marginTop: 4 },
   iconeEtapaBox: {
     width: 44, height: 44, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 12, borderWidth: 1, borderColor: 'transparent',
   },
-  tituloEtapa: { fontWeight: '800', textAlign: 'left', marginBottom: 4, letterSpacing: -0.3 },
-  perguntaEtapa: { textAlign: 'left', lineHeight: 21 },
+  tituloEtapa: { fontWeight: '800', textAlign: 'center', marginBottom: 6, letterSpacing: -0.3 },
+  perguntaEtapa: { textAlign: 'center', lineHeight: 21 },
   dicaEtapa: { fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 17 },
-
-  // Herói (boas-vindas e prévia do plano)
-  hero: {
-    borderRadius: 24,
-    padding: 20,
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  heroLogo: { width: 116, height: 58, marginBottom: 14 },
-  heroTitulo: { color: '#FFFFFF', fontSize: 21, fontWeight: '800', lineHeight: 27 },
-  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: 13, lineHeight: 19, marginTop: 6 },
-
-  // Card de informação (boas-vindas)
-  cardInfo: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 8,
-    marginTop: 4,
-  },
-  cardInfoLinha: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8 },
-  cardInfoIcone: {
-    width: 30, height: 30, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  cardInfoTxt: { fontSize: 13, fontWeight: '600', flex: 1 },
-
-  rotuloRota: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1.1,
-    marginTop: 18, marginBottom: 8,
-  },
-  linhaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chipRota: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderRadius: 20,
-    paddingHorizontal: 11, paddingVertical: 7,
-  },
-  chipRotaTexto: { fontSize: 12, fontWeight: '600' },
+  rodaContainer: { position: 'relative', width: '90%', alignSelf: 'center', overflow: 'hidden', marginTop: 18, marginBottom: 8 },
+  seletorEtapaCentralizado: { flex: 1, justifyContent: 'center' },
+  rotulosRodasData: { width: '90%', alignSelf: 'center', flexDirection: 'row', justifyContent: 'center', gap: 7, marginTop: 8 },
+  rotuloRodaData: { width: '31%', textAlign: 'center', fontSize: 12, fontWeight: '700' },
+  linhaRodasData: { width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 7 },
+  rodaDataColuna: { width: '31%', alignSelf: 'auto', marginTop: 0, marginBottom: 8 },
+  itemRoda: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderRadius: 14 },
+  textoRoda: { fontSize: 24, lineHeight: 30, textAlign: 'center' },
+  unidadeRoda: { position: 'absolute', left: '65%', top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  reservaRotuloRegua: { height: 19 },
+  instrucaoRegua: { fontSize: 12, fontWeight: '600', marginTop: 18 },
 
   // Cartões de opção
+  opcaoToque: { width: '100%', alignSelf: 'stretch' },
   cartaoOpcao: {
-    borderRadius: 16,
+    width: '100%',
+    minHeight: 68,
+    borderRadius: 18,
     borderWidth: 1.5,
     paddingVertical: 13,
     paddingHorizontal: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
@@ -1196,98 +1015,45 @@ const styles = StyleSheet.create({
   },
   cartaoOpcaoRotulo: { fontWeight: '700' },
   cartaoOpcaoDesc: { marginTop: 2, lineHeight: 17 },
-  radio: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
-    marginLeft: 10,
-  },
+  indicadorOpcao: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
 
   // Pílulas de opção
-  blocoPilulas: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  blocoPilulas: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
   pilula: {
-    borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11,
+    width: '100%', minHeight: 68, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,
     borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
   },
-  pilulaTexto: { fontWeight: '700' },
-
-  // Inputs grandes (data, altura, peso)
-  linhaRotuloCampo: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 6, marginTop: 4,
-  },
-  rotuloInput: { fontWeight: '700' },
-  chipUnidade: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
-  chipUnidadeTexto: { fontSize: 11, fontWeight: '700' },
-  inputGrande: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    minHeight: 56,
-    marginBottom: 14,
-    gap: 10,
-  },
-  inputGrandeTexto: { flex: 1, fontWeight: '700', paddingVertical: 6 },
-
-  // Revisão (prévia das metas)
-  heroPlano: {
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    marginBottom: 14,
-  },
-  heroPlanoRotulo: {
-    color: 'rgba(255,255,255,0.72)', fontSize: 10.5, fontWeight: '700',
-    letterSpacing: 1.2, textAlign: 'center',
-  },
-  heroPlanoLinha: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginTop: 4 },
-  heroPlanoValor: { color: '#FFFFFF', fontSize: 44, fontWeight: '800', letterSpacing: -1 },
-  heroPlanoUnidade: { color: 'rgba(255,255,255,0.85)', fontSize: 15, fontWeight: '700', marginLeft: 6 },
-  heroPlanoPills: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14 },
-  heroPlanoPill: {
-    backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 14,
-    paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', flex: 1,
-  },
-  heroPlanoPillValor: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  heroPlanoPillRotulo: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontWeight: '600', marginTop: 2 },
-
-  cardSuperficie: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
-  },
-  rotuloCard: { fontSize: 13, fontWeight: '800', marginBottom: 12 },
-  blocoBarraMacro: { marginBottom: 12 },
-  linhaBarraMacroTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  linhaBarraMacroRotulo: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  pontoMacro: { width: 8, height: 8, borderRadius: 4 },
-  rotuloMacroBarra: { fontSize: 12, fontWeight: '600' },
-  valorMacroBarra: { fontWeight: '700' },
-  trilhoMacro: { height: 8, borderRadius: 4, overflow: 'hidden', width: '100%' },
-
-  linhaInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
-  linhaInfoRotulo: { fontSize: 12, fontWeight: '600' },
-  linhaInfoValor: { fontSize: 13, fontWeight: '800' },
+  pilulaTexto: { fontWeight: '700', textAlign: 'center' },
 
   // Conclusão
-  seloConclusao: { width: 108, height: 108, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  seloConclusaoHalo: {
-    position: 'absolute', width: 108, height: 108, borderRadius: 54,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
-  },
-  seloConclusaoNucleo: {
-    width: 72, height: 72, borderRadius: 36,
-    alignItems: 'center', justifyContent: 'center',
-  },
   conclusaoTitulo: { fontWeight: '800', textAlign: 'center', marginTop: 18, letterSpacing: -0.4 },
-  conclusaoSub: { textAlign: 'center', marginTop: 6, lineHeight: 20 },
-  conclusaoObjetivo: {
-    color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600',
-    textAlign: 'center', marginTop: 12,
-  },
+  conclusaoSub: { textAlign: 'center', marginTop: 6, lineHeight: 21, maxWidth: 340 },
+  conclusaoProgresso: { width: '70%', maxWidth: 230, height: 4, borderRadius: 3, overflow: 'hidden', marginTop: 8, marginBottom: 30 },
+  conclusaoProgressoCheio: { width: '88%', height: '100%', borderRadius: 3 },
+  graficoConclusao: { width: '100%', maxWidth: 340, height: 330, alignItems: 'center', justifyContent: 'center', position: 'relative', marginTop: 22 },
+  svgGraficoConclusao: { position: 'absolute', top: 12, alignSelf: 'center' },
+  centroGrafico: { position: 'absolute', top: 67, width: 190, height: 190, borderRadius: 95, alignItems: 'center', justifyContent: 'center' },
+  kcalConclusao: { color: '#27211D', fontSize: 48, fontWeight: '800', letterSpacing: -1 },
+  unidadeKcalConclusao: { fontSize: 15, marginTop: -2 },
+  bolhaMacroConclusao: { position: 'absolute', width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
+  bolhaCarboidrato: { top: 42, left: 0 },
+  bolhaProteina: { top: 52, right: 0 },
+  bolhaGordura: { bottom: 0, left: 38 },
+  valorBolhaMacro: { fontSize: 17, fontWeight: '700' },
+  legendaMacrosConclusao: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 5, marginTop: 14 },
+  itemLegendaMacro: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  pontoLegendaMacro: { width: 10, height: 10, borderRadius: 5 },
+  textoLegendaMacro: { fontSize: 11, fontWeight: '600', flexShrink: 1 },
+  dicaConclusao: { textAlign: 'center', fontSize: 13, marginTop: 14 },
+  tituloProximosPassos: { width: '100%', textAlign: 'center', fontSize: 21, fontWeight: '800', marginTop: 30, marginBottom: 24 },
+  listaProximosPassos: { width: '92%', alignSelf: 'center', gap: 8 },
+  cardProximoPasso: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 12 },
+  cardProximoPassoDestaque: { minHeight: 84, marginVertical: 2, paddingVertical: 15, borderWidth: 1.5, transform: [{ scaleX: 1.06 }, { scaleY: 1.03 }], zIndex: 1 },
+  iconeProximoPasso: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  tituloBeneficios: { width: '100%', textAlign: 'center', fontSize: 21, lineHeight: 27, fontWeight: '800', marginTop: 30 },
+  textoBeneficios: { textAlign: 'center', fontSize: 14, lineHeight: 21, marginTop: 8, marginBottom: 18, maxWidth: 340 },
+  rodapeConclusao: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
   linhaPasso: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   textoPasso: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
 
@@ -1321,7 +1087,7 @@ const styles = StyleSheet.create({
   rodapeQuiz: { paddingBottom: Platform.OS === 'ios' ? 0 : 8, paddingTop: 8, gap: 10 },
   btnPrincipal: {
     borderRadius: 18,
-    paddingVertical: 16,
+    paddingVertical: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
