@@ -39,7 +39,7 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, isDark, onPress, rf, moderate
         style={[
           styles.cardObjetivo,
           {
-            backgroundColor: ativo ? (isDark ? '#2A1D13' : '#FDF3E7') : cores.branco,
+            backgroundColor: ativo ? cores.mutado : cores.branco,
             borderColor: ativo ? cores.primaria : cores.borda,
             borderWidth: ativo ? 1.5 : 1,
             transform: [{ scale: animScale }],
@@ -83,7 +83,7 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, isDark, onPress, rf }) {
         style={[
           styles.boxAtividadeInativa,
           {
-            backgroundColor: ativo ? (isDark ? '#2A1D13' : '#FDF3E7') : cores.branco,
+            backgroundColor: ativo ? cores.mutado : cores.branco,
             borderColor: ativo ? cores.primaria : cores.borda,
             borderWidth: ativo ? 1.5 : 1,
             marginBottom: 0,
@@ -295,13 +295,13 @@ export default function ConfiguracaoScreen({ navigation }) {
     setSecaoSelecionada(id);
   };
 
-  const corFundoMenu = isDark ? '#111A27' : cores.fundo;
-  const corTextoMenu = isDark ? '#F5F7FA' : cores.textoEscuro;
+  const corFundoMenu = cores.fundo;
+  const corTextoMenu = cores.textoEscuro;
   const tituloSecao = itensMenu.find((item) => item.id === secaoSelecionada)?.titulo;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: corFundoMenu }}>
-      <View style={[styles.menuHeader, { borderBottomColor: isDark ? '#263243' : cores.borda }]}>
+      <View style={[styles.menuHeader, { borderBottomColor: cores.borda }]}>
         <TouchableOpacity
           onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('AppTabs', { screen: 'Perfil' })}
           accessibilityRole="button"
@@ -322,16 +322,16 @@ export default function ConfiguracaoScreen({ navigation }) {
             activeOpacity={0.7}
             accessibilityRole="button"
           >
-            <Icone size={29} color={corTextoMenu} fill={['conta', 'perfil', 'objetivos', 'lembretes'].includes(id) ? corTextoMenu : 'none'} strokeWidth={2.6} />
+            <Icone size={29} color={corTextoMenu} fill="none" strokeWidth={2} />
             <Text style={[styles.menuLinhaTexto, { color: corTextoMenu, fontSize: rf(18, 16, 21) }]}>{titulo}</Text>
-            <ChevronRight size={17} color={isDark ? '#718096' : cores.textoSuave} />
+            <ChevronRight size={17} color={cores.textoSuave} />
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       <Modal transparent visible={!!secaoSelecionada} animationType="slide" onRequestClose={() => setSecaoSelecionada(null)}>
         <View style={styles.modalFundo}>
-          <View style={[styles.modalConfig, { backgroundColor: isDark ? '#1B2635' : cores.branco, borderColor: cores.borda }]}>
+          <View style={[styles.modalConfig, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
             <View style={styles.modalHeaderConfig}>
               <Text style={[styles.modalTituloConfig, { color: corTextoMenu }]}>{tituloSecao}</Text>
               <TouchableOpacity onPress={() => setSecaoSelecionada(null)} accessibilityLabel="Fechar">
@@ -342,8 +342,8 @@ export default function ConfiguracaoScreen({ navigation }) {
             {secaoSelecionada === 'conta' ? (
               <View>
                 <Text style={[styles.modalDescricao, { color: cores.textoSuave }]}>{usuario?.email || 'Conta KaorCount'}</Text>
-                <TouchableOpacity style={styles.acaoLogout} onPress={() => { setSecaoSelecionada(null); handleLogout(); }} disabled={deslogando}>
-                  {deslogando ? <ActivityIndicator color="#EB5757" /> : <><DoorOpen color="#EB5757" size={20} /><Text style={styles.botaoLogoutTexto}>Sair da conta</Text></>}
+                <TouchableOpacity style={[styles.acaoLogout, { backgroundColor: cores.mutado, borderColor: cores.borda }]} onPress={() => { setSecaoSelecionada(null); handleLogout(); }} disabled={deslogando}>
+                  {deslogando ? <ActivityIndicator color={cores.erro} /> : <><DoorOpen color={cores.erro} size={20} /><Text style={[styles.botaoLogoutTexto, { color: cores.erro }]}>Sair da conta</Text></>}
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -365,9 +365,9 @@ export default function ConfiguracaoScreen({ navigation }) {
 
             {secaoSelecionada === 'lembretes' ? (
               <View>
-                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Notificações push</Text><Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} /></View>
-                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Lembrete de refeição</Text><Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} /></View>
-                <View style={styles.modalLinhaSwitch}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Tema escuro</Text><Switch value={isDark} onValueChange={toggleTema} trackColor={{ true: cores.primaria }} /></View>
+                <View style={[styles.modalLinhaSwitch, { borderBottomColor: cores.borda }]}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Notificações push</Text><Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ true: cores.primaria }} /></View>
+                <View style={[styles.modalLinhaSwitch, { borderBottomColor: cores.borda }]}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Lembrete de refeição</Text><Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ true: cores.primaria }} /></View>
+                <View style={[styles.modalLinhaSwitch, { borderBottomColor: cores.borda }]}><Text style={[styles.modalDescricao, { color: corTextoMenu }]}>Tema escuro</Text><Switch value={isDark} onValueChange={toggleTema} trackColor={{ true: cores.primaria }} /></View>
               </View>
             ) : null}
 
