@@ -255,8 +255,8 @@ export default function HomeScreen({ navigation }) {
             <View>
               <Text style={[styles.textoOla, { color: cores.textoSuave, fontFamily: 'PlusJakartaSansSemiBold', fontSize: rf(18, 16, 20), lineHeight: rf(22, 20, 24), marginBottom: -4 }]}>Olá,</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(52, 42, 64), fontWeight: '900', letterSpacing: 1.5 }]}>{nomeUsuario}</Text>
-                <HandMetal color={cores.textoEscuro} size={rf(32, 28, 36)} style={{ marginLeft: 8 }} />
+                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(48, 38, 60), fontWeight: '900', letterSpacing: 1.5 }]}>{nomeUsuario}</Text>
+                <HandMetal color={cores.textoEscuro} size={rf(28, 24, 32)} style={{ marginLeft: 8 }} />
               </View>
             </View>
           </Animated.View>

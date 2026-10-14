@@ -382,7 +382,7 @@ export default function PerfilScreen({ navigation }) {
           {/* ↓ Cabeçalho do Perfil */}
           <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
           <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginHorizontal: -20, marginTop: -20, marginBottom: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, minHeight: 92, backgroundColor: cores.fundo }]}>
-            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(52, 42, 64), fontWeight: '900', letterSpacing: 1.5 }]}>Perfil</Text>
+            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(48, 38, 60), fontWeight: '900', letterSpacing: 1.5 }]}>Perfil</Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Configuracao')}
               activeOpacity={0.75}
