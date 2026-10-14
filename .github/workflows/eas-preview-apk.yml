@@ -1,0 +1,49 @@
+name: Build APK de preview
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-preview-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: APK Android (EAS preview)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Exigir o token do Expo
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "ERRO: configure EXPO_TOKEN em Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Configurar EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Gerar APK de preview
+        run: eas build --platform android --profile preview --non-interactive
