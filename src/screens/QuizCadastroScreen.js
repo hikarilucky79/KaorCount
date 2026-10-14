@@ -19,7 +19,7 @@ import Svg, { Path } from 'react-native-svg';
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
   Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
-  AlertCircle, Flame, Gauge, Target, Utensils, Salad,
+  AlertCircle, Flame, Gauge, Target, Utensils, Salad, Search,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -27,12 +27,16 @@ import useResponsive from '../hooks/useResponsive';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as metaNutriApi from '../api/metaNutriApi';
+import * as pesquisaInicialApi from '../api/pesquisaInicialApi';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
 
 // ↓ Etapas que contam nos marcadores de progresso (boas-vindas não conta).
-//   1=gênero 2=nascimento 3=altura 4=peso 5=atividade 6=objetivo 7=ritmo.
-const TOTAL_ETAPAS = 7;
+//   1=gênero 2=nascimento 3=altura 4=peso 5=atividade 6=objetivo 7=ritmo,
+//   8=origem 9=experiência com calorias 10=meta de peso.
+const TOTAL_ETAPAS = 10;
+
+const OPCOES_ORIGEM_APP = ['Instagram', 'TikTok', 'Indicação', 'Busca na internet', 'Outro'];
 
 // ↓ Ritmo em que a pessoa quer chegar à meta (só exibida p/ perder/ganhar massa).
 const OPCOES_RITMO = [
@@ -147,8 +151,6 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
             backgroundColor: selecionado ? cores.primaria : cores.branco,
             borderColor: selecionado ? cores.primaria : cores.borda,
           },
-          // Evita que o cartão selecionado ultrapasse a largura do ScrollView.
-          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] }) }] },
         ]}
       >
         <View style={[styles.iconeOpcaoBox, { backgroundColor: selecionado ? 'rgba(255,255,255,0.18)' : cores.mutado }]}>
@@ -185,14 +187,6 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
 
 // ↓ Pílula de opção (usada no gênero, onde a descrição não cabe).
 function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
-  const pop = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(pop, {
-      toValue: selecionado ? 1 : 0, useNativeDriver: true, friction: 7, tension: 160,
-    }).start();
-  }, [selecionado, pop]);
-
   return (
     <TouchableOpacity
       style={styles.opcaoToque}
@@ -209,8 +203,6 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
             borderColor: selecionado ? cores.primaria : cores.borda,
             backgroundColor: selecionado ? cores.primaria : cores.branco,
           },
-          // Mantém as bordas arredondadas visíveis mesmo em telas estreitas.
-          { transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] },
         ]}
       >
         <Text
@@ -233,8 +225,8 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const QUANTIDADE_LINHAS = 5;
   const ALTURA_LISTA = ITEM_ALTURA * QUANTIDADE_LINHAS;
   const casas = passo < 1 ? 1 : 0;
-  const pixelsPorPasso = passo < 1 ? 6 : 12;
-  const valorInicial = useRef(valor);
+  const deslocamentoVertical = useRef(new Animated.Value(0)).current;
+  const indiceInicial = useRef(Math.round((valor - minimo) / passo));
   const valorAtual = useRef(valor);
   const parametrosAtuais = useRef({ minimo, maximo, passo, casas, aoMudar });
   valorAtual.current = valor;
@@ -242,13 +234,39 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const responder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponderCapture: (_, gesto) => Math.abs(gesto.dy) > 4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
-    onPanResponderGrant: () => { valorInicial.current = valorAtual.current; },
+    onPanResponderGrant: () => {
+      deslocamentoVertical.stopAnimation();
+      deslocamentoVertical.setValue(0);
+      indiceInicial.current = Math.round((valorAtual.current - parametrosAtuais.current.minimo) / parametrosAtuais.current.passo);
+    },
     onPanResponderMove: (_, gesto) => {
       const parametros = parametrosAtuais.current;
-      const deslocamento = Math.round(-gesto.dy / pixelsPorPasso) * parametros.passo;
-      const novoValor = Math.min(parametros.maximo, Math.max(parametros.minimo,
-        Number((valorInicial.current + deslocamento).toFixed(parametros.casas))));
-      parametros.aoMudar(novoValor);
+      const indiceMaximo = Math.round((parametros.maximo - parametros.minimo) / parametros.passo);
+      const deslocamentoMinimo = -(indiceMaximo - indiceInicial.current) * ITEM_ALTURA;
+      const deslocamentoMaximo = indiceInicial.current * ITEM_ALTURA;
+      deslocamentoVertical.setValue(Math.max(deslocamentoMinimo, Math.min(deslocamentoMaximo, gesto.dy)));
+    },
+    onPanResponderRelease: (_, gesto) => {
+      const parametros = parametrosAtuais.current;
+      const indiceMaximo = Math.round((parametros.maximo - parametros.minimo) / parametros.passo);
+      // Projeta um pouco a velocidade do gesto para a roda continuar deslizando após um toque rápido.
+      const deslocamentoProjetado = gesto.dy + gesto.vy * 220;
+      const passos = Math.round(-deslocamentoProjetado / ITEM_ALTURA);
+      const indiceSelecionado = Math.max(0, Math.min(indiceMaximo, indiceInicial.current + passos));
+      const novoValor = Number((parametros.minimo + indiceSelecionado * parametros.passo).toFixed(parametros.casas));
+      Animated.timing(deslocamentoVertical, {
+        toValue: -(indiceSelecionado - indiceInicial.current) * ITEM_ALTURA,
+        duration: Math.min(420, 150 + Math.abs(indiceSelecionado - indiceInicial.current) * 35),
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        parametros.aoMudar(novoValor);
+        deslocamentoVertical.setValue(0);
+      });
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(deslocamentoVertical, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
     },
   })).current;
 
@@ -297,7 +315,9 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
 
   return (
     <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]} {...responder.panHandlers}>
-      {linhas}
+      <Animated.View style={{ transform: [{ translateY: deslocamentoVertical }] }}>
+        {linhas}
+      </Animated.View>
     </View>
   );
 }
@@ -332,6 +352,9 @@ export default function QuizCadastroScreen({ navigation }) {
   const [objetivo, setObjetivo] = useState('');
   // ↓ Ritmo em que a pessoa quer chegar à meta (só p/ perder/ganhar).
   const [ritmo, setRitmo] = useState('');
+  const [origemApp, setOrigemApp] = useState('');
+  const [jaContouCalorias, setJaContouCalorias] = useState(null);
+  const [pesoObjetivoStr, setPesoObjetivoStr] = useState(pesoStr);
 
   // ↓ Animação de transição suave entre etapas.
   const animEtapa = useRef(new Animated.Value(1)).current;
@@ -405,6 +428,17 @@ export default function QuizCadastroScreen({ navigation }) {
         // ↓ Ritmo só se aplica a perder/ganhar (etapa pulada p/ manter).
         if (objetivo === 'manter_peso') return '';
         return ritmo ? '' : 'Selecione o ritmo que combina com você.';
+      case 8:
+        return origemApp ? '' : 'Selecione onde conheceu o KaorCount.';
+      case 9:
+        return jaContouCalorias === null ? 'Informe se você já contou calorias antes.' : '';
+      case 10: {
+        const pesoObjetivo = parseNumeroBr(pesoObjetivoStr);
+        if (isNaN(pesoObjetivo) || pesoObjetivo < 20 || pesoObjetivo > 350) {
+          return 'Informe um peso objetivo entre 20 e 350 kg.';
+        }
+        return '';
+      }
       default:
         return '';
     }
@@ -444,9 +478,9 @@ export default function QuizCadastroScreen({ navigation }) {
       return;
     }
     if (etapaAtual < TOTAL_ETAPAS) {
-      // ↓ Objetivo "manter peso" pula o ritmo e conclui o quiz direto.
+      // ↓ Objetivo "manter peso" pula o ritmo, mas segue para as perguntas finais.
       if (etapaAtual === 6 && objetivo === 'manter_peso') {
-        handleFinalizar();
+        transicionarEtapa(8, 1);
         return;
       }
       transicionarEtapa(etapaAtual + 1, 1);
@@ -456,7 +490,8 @@ export default function QuizCadastroScreen({ navigation }) {
   const voltar = () => {
     if (enviando) return;
     if (etapaAtual > 1) {
-      transicionarEtapa(etapaAtual - 1, -1);
+      const etapaAnterior = etapaAtual === 8 && objetivo === 'manter_peso' ? 6 : etapaAtual - 1;
+      transicionarEtapa(etapaAnterior, -1);
     } else if (navigation?.canGoBack?.()) {
       navigation.goBack();
     }
@@ -502,6 +537,12 @@ export default function QuizCadastroScreen({ navigation }) {
           ...(plano.tmb ? { tmb_calculo: plano.tmb } : {}),
         });
 
+        await pesquisaInicialApi.salvarOuAtualizar(idUser, {
+          origem_app: origemApp,
+          ja_contou_calorias: jaContouCalorias,
+          peso_objetivo_kg: parseNumeroBr(pesoObjetivoStr),
+        });
+
         await historicoProgressoApi.criar({
           id_usuario: idUser,
           data_registro: hoje,
@@ -517,12 +558,16 @@ export default function QuizCadastroScreen({ navigation }) {
           carboidrato_g: plano.carboidrato_g,
           gordura_g: plano.gordura_g,
         });
+
       }
 
       setResumoFinal({
         plano,
         objetivoLabel: OPCOES_OBJETIVO.find((o) => o.id === objetivoSel)?.label || '',
         ritmoLabel: OPCOES_RITMO.find((r) => r.id === ritmoSel)?.label || '',
+        origemApp,
+        jaContouCalorias,
+        pesoObjetivoKg: parseNumeroBr(pesoObjetivoStr),
       });
       setConcluido(true);
     } catch (error) {
@@ -691,6 +736,53 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // ↓ Etapas 8 a 10 — origem, experiência prévia e peso desejado.
+  const renderOrigemApp = () => (
+    <View>
+      {renderCabecalhoEtapa(Search, 'Onde conheceu o KaorCount?', 'Selecione a opção que mais combina.')}
+      {OPCOES_ORIGEM_APP.map((origem) => (
+        <PilulaOpcao
+          key={origem}
+          label={origem}
+          selecionado={origemApp === origem}
+          aoSelecionar={() => { setOrigemApp(origem); setErroEtapa(''); }}
+          cores={cores}
+          rf={rf}
+        />
+      ))}
+    </View>
+  );
+
+  const renderExperienciaCalorias = () => (
+    <View>
+      {renderCabecalhoEtapa(Flame, 'Você já contou calorias?', 'Queremos entender sua experiência anterior.')}
+      {[{ valor: true, label: 'Sim' }, { valor: false, label: 'Não' }].map((opcao) => (
+        <PilulaOpcao
+          key={opcao.label}
+          label={opcao.label}
+          selecionado={jaContouCalorias === opcao.valor}
+          aoSelecionar={() => { setJaContouCalorias(opcao.valor); setErroEtapa(''); }}
+          cores={cores}
+          rf={rf}
+        />
+      ))}
+    </View>
+  );
+
+  const renderPesoObjetivo = () => (
+    <View style={styles.etapaRoda}>
+      {renderCabecalhoEtapa(Scale, 'Qual é seu peso objetivo?', 'Escolha o peso que quer alcançar.')}
+      <View style={styles.seletorEtapaCentralizado}>
+        <SeletorRoda
+          valor={parseNumeroBr(pesoObjetivoStr) || parseNumeroBr(pesoStr) || 70}
+          aoMudar={(valor) => { setPesoObjetivoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
+          minimo={20} maximo={350} passo={0.1} unidade="kg"
+          cores={cores}
+        />
+      </View>
+    </View>
+  );
+
   // ↓ Tela de conclusão — aparece depois que as respostas são salvas.
   const renderConclusao = () => {
     const plano = resumoFinal?.plano;
@@ -749,7 +841,10 @@ export default function QuizCadastroScreen({ navigation }) {
                 ))}
               </Svg>
               <View style={[styles.centroGrafico, { backgroundColor: cores.branco }, SombraCartao]}>
-                <NumeroAnimado valor={plano?.calorias_diarias || 0} estilo={styles.kcalConclusao} />
+                <NumeroAnimado
+                  valor={plano?.calorias_diarias || 0}
+                  estilo={[styles.kcalConclusao, { color: cores.textoEscuro }]}
+                />
                 <Text style={[styles.unidadeKcalConclusao, { color: cores.textoSuave }]}>kcal / dia</Text>
               </View>
               {macrosComArcos.map((macro, indice) => (
@@ -757,7 +852,7 @@ export default function QuizCadastroScreen({ navigation }) {
                   key={macro.rotulo}
                   style={[styles.bolhaMacroConclusao, indice === 0 ? styles.bolhaCarboidrato : indice === 1 ? styles.bolhaProteina : styles.bolhaGordura, { backgroundColor: cores.branco, borderColor: macro.cor, borderWidth: 2 }, SombraCartao]}
                 >
-                  <Text style={[styles.valorBolhaMacro, { color: macro.cor }]}>{macro.gramas} g</Text>
+                  <Text style={[styles.valorBolhaMacro, { color: cores.textoEscuro }]}>{macro.gramas} g</Text>
                 </View>
               ))}
             </View>
@@ -801,7 +896,7 @@ export default function QuizCadastroScreen({ navigation }) {
 
           <View style={[styles.rodapeQuiz, styles.rodapeConclusao, { borderTopColor: cores.borda }]}>
             <TouchableOpacity
-              style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.marcaEscura }]}
+              style={[styles.btnPrincipal, SombraBotao, { backgroundColor: cores.primaria }]}
               onPress={() => navigation.replace('AppTabs')}
               activeOpacity={0.85}
               accessibilityRole="button"
@@ -815,7 +910,19 @@ export default function QuizCadastroScreen({ navigation }) {
   };
 
   // ↓ Despacha a etapa corrente para a função de renderização certa.
-  const ETAPAS = [null, renderGenero, renderNascimento, renderAltura, renderPeso, renderAtividade, renderObjetivo, renderRitmo];
+  const ETAPAS = [
+    null,
+    renderGenero,
+    renderNascimento,
+    renderAltura,
+    renderPeso,
+    renderAtividade,
+    renderObjetivo,
+    renderRitmo,
+    renderOrigemApp,
+    renderExperienciaCalorias,
+    renderPesoObjetivo,
+  ];
 
   // ───────────────────────────────────────────────────────────
   // ↓ Layout principal do wizard
@@ -823,7 +930,7 @@ export default function QuizCadastroScreen({ navigation }) {
   if (concluido) return renderConclusao();
 
   const ehUltimaEtapa = etapaAtual === TOTAL_ETAPAS;
-  const vaiFinalizar = ehUltimaEtapa || (etapaAtual === 6 && objetivo === 'manter_peso');
+  const vaiFinalizar = ehUltimaEtapa;
   // ↓ "Manter peso" pula a etapa do ritmo: o marcador correspondente fica
   //   esmaecido em vez de encolher a fileira no meio do fluxo.
   const deslize = animEtapa.interpolate({
