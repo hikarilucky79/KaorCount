@@ -11,7 +11,7 @@
 // ───────────────────────────────────────────────────────────────
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, ScrollView, PanResponder,
+  StyleSheet, Text, View, TouchableOpacity, ScrollView, FlatList,
   ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -226,64 +226,34 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const QUANTIDADE_LINHAS = 5;
   const ALTURA_LISTA = ITEM_ALTURA * QUANTIDADE_LINHAS;
   const casas = passo < 1 ? 1 : 0;
-  const deslocamentoVertical = useRef(new Animated.Value(0)).current;
-  const indiceInicial = useRef(Math.round((valor - minimo) / passo));
-  const valorAtual = useRef(valor);
-  const parametrosAtuais = useRef({ minimo, maximo, passo, casas, aoMudar });
-  valorAtual.current = valor;
-  parametrosAtuais.current = { minimo, maximo, passo, casas, aoMudar };
+  const quantidade = Math.round((maximo - minimo) / passo) + 1;
+  const indiceInicial = Math.max(0, Math.min(quantidade - 1, Math.round((valor - minimo) / passo)));
+  const listaRef = useRef(null);
+  const [indicePrevia, setIndicePrevia] = useState(indiceInicial);
+  const valoresRoda = useMemo(() => Array.from({ length: quantidade }, (_, indice) => (
+    Number((minimo + indice * passo).toFixed(casas))
+  )), [quantidade, minimo, passo, casas]);
+  // Duas linhas vazias em cada ponta deixam o valor selecionado no centro da janela.
+  const dadosLista = useMemo(() => Array.from({ length: quantidade + 4 }, (_, indice) => indice - 2), [quantidade]);
   const itensPicker = useMemo(() => {
     if (Platform.OS !== 'ios') return [];
-    const quantidade = Math.round((maximo - minimo) / passo) + 1;
-    return Array.from({ length: quantidade }, (_, indice) => {
-      const item = Number((minimo + indice * passo).toFixed(casas));
+    return valoresRoda.map((item) => {
       const label = formatarValor
         ? formatarValor(item)
         : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
       return <Picker.Item key={String(item)} label={label} value={item} />;
     });
-  }, [minimo, maximo, passo, casas, formatarValor]);
-  const responder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponderCapture: (_, gesto) => Math.abs(gesto.dy) > 4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
-    onPanResponderGrant: () => {
-      deslocamentoVertical.stopAnimation();
-      deslocamentoVertical.setValue(0);
-      indiceInicial.current = Math.round((valorAtual.current - parametrosAtuais.current.minimo) / parametrosAtuais.current.passo);
-    },
-    onPanResponderMove: (_, gesto) => {
-      const parametros = parametrosAtuais.current;
-      const indiceMaximo = Math.round((parametros.maximo - parametros.minimo) / parametros.passo);
-      const deslocamentoMinimo = -(indiceMaximo - indiceInicial.current) * ITEM_ALTURA;
-      const deslocamentoMaximo = indiceInicial.current * ITEM_ALTURA;
-      deslocamentoVertical.setValue(Math.max(deslocamentoMinimo, Math.min(deslocamentoMaximo, gesto.dy)));
-    },
-    onPanResponderRelease: (_, gesto) => {
-      const parametros = parametrosAtuais.current;
-      const indiceMaximo = Math.round((parametros.maximo - parametros.minimo) / parametros.passo);
-      // Projeta um pouco a velocidade do gesto para a roda continuar deslizando após um toque rápido.
-      const deslocamentoProjetado = gesto.dy + gesto.vy * 220;
-      const passos = Math.round(-deslocamentoProjetado / ITEM_ALTURA);
-      const indiceSelecionado = Math.max(0, Math.min(indiceMaximo, indiceInicial.current + passos));
-      const novoValor = Number((parametros.minimo + indiceSelecionado * parametros.passo).toFixed(parametros.casas));
-      Animated.timing(deslocamentoVertical, {
-        toValue: -(indiceSelecionado - indiceInicial.current) * ITEM_ALTURA,
-        duration: Math.min(420, 150 + Math.abs(indiceSelecionado - indiceInicial.current) * 35),
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished) return;
-        parametros.aoMudar(novoValor);
-        deslocamentoVertical.setValue(0);
-      });
-    },
-    onPanResponderTerminate: () => {
-      Animated.spring(deslocamentoVertical, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
-    },
-  })).current;
+  }, [valoresRoda, passo, formatarValor]);
+
+  const indiceNoCentro = (offsetY) => Math.max(0, Math.min(quantidade - 1, Math.round(offsetY / ITEM_ALTURA)));
+  const atualizarIndice = (offsetY, confirmar = false) => {
+    const indice = indiceNoCentro(offsetY);
+    setIndicePrevia(indice);
+    if (confirmar) aoMudar(valoresRoda[indice]);
+  };
 
   // O Picker nativo do iOS é o equivalente ao .wheel do SwiftUI.
-  // No Android mantemos a régua personalizada, pois o Picker vira um menu.
+  // No Android/web, a lista virtualizada mantém o comportamento de roda sem mover um bloco fixo de cinco números.
   if (Platform.OS === 'ios') {
     const valorSelecionado = Number(Number(valor).toFixed(casas));
 
@@ -308,45 +278,8 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
     );
   }
 
-  const linhas = Array.from({ length: QUANTIDADE_LINHAS }, (_, i) => {
-    const deslocamento = i - Math.floor(QUANTIDADE_LINHAS / 2);
-    const item = Number((valor + deslocamento * passo).toFixed(casas));
-    const selecionada = deslocamento === 0;
-    const distancia = Math.abs(deslocamento);
-    const dentroDosLimites = item >= minimo && item <= maximo;
-    const texto = formatarValor
-      ? formatarValor(item)
-      : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
-    return (
-      <View key={deslocamento} style={[
-        styles.itemRoda,
-        {
-          height: ITEM_ALTURA,
-          opacity: dentroDosLimites ? 1 : 0,
-          transform: [
-            { perspective: 350 },
-            { rotateX: `${-deslocamento * 22}deg` },
-            { scale: Math.max(0.78, 1 - distancia * 0.1) },
-          ],
-        },
-      ]}>
-        <Text style={[
-          styles.textoRoda,
-          {
-            color: selecionada ? cores.textoEscuro : cores.textoSuave,
-            opacity: selecionada ? 1 : Math.max(0.06, 0.74 - distancia * 0.28),
-            fontWeight: selecionada ? '800' : '500',
-            fontSize: selecionada ? 27 : Math.max(17, 24 - distancia * 3),
-          },
-        ]}>
-          {texto}
-        </Text>
-      </View>
-    );
-  });
-
   return (
-    <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]} {...responder.panHandlers}>
+    <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]}>
       <View
         pointerEvents="none"
         style={[
@@ -354,9 +287,61 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
           { top: ITEM_ALTURA * 2, height: ITEM_ALTURA, backgroundColor: cores.mutado, borderColor: cores.borda },
         ]}
       />
-      <Animated.View style={{ transform: [{ translateY: deslocamentoVertical }] }}>
-        {linhas}
-      </Animated.View>
+      <FlatList
+        ref={listaRef}
+        style={{ flex: 1 }}
+        data={dadosLista}
+        initialScrollIndex={indiceInicial}
+        keyExtractor={(indice) => String(indice)}
+        getItemLayout={(_, indice) => ({ length: ITEM_ALTURA, offset: indice * ITEM_ALTURA, index: indice })}
+        snapToInterval={ITEM_ALTURA}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        overScrollMode="never"
+        scrollEventThrottle={16}
+        extraData={indicePrevia}
+        onScroll={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y)}
+        onScrollEndDrag={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
+        onMomentumScrollEnd={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
+        renderItem={({ item: indiceValor }) => {
+          if (indiceValor < 0 || indiceValor >= quantidade) {
+            return <View style={{ height: ITEM_ALTURA }} />;
+          }
+          const item = valoresRoda[indiceValor];
+          const deslocamento = indiceValor - indicePrevia;
+          const selecionada = deslocamento === 0;
+          const distancia = Math.abs(deslocamento);
+          const texto = formatarValor
+            ? formatarValor(item)
+            : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
+          return (
+            <View style={[
+              styles.itemRoda,
+              {
+                height: ITEM_ALTURA,
+                transform: [
+                  { perspective: 350 },
+                  { rotateX: `${-deslocamento * 22}deg` },
+                  { scale: Math.max(0.78, 1 - distancia * 0.1) },
+                ],
+              },
+            ]}>
+              <Text style={[
+                styles.textoRoda,
+                {
+                  color: selecionada ? cores.textoEscuro : cores.textoSuave,
+                  opacity: selecionada ? 1 : Math.max(0.06, 0.74 - distancia * 0.28),
+                  fontWeight: selecionada ? '800' : '500',
+                  fontSize: selecionada ? 27 : Math.max(17, 24 - distancia * 3),
+                },
+              ]}>
+                {texto}
+              </Text>
+            </View>
+          );
+        }}
+      />
       {unidade ? (
         <View pointerEvents="none" style={[styles.unidadeRodaFixa, { top: ITEM_ALTURA * 2, height: ITEM_ALTURA }]}>
           <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
