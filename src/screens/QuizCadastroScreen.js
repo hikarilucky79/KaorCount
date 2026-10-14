@@ -9,13 +9,14 @@
 // Quando o backend dedicado do quiz for criado por outro agente, o
 // ponto de integração é a função salvarTudo().
 // ───────────────────────────────────────────────────────────────
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, ScrollView, PanResponder,
   ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { Picker } from '@react-native-picker/picker';
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
   Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
@@ -221,7 +222,7 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
 // ↓ Campo numérico/data com anel de foco e sufixo de unidade.
 // Seletor vertical no estilo de roda, usado nas medidas do corpo.
 function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', cores, estilo, formatarValor }) {
-  const ITEM_ALTURA = 48;
+  const ITEM_ALTURA = 40;
   const QUANTIDADE_LINHAS = 5;
   const ALTURA_LISTA = ITEM_ALTURA * QUANTIDADE_LINHAS;
   const casas = passo < 1 ? 1 : 0;
@@ -231,6 +232,17 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const parametrosAtuais = useRef({ minimo, maximo, passo, casas, aoMudar });
   valorAtual.current = valor;
   parametrosAtuais.current = { minimo, maximo, passo, casas, aoMudar };
+  const itensPicker = useMemo(() => {
+    if (Platform.OS !== 'ios') return [];
+    const quantidade = Math.round((maximo - minimo) / passo) + 1;
+    return Array.from({ length: quantidade }, (_, indice) => {
+      const item = Number((minimo + indice * passo).toFixed(casas));
+      const label = formatarValor
+        ? formatarValor(item)
+        : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
+      return <Picker.Item key={String(item)} label={label} value={item} />;
+    });
+  }, [minimo, maximo, passo, casas, formatarValor]);
   const responder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponderCapture: (_, gesto) => Math.abs(gesto.dy) > 4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
@@ -269,6 +281,32 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
       Animated.spring(deslocamentoVertical, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
     },
   })).current;
+
+  // O Picker nativo do iOS é o equivalente ao .wheel do SwiftUI.
+  // No Android mantemos a régua personalizada, pois o Picker vira um menu.
+  if (Platform.OS === 'ios') {
+    const valorSelecionado = Number(Number(valor).toFixed(casas));
+
+    return (
+      <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]}>
+        <Picker
+          selectedValue={valorSelecionado}
+          onValueChange={(item) => {
+            if (item !== undefined && item !== null) aoMudar(Number(item));
+          }}
+          itemStyle={{ color: cores.textoEscuro, fontSize: 22 }}
+          style={{ width: '100%', height: ALTURA_LISTA }}
+        >
+          {itensPicker}
+        </Picker>
+        {unidade ? (
+          <View pointerEvents="none" style={styles.unidadePickerFixa}>
+            <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
   const linhas = Array.from({ length: QUANTIDADE_LINHAS }, (_, i) => {
     const deslocamento = i - Math.floor(QUANTIDADE_LINHAS / 2);
@@ -313,14 +351,14 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
         pointerEvents="none"
         style={[
           styles.selecaoRodaFixa,
-          { top: ITEM_ALTURA * 2, backgroundColor: cores.mutado, borderColor: cores.borda },
+          { top: ITEM_ALTURA * 2, height: ITEM_ALTURA, backgroundColor: cores.mutado, borderColor: cores.borda },
         ]}
       />
       <Animated.View style={{ transform: [{ translateY: deslocamentoVertical }] }}>
         {linhas}
       </Animated.View>
       {unidade ? (
-        <View pointerEvents="none" style={[styles.unidadeRodaFixa, { top: ITEM_ALTURA * 2 }]}>
+        <View pointerEvents="none" style={[styles.unidadeRodaFixa, { top: ITEM_ALTURA * 2, height: ITEM_ALTURA }]}>
           <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
         </View>
       ) : null}
@@ -1101,6 +1139,7 @@ const styles = StyleSheet.create({
   itemRoda: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderRadius: 14 },
   textoRoda: { fontSize: 24, lineHeight: 30, textAlign: 'center' },
   unidadeRodaFixa: { position: 'absolute', left: '65%', right: 0, height: 48, justifyContent: 'center', alignItems: 'center' },
+  unidadePickerFixa: { position: 'absolute', left: '65%', right: 0, top: '50%', height: 40, marginTop: -20, justifyContent: 'center', alignItems: 'center' },
   reservaRotuloRegua: { height: 19 },
   instrucaoRegua: { fontSize: 12, fontWeight: '600', marginTop: 18 },
 
