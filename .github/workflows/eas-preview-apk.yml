@@ -17,6 +17,7 @@ jobs:
   build:
     name: APK Android (EAS preview)
     runs-on: ubuntu-latest
+    environment: Expo
     steps:
       - name: Baixar o código
         uses: actions/checkout@v4
@@ -32,7 +33,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "ERRO: configure EXPO_TOKEN em Settings → Secrets and variables → Actions → Repository secrets."
+            echo "ERRO: configure o secret EXPO_TOKEN no ambiente Expo em Settings → Environments."
             exit 1
           fi
 
