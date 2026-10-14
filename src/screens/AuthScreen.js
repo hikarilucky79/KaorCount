@@ -36,7 +36,7 @@ export default function AuthScreen({ navigation }) {
   const { cores, isDark } = useTheme();
   const { height, isLandscape, rf, getContainer, maxAuthWidth } = useResponsive();
 
-  const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(180, height * 0.34) : Math.min(280, Math.max(235, height * 0.3));
+  const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(160, height * 0.3) : Math.min(235, Math.max(195, height * 0.24));
   const BANNER_FORM_ALTURA = isLandscape ? Math.min(170, height * 0.4) : Math.min(270, Math.max(235, height * 0.3));
   const BANNER_EXPANDIDO_ALTURA = height;
 
