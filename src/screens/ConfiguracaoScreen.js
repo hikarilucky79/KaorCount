@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, Ac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
-import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, Moon, Sun, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, X } from 'lucide-react-native';
+import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, Moon, Sun, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, ChevronRight, X } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';

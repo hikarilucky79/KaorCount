@@ -390,7 +390,7 @@ export default function PerfilScreen({ navigation }) {
               accessibilityLabel="Abrir configurações"
               style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }}
             >
-              <Settings size={26} color={cores.textoEscuro} strokeWidth={3} />
+              <Settings size={26} color={cores.textoEscuro} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
