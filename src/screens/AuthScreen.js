@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, 
   Image, 
@@ -10,8 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Platform,
-  Dimensions
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CORES } from '../constants/Cores';
@@ -26,7 +25,7 @@ import {
   ArrowRight, 
   Eye, 
   EyeOff, 
-  AlertCircle 
+  AlertCircle
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -35,9 +34,10 @@ import useResponsive from '../hooks/useResponsive';
 export default function AuthScreen({ navigation }) {
   const { login, registrar } = useAuth();
   const { cores, isDark } = useTheme();
-  const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxAuthWidth } = useResponsive();
+  const { height, isLandscape, rf, getContainer, maxAuthWidth } = useResponsive();
 
-  const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(105, height * 0.25) : Math.round(moderateScale(135, 0.3));
+  const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(180, height * 0.34) : Math.min(280, Math.max(235, height * 0.3));
+  const BANNER_FORM_ALTURA = isLandscape ? Math.min(170, height * 0.4) : Math.min(270, Math.max(235, height * 0.3));
   const BANNER_EXPANDIDO_ALTURA = height;
 
   // ↓ Estado para controlar a tela ativa: 'welcome' | 'login' | 'register'
@@ -60,6 +60,18 @@ export default function AuthScreen({ navigation }) {
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [mostrarSenhaCad, setMostrarSenhaCad] = useState(false);
+
+  const renderGoogleButton = (label) => (
+    <TouchableOpacity
+      style={[styles.googleButton, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+      onPress={() => setErroMsg('A autenticação com Google ainda não está configurada.')}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+    >
+      <Text style={styles.googleMark}>G</Text>
+      <Text style={[styles.googleButtonText, { color: cores.textoEscuro }]}>{label}</Text>
+    </TouchableOpacity>
+  );
 
   // ───────────────────────────────────────────────────────────
   // ↓ Transição usando o próprio Banner existente
@@ -172,7 +184,7 @@ export default function AuthScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
   const alturaBanner = animCortina.interpolate({
     inputRange: [0, 1],
-    outputRange: [modo === 'welcome' ? BANNER_WELCOME_ALTURA : 0, BANNER_EXPANDIDO_ALTURA],
+    outputRange: [modo === 'welcome' ? BANNER_WELCOME_ALTURA : BANNER_FORM_ALTURA, BANNER_EXPANDIDO_ALTURA],
   });
 
   const escalaLogoCentral = animCortina.interpolate({
@@ -207,21 +219,37 @@ export default function AuthScreen({ navigation }) {
           }
         ]}
       >
-        <Animated.View 
-          style={[
-            styles.conteudoBanner,
-            {
-              transform: [{ scale: escalaLogoCentral }]
-            }
-          ]}
-        >
-          <Image 
-            source={require('../../assets/kaorcount1-removebg-preview.png')} 
-            style={styles.logoWelcome}
-            resizeMode="contain"
-          />
-          <Text style={styles.subtituloBanner}>Seu companheiro de nutrição</Text>
-        </Animated.View>
+        <View pointerEvents="none" style={styles.formaBannerGrande} />
+        <View pointerEvents="none" style={styles.formaBannerPequena} />
+        {modo === 'welcome' ? (
+          <Animated.View style={[styles.conteudoBanner, { transform: [{ scale: escalaLogoCentral }] }]}>
+            <Image
+              source={require('../../assets/kaorcount1-removebg-preview.png')}
+              style={styles.logoWelcome}
+              resizeMode="contain"
+            />
+            <Text style={styles.subtituloBanner}>Seu companheiro de nutrição</Text>
+          </Animated.View>
+        ) : (
+          <View style={styles.authBannerContent}>
+            <TouchableOpacity
+              style={styles.btnVoltarBanner}
+              onPress={() => transicionarPara('welcome')}
+              activeOpacity={0.75}
+              accessibilityLabel="Voltar para boas-vindas"
+            >
+              <ChevronLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View>
+              <Text style={[styles.authBannerTitle, { fontSize: rf(29, 25, 34) }]}>
+                {modo === 'login' ? 'Bem-vindo de volta!' : 'Crie sua conta'}
+              </Text>
+              <Text style={[styles.authBannerSubtitle, { fontSize: rf(16, 14, 18) }]}>
+                {modo === 'login' ? 'Entre na sua conta para continuar' : 'Comece sua jornada nutricional'}
+              </Text>
+            </View>
+          </View>
+        )}
       </Animated.View>
 
       {/* ─────────────────────────────────────────────────────────── */}
@@ -294,6 +322,14 @@ export default function AuthScreen({ navigation }) {
                 >
                   <Text style={[styles.txtBtnSecundario, { color: cores.primaria, fontSize: rf(15, 13, 17) }]}>Criar conta grátis</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.guestLink}
+                  onPress={() => setErroMsg('O acesso como convidado ainda não está disponível.')}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.guestLinkText, { color: cores.textoSuave }]}>Entrar como convidado (demo)</Text>
+                </TouchableOpacity>
+                {erroMsg ? <Text style={styles.guestError}>{erroMsg}</Text> : null}
               </View>
             </View>
           </ScrollView>
@@ -311,35 +347,14 @@ export default function AuthScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
           >
             <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
-              {/* Header de Voltar */}
-              <View style={styles.navBarTop}>
-                <TouchableOpacity 
-                  style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-                  onPress={() => transicionarPara('welcome')}
-                  activeOpacity={0.7}
-                >
-                  <ChevronLeft size={20} color={cores.textoEscuro} />
-                </TouchableOpacity>
-                <Text style={[styles.navBarTitulo, { color: cores.textoEscuro, fontSize: rf(16, 14, 18) }]}>Entrar</Text>
-                <View style={{ width: 36 }} />
-              </View>
-
-              {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
               <View style={styles.corpoFormCentro}>
-                
-                {/* Logo e Títulos */}
-                <View style={styles.headerCentro}>
-                  <Image 
-                    source={require('../../assets/kaorcount1-removebg-preview.png')} 
-                    style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
-                    resizeMode="contain"
-                  />
-                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Entre na sua conta</Text>
-                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Preencha os dados abaixo para começar</Text>
+                {renderGoogleButton('Entrar com Google')}
+                <View style={styles.divisorAuth}>
+                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
+                  <Text style={[styles.textoDivisor, { color: cores.textoSuave }]}>ou entre com e-mail</Text>
+                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
                 </View>
 
-
-                {/* Card do Formulário */}
                 <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                   {erroMsg ? (
                     <View style={styles.bannerErro}>
@@ -384,6 +399,14 @@ export default function AuthScreen({ navigation }) {
                     </TouchableOpacity>
                   </View>
 
+                  <TouchableOpacity
+                    style={styles.forgotPassword}
+                    onPress={() => setErroMsg('A recuperação de senha ainda não está disponível.')}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Esqueci minha senha</Text>
+                  </TouchableOpacity>
+
                   {/* Botão Entrar */}
                   <TouchableOpacity 
                     style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
@@ -402,11 +425,18 @@ export default function AuthScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                {/* Link para Cadastro */}
+                <TouchableOpacity
+                  style={[styles.demoButton, { backgroundColor: cores.branco, borderColor: cores.borda }]}
+                  onPress={() => setErroMsg('O acesso com conta de demonstração ainda não está disponível.')}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.demoButtonText, { color: cores.textoSuave }]}>Entrar com conta de demonstração</Text>
+                </TouchableOpacity>
+
                 <View style={styles.rodapeLink}>
-                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Não tem conta? </Text>
+                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(15, 13, 17) }]}>Não tem conta? </Text>
                   <TouchableOpacity onPress={() => transicionarPara('register')}>
-                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Cadastre-se</Text>
+                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(17, 15, 19) }]}>Cadastre-se grátis</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -427,34 +457,14 @@ export default function AuthScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
           >
             <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
-              {/* Header de Voltar */}
-              <View style={styles.navBarTop}>
-                <TouchableOpacity 
-                  style={[styles.btnVoltarCircular, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-                  onPress={() => transicionarPara('welcome')}
-                  activeOpacity={0.7}
-                >
-                  <ChevronLeft size={20} color={cores.textoEscuro} />
-                </TouchableOpacity>
-                <Text style={[styles.navBarTitulo, { color: cores.textoEscuro, fontSize: rf(16, 14, 18) }]}>Criar conta</Text>
-                <View style={{ width: 36 }} />
-              </View>
-
-              {/* Bloco Central do Formulário (Perfeitamente Centralizado) */}
               <View style={styles.corpoFormCentro}>
-                
-                {/* Logo e Títulos */}
-                <View style={styles.headerCentro}>
-                  <Image 
-                    source={require('../../assets/kaorcount1-removebg-preview.png')} 
-                    style={[styles.logoForm, { width: moderateScale(140, 0.3), height: moderateScale(60, 0.3) }]}
-                    resizeMode="contain"
-                  />
-                  <Text style={[styles.tituloForm, { color: cores.textoEscuro, fontSize: rf(20, 17, 24) }]}>Crie sua conta</Text>
-                  <Text style={[styles.subtituloForm, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Comece sua jornada nutricional</Text>
+                {renderGoogleButton('Cadastrar com Google')}
+                <View style={styles.divisorAuth}>
+                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
+                  <Text style={[styles.textoDivisor, { color: cores.textoSuave }]}>ou cadastre com e-mail</Text>
+                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
                 </View>
 
-                {/* Card do Formulário */}
                 <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                   {erroMsg ? (
                     <View style={styles.bannerErro}>
@@ -468,7 +478,7 @@ export default function AuthScreen({ navigation }) {
                     <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                     <TextInput 
                       style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
-                      placeholder="Seu nome completo"
+                      placeholder="Nome completo"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       value={nome}
                       onChangeText={(t) => { setNome(t); setErroMsg(''); }}
@@ -496,7 +506,7 @@ export default function AuthScreen({ navigation }) {
                     <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                     <TextInput 
                       style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
-                      placeholder="Senha (mínimo 6 caracteres)"
+                      placeholder="Senha (mín. 6 caracteres)"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       value={senha}
                       onChangeText={(t) => { setSenha(t); setErroMsg(''); }}
@@ -542,14 +552,14 @@ export default function AuthScreen({ navigation }) {
                       </>
                     )}
                   </TouchableOpacity>
+                </View>
 
-                  {/* Link para Login */}
-                  <View style={styles.rodapeLink}>
-                    <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>Já tem uma conta? </Text>
-                    <TouchableOpacity onPress={() => transicionarPara('login')}>
-                      <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Entrar</Text>
-                    </TouchableOpacity>
-                  </View>
+                {/* Link para Login */}
+                <View style={styles.rodapeLink}>
+                  <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(15, 13, 17) }]}>Já tem conta? </Text>
+                  <TouchableOpacity onPress={() => transicionarPara('login')}>
+                    <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(17, 15, 19) }]}>Fazer login</Text>
+                  </TouchableOpacity>
                 </View>
                 </View>
             </View>
@@ -576,26 +586,26 @@ const styles = StyleSheet.create({
   scrollWelcome: {
     flexGrow: 1,
     justifyContent: 'space-between',
-    paddingBottom: 25,
+    paddingBottom: 18,
   },
   scrollForm: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 25,
-    paddingTop: 10,
+    paddingHorizontal: 22,
+    paddingBottom: 24,
+    paddingTop: 20,
     justifyContent: 'space-between',
   },
   corpoFormCentro: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
 
   // Banner Topo (Único Elemento)
   bannerSuperior: {
-    backgroundColor: '#85461e',
-    borderBottomLeftRadius: 42,
-    borderBottomRightRadius: 42,
+    backgroundColor: '#85461E',
+    borderBottomLeftRadius: 48,
+    borderBottomRightRadius: 48,
     ...Platform.select({
       web: {
         boxShadow: '0px 10px 16px rgba(0, 0, 0, 0.22)',
@@ -616,6 +626,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
+    zIndex: 1,
+  },
+  formaBannerGrande: {
+    position: 'absolute',
+    width: 270,
+    height: 270,
+    borderRadius: 135,
+    right: -88,
+    top: -42,
+    backgroundColor: 'rgba(255,255,255,0.065)',
+  },
+  formaBannerPequena: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    left: -47,
+    bottom: -32,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  authBannerContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 30,
+    zIndex: 1,
+  },
+  btnVoltarBanner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  authBannerTitle: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  authBannerSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontWeight: '400',
   },
   logoWelcome: {
     width: 170,
@@ -626,6 +682,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     fontWeight: '500',
+  },
+  googleButton: {
+    minHeight: 58,
+    borderRadius: 19,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+  },
+  googleMark: {
+    color: '#4285F4',
+    fontSize: 25,
+    fontWeight: '800',
+  },
+  googleButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  divisorAuth: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 18,
+  },
+  linhaDivisor: {
+    height: 1,
+    flex: 1,
+  },
+  textoDivisor: {
+    fontSize: 14,
   },
 
   // Corpo Welcome (Centralizado no espaço vertical)
@@ -686,12 +774,28 @@ const styles = StyleSheet.create({
   // Rodapé Welcome
   rodapeAcoes: {
     paddingHorizontal: 22,
-    gap: 10,
+    gap: 12,
+    paddingTop: 4,
+  },
+  guestLink: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  guestLinkText: {
+    fontSize: 15,
+  },
+  guestError: {
+    color: '#B54747',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
   },
   btnPrincipal: {
     backgroundColor: CORES.primaria,
-    borderRadius: 18,
-    paddingVertical: 14,
+    borderRadius: 20,
+    minHeight: 58,
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -703,8 +807,9 @@ const styles = StyleSheet.create({
   },
   btnSecundario: {
     backgroundColor: CORES.branco,
-    borderRadius: 18,
-    paddingVertical: 14,
+    borderRadius: 20,
+    minHeight: 58,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -716,56 +821,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Estilos de Navegação Superior nos Formulários
-  navBarTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    marginTop: 5,
-  },
-  btnVoltarCircular: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: CORES.branco,
-    borderWidth: 1,
-    borderColor: CORES.borda,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBarTitulo: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: CORES.textoEscuro,
-  },
-
-  // Header Formulários
-  headerCentro: {
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  logoForm: {
-    width: 140,
-    height: 60,
-    marginBottom: 8,
-  },
-  tituloForm: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: CORES.textoEscuro,
-    marginBottom: 2,
-  },
-  subtituloForm: {
-    fontSize: 13,
-    color: CORES.textoSuave,
-  },
-
   // Card do Formulário
   cardFormulario: {
     backgroundColor: CORES.branco,
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 30,
+    padding: 20,
     borderWidth: 1,
     borderColor: CORES.borda,
     marginTop: 8,
@@ -791,12 +851,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CORES.fundoInput,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: CORES.borda,
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: 16,
+    height: 56,
     marginBottom: 12,
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: -2,
+    marginBottom: 10,
+  },
+  demoButton: {
+    minHeight: 56,
+    marginTop: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  demoButtonText: {
+    fontSize: 15,
   },
   inputText: {
     flex: 1,
@@ -808,6 +885,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 22,
+    marginBottom: 4,
   },
   txtRodapeLink: {
     fontSize: 13,
