@@ -32,8 +32,8 @@ import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
 
 // ↓ Etapas que contam nos marcadores de progresso (boas-vindas não conta).
-//   1=gênero 2=nascimento 3=altura 4=peso 5=atividade 6=objetivo 7=ritmo,
-//   8=origem 9=experiência com calorias 10=meta de peso.
+//   1=gênero 2=nascimento 3=altura 4=peso 5=meta de peso 6=objetivo,
+//   7=atividade 8=ritmo 9=origem 10=experiência com calorias.
 const TOTAL_ETAPAS = 10;
 
 const OPCOES_ORIGEM_APP = ['Instagram', 'TikTok', 'Indicação', 'Busca na internet', 'Outro'];
@@ -420,25 +420,25 @@ export default function QuizCadastroScreen({ navigation }) {
         if (isNaN(peso) || peso < 20 || peso > 350) return 'Informe um peso válido em kg (ex: 70.5).';
         return '';
       }
-      case 5:
-        return nivelAtividade ? '' : 'Selecione seu nível de atividade.';
-      case 6:
-        return objetivo ? '' : 'Selecione o seu objetivo.';
-      case 7:
-        // ↓ Ritmo só se aplica a perder/ganhar (etapa pulada p/ manter).
-        if (objetivo === 'manter_peso') return '';
-        return ritmo ? '' : 'Selecione o ritmo que combina com você.';
-      case 8:
-        return origemApp ? '' : 'Selecione onde conheceu o KaorCount.';
-      case 9:
-        return jaContouCalorias === null ? 'Informe se você já contou calorias antes.' : '';
-      case 10: {
+      case 5: {
         const pesoObjetivo = parseNumeroBr(pesoObjetivoStr);
         if (isNaN(pesoObjetivo) || pesoObjetivo < 20 || pesoObjetivo > 350) {
           return 'Informe um peso objetivo entre 20 e 350 kg.';
         }
         return '';
       }
+      case 6:
+        return objetivo ? '' : 'Selecione o seu objetivo.';
+      case 7:
+        return nivelAtividade ? '' : 'Selecione seu nível de atividade.';
+      case 8:
+        // ↓ Ritmo só se aplica a perder/ganhar (etapa pulada p/ manter).
+        if (objetivo === 'manter_peso') return '';
+        return ritmo ? '' : 'Selecione o ritmo que combina com você.';
+      case 9:
+        return origemApp ? '' : 'Selecione onde conheceu o KaorCount.';
+      case 10:
+        return jaContouCalorias === null ? 'Informe se você já contou calorias antes.' : '';
       default:
         return '';
     }
@@ -479,8 +479,8 @@ export default function QuizCadastroScreen({ navigation }) {
     }
     if (etapaAtual < TOTAL_ETAPAS) {
       // ↓ Objetivo "manter peso" pula o ritmo, mas segue para as perguntas finais.
-      if (etapaAtual === 6 && objetivo === 'manter_peso') {
-        transicionarEtapa(8, 1);
+      if (etapaAtual === 7 && objetivo === 'manter_peso') {
+        transicionarEtapa(9, 1);
         return;
       }
       transicionarEtapa(etapaAtual + 1, 1);
@@ -490,7 +490,7 @@ export default function QuizCadastroScreen({ navigation }) {
   const voltar = () => {
     if (enviando) return;
     if (etapaAtual > 1) {
-      const etapaAnterior = etapaAtual === 8 && objetivo === 'manter_peso' ? 6 : etapaAtual - 1;
+      const etapaAnterior = etapaAtual === 9 && objetivo === 'manter_peso' ? 7 : etapaAtual - 1;
       transicionarEtapa(etapaAnterior, -1);
     } else if (navigation?.canGoBack?.()) {
       navigation.goBack();
@@ -668,7 +668,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapa 5 — Nível de atividade física.
+  // ↓ Etapa 7 — Nível de atividade física.
   const renderAtividade = () => (
     <View>
       {renderCabecalhoEtapa(Zap, 'Sua rotina', 'Com que frequência você se exercita?')}
@@ -708,7 +708,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapa 7 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
+  // ↓ Etapa 8 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
   const renderRitmo = () => (
     <View>
       {renderCabecalhoEtapa(Gauge, 'Em quanto tempo quer chegar lá?', 'Escolha um ritmo que você consiga manter no dia a dia.')}
@@ -736,7 +736,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  // ↓ Etapas 8 a 10 — origem, experiência prévia e peso desejado.
+  // ↓ Etapas 9 e 10 — origem e experiência prévia.
   const renderOrigemApp = () => (
     <View>
       {renderCabecalhoEtapa(Search, 'Onde conheceu o KaorCount?', 'Selecione a opção que mais combina.')}
@@ -916,12 +916,12 @@ export default function QuizCadastroScreen({ navigation }) {
     renderNascimento,
     renderAltura,
     renderPeso,
-    renderAtividade,
+    renderPesoObjetivo,
     renderObjetivo,
+    renderAtividade,
     renderRitmo,
     renderOrigemApp,
     renderExperienciaCalorias,
-    renderPesoObjetivo,
   ];
 
   // ───────────────────────────────────────────────────────────
@@ -999,7 +999,7 @@ export default function QuizCadastroScreen({ navigation }) {
               style={{ flex: 1, minHeight: 0 }}
               contentContainerStyle={[
                 styles.scrollConteudo,
-                [2, 3, 4].includes(etapaAtual) && styles.scrollConteudoRodas,
+                [2, 3, 4, 5].includes(etapaAtual) && styles.scrollConteudoRodas,
               ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
