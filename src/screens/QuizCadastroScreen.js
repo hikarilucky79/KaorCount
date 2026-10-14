@@ -1128,7 +1128,7 @@ const styles = StyleSheet.create({
   blocoPilulas: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
   pilula: {
     width: '100%', minHeight: 68, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1.5,
+    borderWidth: 1.5, marginBottom: 12,
     alignItems: 'center', justifyContent: 'center',
   },
   pilulaTexto: { fontWeight: '700', textAlign: 'center' },
