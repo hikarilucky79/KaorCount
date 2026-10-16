@@ -13,7 +13,7 @@ import { carregarUnidades, salvarUnidades } from '../util/unidades';
 
 export const ITENS_MENU_CONFIGURACAO = [
   { id: 'conta', rota: 'ConfiguracaoConta', grupo: 'CONTA', titulo: 'Conta', descricao: 'E-mail e acesso', Icone: LockKeyhole },
-  { id: 'perfil', rota: 'ConfiguracaoPerfil', grupo: 'CONTA', titulo: 'Perfil', descricao: 'Editar dados e medidas', Icone: UserRound },
+  { id: 'perfil', rota: 'ConfiguracaoPerfil', grupo: 'CONTA', titulo: 'Editar perfil', descricao: 'Dados pessoais, medidas e atividade', Icone: UserRound },
   { id: 'objetivos', rota: 'ConfiguracaoObjetivos', grupo: 'ROTINA', titulo: 'Meus objetivos', descricao: 'Meta e nível de atividade', Icone: Flag },
   { id: 'diario', aba: 'Diário', grupo: 'ROTINA', titulo: 'Diário & Monitor de água', descricao: 'Refeições e hidratação', Icone: BookMarked },
   { id: 'lembretes', rota: 'ConfiguracaoLembretes', grupo: 'ROTINA', titulo: 'Lembretes', descricao: 'Notificações e tema', Icone: BellRing },
@@ -452,7 +452,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
         return (
           <View style={[styles.detalheBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
             <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Como usar o KaorCount</Text>
-            <Text style={[styles.detalheTextoSuave, { color: cores.textoSuave, marginTop: 8 }]}>Registre refeições e acompanhe calorias, macronutrientes e hidratação na aba Diário. Seus dados e objetivos podem ser ajustados nas opções Perfil e Meus objetivos.</Text>
+            <Text style={[styles.detalheTextoSuave, { color: cores.textoSuave, marginTop: 8 }]}>Registre refeições e acompanhe calorias, macronutrientes e hidratação na aba Diário. Seus dados podem ser ajustados em Editar perfil e seus objetivos em Meus objetivos.</Text>
           </View>
         );
       case 'sobre':
@@ -481,8 +481,8 @@ export default function ConfiguracaoScreen({ navigation, route }) {
           {detalhe ? <ChevronLeft size={24} color={corTextoMenu} /> : <X size={23} color={corTextoMenu} />}
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text accessibilityRole="header" style={[styles.menuTitulo, { color: corTextoMenu, fontSize: rf(22, 20, 26) }]}>{detalhe ? itemSecao?.titulo : 'Configurações'}</Text>
-          <Text style={[styles.menuSubtitulo, { color: cores.textoSuave }]}>{detalhe ? itemSecao?.descricao : 'Gerencie sua conta e preferências'}</Text>
+          <Text accessibilityRole="header" style={[styles.menuTitulo, { color: corTextoMenu, fontSize: rf(detalhe ? 22 : 28, 20, 32) }]}>{detalhe ? itemSecao?.titulo : 'Configurações'}</Text>
+          <Text style={[styles.menuSubtitulo, { color: cores.textoSuave }]}>{detalhe ? itemSecao?.descricao : 'Sua conta, rotina e preferências em um só lugar.'}</Text>
         </View>
       </View>
 
@@ -494,7 +494,10 @@ export default function ConfiguracaoScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={[styles.menuLista, getContainer(maxContentWidth)]} showsVerticalScrollIndicator={false}>
           {gruposMenu.map(({ grupo, itens }) => (
             <View key={grupo} style={styles.menuGrupo}>
-              <Text style={[styles.menuGrupoTitulo, { color: cores.textoSuave }]}>{grupo}</Text>
+              <View style={styles.menuGrupoCabecalho}>
+                <Text style={[styles.menuGrupoTitulo, { color: cores.textoSuave }]}>{grupo}</Text>
+                <View style={[styles.menuGrupoRegua, { backgroundColor: cores.borda }]} />
+              </View>
               <View style={[styles.menuGrupoCard, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
                 {itens.map((item, index) => (
                   <React.Fragment key={item.id}>
@@ -529,8 +532,8 @@ export default function ConfiguracaoScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   menuHeader: {
-    minHeight: 82,
-    paddingHorizontal: 20,
+    minHeight: 96,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -543,30 +546,32 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderRadius: 14,
   },
-  menuTitulo: { fontWeight: '700', letterSpacing: 0.1 },
-  menuSubtitulo: { fontSize: 13, lineHeight: 18, marginTop: 2 },
+  menuTitulo: { fontWeight: '800', letterSpacing: -0.4 },
+  menuSubtitulo: { fontSize: 13, lineHeight: 19, marginTop: 4 },
   menuLista: {
     width: '100%',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 36,
+    paddingTop: 24,
+    paddingBottom: 40,
     alignSelf: 'center',
   },
-  menuGrupo: { marginBottom: 22 },
-  menuGrupoTitulo: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10, marginLeft: 4 },
-  menuGrupoCard: { width: '100%', borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
+  menuGrupo: { marginBottom: 24 },
+  menuGrupoCabecalho: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingHorizontal: 2 },
+  menuGrupoTitulo: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
+  menuGrupoRegua: { flex: 1, height: StyleSheet.hairlineWidth },
+  menuGrupoCard: { width: '100%', borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   menuLinha: {
-    minHeight: 72,
+    minHeight: 76,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   menuIcone: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,

@@ -20,7 +20,6 @@ import { CORES } from '../constants/Cores';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import { 
-  PencilLine, 
   BookOpenText, 
   Flame, 
   Target, 
@@ -40,6 +39,7 @@ import {
   ChevronRight,
   AlertCircle,
   Settings,
+  ChevronLeft,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import * as perfilNutriApi from '../api/perfilNutriApi';
@@ -67,6 +67,7 @@ export default function PerfilScreen({ navigation, route }) {
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [unidadesCarregadas, setUnidadesCarregadas] = useState(false);
   const abriuEdicaoAutomaticamente = useRef(false);
+  const modoEdicao = Boolean(route?.params?.abrirEdicao);
 
   // ↓ Estados do Modal de Edição de Perfil
   const [modalVisivel, setModalVisivel] = useState(false);
@@ -180,8 +181,9 @@ export default function PerfilScreen({ navigation, route }) {
       carregarDados();
       carregarUnidades().then((preferencias) => {
         setUnidades(preferencias);
-        setUnidadesCarregadas(true);
-      });
+      }).catch((error) => {
+        console.warn('[Perfil] Não foi possível carregar unidades:', error?.message);
+      }).finally(() => setUnidadesCarregadas(true));
       animEntrada.setValue(0);
       Animated.timing(animEntrada, {
         toValue: 1,
@@ -233,14 +235,14 @@ export default function PerfilScreen({ navigation, route }) {
   }, [usuario, pesoKg, alturaCm, perfilNutri, unidades]);
 
   useEffect(() => {
-    if (route?.params?.abrirEdicao && !carregando && unidadesCarregadas && !abriuEdicaoAutomaticamente.current) {
+    if (modoEdicao && !carregando && unidadesCarregadas && !abriuEdicaoAutomaticamente.current) {
       abriuEdicaoAutomaticamente.current = true;
       abrirModalEdicao();
     }
-  }, [route?.params?.abrirEdicao, carregando, unidadesCarregadas, abrirModalEdicao]);
+  }, [modoEdicao, carregando, unidadesCarregadas, abrirModalEdicao]);
 
   const fecharModalEdicao = () => {
-    if (route?.params?.abrirEdicao && navigation.canGoBack()) navigation.goBack();
+    if (modoEdicao && navigation.canGoBack()) navigation.goBack();
     else setModalVisivel(false);
   };
 
@@ -379,7 +381,7 @@ export default function PerfilScreen({ navigation, route }) {
 
       setModalVisivel(false);
       await carregarDados(true);
-      voltarAposSalvar = Boolean(route?.params?.abrirEdicao);
+      voltarAposSalvar = modoEdicao;
     } catch (error) {
       console.error('[Perfil] Erro ao salvar:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível salvar o perfil.';
@@ -392,7 +394,7 @@ export default function PerfilScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
-      <ScrollView 
+      {!modoEdicao ? <ScrollView
         style={{ backgroundColor: cores.fundo }}
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={
@@ -439,23 +441,10 @@ export default function PerfilScreen({ navigation, route }) {
                 <Text style={[styles.subInfoPerfil, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>{idadeTexto}  •  {objetivoTexto}</Text>
               </View>
               
-              {/* Botão Editar funcional */}
-              <TouchableOpacity 
-                style={[styles.botaoEditar, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
-                onPress={abrirModalEdicao}
-                activeOpacity={0.7}
-              >
-                <PencilLine color={cores.primaria} size={14} style={{ marginRight: 5 }} />
-                <Text style={[styles.textoEditar, { color: cores.primaria, fontSize: rf(12, 11, 14) }]}>Editar</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* ↓ Grid de Medidas (Clicáveis para editar) */}
-            <TouchableOpacity 
-              style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}
-              onPress={abrirModalEdicao}
-              activeOpacity={0.8}
-            >
+            {/* Medidas informativas; edição disponível nas Configurações. */}
+            <View style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
                 <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? formatarPeso(pesoKg, unidades.peso) : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Peso</Text>
@@ -468,17 +457,19 @@ export default function PerfilScreen({ navigation, route }) {
                 <Text style={[styles.medidaValor, { color: statusIMC.cor, fontSize: rf(18, 14, 22) }]}>{alturaM > 0 && pesoKg > 0 ? imc : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>IMC</Text>
               </View>
-            </TouchableOpacity>
+            </View>
 
             {/* ↓ Se o perfil estiver incompleto, exibe o botão/link de ação */}
             {!perfilCompleto ? (
-              <TouchableOpacity 
-                onPress={abrirModalEdicao} 
-                activeOpacity={0.7}
-                style={[styles.btnCompletarPerfil, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ConfiguracaoPerfil', { secao: 'perfil', abrirEdicao: true })}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Completar perfil"
+                style={[styles.btnCompletarPerfil, { backgroundColor: cores.mutado, borderColor: cores.borda }]}
               >
-                <Text style={[styles.txtCompletarPerfil, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Complete seu perfil</Text>
-                <ChevronRight size={15} color={cores.primaria} style={{ marginLeft: 4 }} />
+                <Text style={[styles.txtCompletarPerfil, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Completar perfil</Text>
+                <ChevronRight size={16} color={cores.primaria} />
               </TouchableOpacity>
             ) : null}
 
@@ -533,7 +524,14 @@ export default function PerfilScreen({ navigation, route }) {
           </Animated.View>
         </View>
 
-      </ScrollView>
+      </ScrollView> : null}
+
+      {modoEdicao && !modalVisivel ? (
+        <View style={[styles.carregandoEditor, { backgroundColor: cores.fundo }]}>
+          <ActivityIndicator size="large" color={cores.primaria} />
+          <Text style={{ color: cores.textoSuave, marginTop: 12 }}>Carregando seus dados…</Text>
+        </View>
+      ) : null}
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* ↓ MODAL: EDITAR PERFIL                                      */}
@@ -541,21 +539,24 @@ export default function PerfilScreen({ navigation, route }) {
       <Modal
         visible={modalVisivel}
         animationType="slide"
-        transparent
+        transparent={!modoEdicao}
         onRequestClose={fecharModalEdicao}
       >
-        <View style={styles.fundoModal}>
-          <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
+        <View style={[styles.fundoModal, modoEdicao && { backgroundColor: cores.fundo, justifyContent: 'flex-start' }]}>
+          <SafeAreaView style={modoEdicao ? styles.editorSafeArea : undefined}>
+          <View style={[styles.cardModal, modoEdicao && styles.cardEditorPage, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
             
             {/* Header do Modal */}
             <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
-              <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>Editar Perfil</Text>
+              <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>{modoEdicao ? 'Editar perfil' : 'Editar Perfil'}</Text>
               <TouchableOpacity 
                 onPress={fecharModalEdicao}
                 style={[styles.btnFecharModal, { backgroundColor: isDark ? '#2E2E2E' : '#FDF8F2', borderColor: isDark ? '#3E3E3E' : '#E8DDD0', borderWidth: 1 }]}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={modoEdicao ? 'Voltar para configurações' : 'Fechar edição'}
               >
-                <X size={20} color={cores.textoEscuro} />
+                {modoEdicao ? <ChevronLeft size={22} color={cores.textoEscuro} /> : <X size={20} color={cores.textoEscuro} />}
               </TouchableOpacity>
             </View>
 
@@ -578,6 +579,7 @@ export default function PerfilScreen({ navigation, route }) {
                 <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                 <TextInput
                   style={[styles.inputModal, { color: cores.textoEscuro }]}
+                  accessibilityLabel="Nome completo"
                   placeholder="Seu nome completo"
                   placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                   value={nomeEdit}
@@ -593,6 +595,7 @@ export default function PerfilScreen({ navigation, route }) {
                     <Weight size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
                       style={[styles.inputModal, { color: cores.textoEscuro }]}
+                      accessibilityLabel={`Peso em ${unidades.peso}`}
                       placeholder="Ex.: 75,5"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       keyboardType="decimal-pad"
@@ -608,6 +611,7 @@ export default function PerfilScreen({ navigation, route }) {
                     <Ruler size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
                       style={[styles.inputModal, { color: cores.textoEscuro }]}
+                      accessibilityLabel={`Altura em ${unidades.altura}`}
                       placeholder={unidades.altura === 'cm' ? 'Ex.: 175' : 'Ex.: 68'}
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       keyboardType="decimal-pad"
@@ -624,6 +628,7 @@ export default function PerfilScreen({ navigation, route }) {
                 <Calendar size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                 <TextInput
                   value={dataNascEdit}
+                  accessibilityLabel="Data de nascimento"
                   onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroModal(''); }}
                   placeholder="Ex: 15/08/1998"
                   placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
@@ -644,6 +649,9 @@ export default function PerfilScreen({ navigation, route }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.chipOpcao, 
                         { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
@@ -677,6 +685,9 @@ export default function PerfilScreen({ navigation, route }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
                         { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
@@ -719,6 +730,9 @@ export default function PerfilScreen({ navigation, route }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
                         { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
@@ -753,6 +767,9 @@ export default function PerfilScreen({ navigation, route }) {
                 onPress={handleSalvarPerfil}
                 disabled={salvando}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Salvar alterações do perfil"
+                accessibilityState={{ disabled: salvando, busy: salvando }}
               >
                 {salvando ? (
                   <ActivityIndicator color={CORES.branco} />
@@ -763,6 +780,7 @@ export default function PerfilScreen({ navigation, route }) {
 
             </ScrollView>
           </View>
+          </SafeAreaView>
         </View>
       </Modal>
 
@@ -813,21 +831,6 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave, 
     marginTop: 2 
   },
-  botaoEditar: { 
-    backgroundColor: '#FDF8F2', 
-    paddingHorizontal: 12, 
-    paddingVertical: 8, 
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EADCC9'
-  },
-  textoEditar: { 
-    fontSize: 12, 
-    color: CORES.primaria, 
-    fontWeight: 'bold' 
-  },
   blocoMedida: { 
     flex: 1, 
     backgroundColor: '#FDF8F2', 
@@ -848,24 +851,12 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave, 
     marginTop: 2 
   },
-  btnCompletarPerfil: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-    backgroundColor: '#FDF3E7',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: '#F0D6BE',
-  },
   txtCompletarPerfil: {
     fontSize: 13,
     fontWeight: 'bold',
     color: CORES.primaria,
   },
+  btnCompletarPerfil: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, alignSelf: 'center', borderWidth: 1 },
   containerStatusImc: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -938,6 +929,15 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     maxHeight: '90%',
   },
+  cardEditorPage: {
+    flex: 1,
+    maxHeight: '100%',
+    alignSelf: 'center',
+    borderRadius: 0,
+    paddingTop: 12,
+  },
+  editorSafeArea: { flex: 1, width: '100%' },
+  carregandoEditor: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerModal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
