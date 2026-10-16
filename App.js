@@ -18,7 +18,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import DiarioAlimentarScreen from './src/screens/DiarioAlimentar';
 import PerfilScreen from './src/screens/PerfilScreen';
-import ConfiguracaoScreen from './src/screens/ConfiguracaoScreen';
+import ConfiguracaoScreen, { ITENS_MENU_CONFIGURACAO } from './src/screens/ConfiguracaoScreen';
 import QuizCadastroScreen from './src/screens/QuizCadastroScreen';
 
 // ↓ Importando a biblioteca dos ícones em SVG
@@ -111,6 +111,14 @@ function NavegacaoRaiz() {
         <Stack.Screen name="QuizCadastro" component={QuizCadastroScreen} />
         <Stack.Screen name="AppTabs" component={AppTabs} />
         <Stack.Screen name="Configuracao" component={ConfiguracaoScreen} />
+        {ITENS_MENU_CONFIGURACAO.filter(({ rota }) => rota).map(({ id, rota }) => (
+          <Stack.Screen
+            key={rota}
+            name={rota}
+            component={id === 'perfil' ? PerfilScreen : ConfiguracaoScreen}
+            initialParams={{ secao: id, abrirEdicao: id === 'perfil' }}
+          />
+        ))}
       </Stack.Navigator>
     </NavigationContainer>
   );

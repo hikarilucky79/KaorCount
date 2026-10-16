@@ -49,8 +49,10 @@ import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as usuarioApi from '../api/usuarioApi';
 import { calcularIdade, calcularPlanoNutricional } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
+import { UNIDADES_PADRAO, alturaDeCm, alturaParaCm, formatarAltura, formatarPeso, formatarValorInput, pesoDeKg, pesoParaKg } from '../util/medidas';
+import { carregarUnidades } from '../util/unidades';
 
-export default function PerfilScreen({ navigation }) {
+export default function PerfilScreen({ navigation, route }) {
   const { usuario, atualizarUsuario } = useAuth();
   const { cores, isDark, toggleTema } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
@@ -62,6 +64,9 @@ export default function PerfilScreen({ navigation }) {
   const [ultimoProgresso, setUltimoProgresso] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
   const [resumo, setResumo] = useState(null);
+  const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
+  const [unidadesCarregadas, setUnidadesCarregadas] = useState(false);
+  const abriuEdicaoAutomaticamente = useRef(false);
 
   // ↓ Estados do Modal de Edição de Perfil
   const [modalVisivel, setModalVisivel] = useState(false);
@@ -173,6 +178,10 @@ export default function PerfilScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
+      carregarUnidades().then((preferencias) => {
+        setUnidades(preferencias);
+        setUnidadesCarregadas(true);
+      });
       animEntrada.setValue(0);
       Animated.timing(animEntrada, {
         toValue: 1,
@@ -200,11 +209,11 @@ export default function PerfilScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
   // ↓ Abrir Modal de Edição com dados preenchidos
   // ───────────────────────────────────────────────────────────
-  const abrirModalEdicao = () => {
+  const abrirModalEdicao = useCallback(() => {
     setErroModal('');
     setNomeEdit(usuario?.nome || '');
-    setPesoEdit(pesoKg > 0 ? String(pesoKg) : '');
-    setAlturaEdit(alturaCm > 0 ? String(alturaCm) : '');
+    setPesoEdit(pesoKg > 0 ? formatarValorInput(pesoDeKg(pesoKg, unidades.peso)) : '');
+    setAlturaEdit(alturaCm > 0 ? formatarValorInput(alturaDeCm(alturaCm, unidades.altura)) : '');
 
     if (perfilNutri?.data_nascimento) {
       const partes = String(perfilNutri.data_nascimento).split('-');
@@ -220,8 +229,19 @@ export default function PerfilScreen({ navigation }) {
     setGeneroEdit(perfilNutri?.genero || 'masculino');
     setNivelAtividadeEdit(perfilNutri?.nivel_atividade || 'moderado');
     setObjetivoEdit(perfilNutri?.objetivo_nutricional || 'manter_peso');
-
     setModalVisivel(true);
+  }, [usuario, pesoKg, alturaCm, perfilNutri, unidades]);
+
+  useEffect(() => {
+    if (route?.params?.abrirEdicao && !carregando && unidadesCarregadas && !abriuEdicaoAutomaticamente.current) {
+      abriuEdicaoAutomaticamente.current = true;
+      abrirModalEdicao();
+    }
+  }, [route?.params?.abrirEdicao, carregando, unidadesCarregadas, abrirModalEdicao]);
+
+  const fecharModalEdicao = () => {
+    if (route?.params?.abrirEdicao && navigation.canGoBack()) navigation.goBack();
+    else setModalVisivel(false);
   };
 
   // ───────────────────────────────────────────────────────────
@@ -238,26 +258,29 @@ export default function PerfilScreen({ navigation }) {
 
     const nomeFinal = nomeEdit.trim() || usuario?.nome || 'Usuário';
 
-    const pesoNum = parseFloat(String(pesoEdit).replace(',', '.'));
-    if (!pesoEdit || isNaN(pesoNum) || pesoNum <= 0) {
-      setErroModal('Por favor, informe seu peso em kg (ex: 75.5).');
+    const pesoInformado = parseFloat(String(pesoEdit).replace(',', '.'));
+    const pesoNum = Number(pesoParaKg(pesoInformado, unidades.peso).toFixed(1));
+    if (!pesoEdit || isNaN(pesoInformado) || !Number.isFinite(pesoNum) || pesoNum <= 0) {
+      setErroModal(`Por favor, informe seu peso em ${unidades.peso}.`);
       return;
     }
 
-    const alturaNum = parseFloat(String(alturaEdit).replace(',', '.'));
-    if (!alturaEdit || isNaN(alturaNum) || alturaNum <= 0) {
-      setErroModal('Por favor, informe sua altura (ex: 175).');
+    const alturaInformada = parseFloat(String(alturaEdit).replace(',', '.'));
+    if (!alturaEdit || isNaN(alturaInformada) || alturaInformada <= 0) {
+      setErroModal(`Por favor, informe sua altura em ${unidades.altura}.`);
       return;
     }
 
-    // Se informou em metros (ex: 1.75), converte para cm (175)
-    let alturaFinalCm = alturaNum;
-    if (alturaNum < 3) {
-      alturaFinalCm = Math.round(alturaNum * 100);
+    let alturaFinalCm = alturaParaCm(alturaInformada, unidades.altura);
+    // Em centímetros, também aceita metros (ex.: 1,75).
+    if (unidades.altura === 'cm' && alturaInformada < 3) {
+      alturaFinalCm = Math.round(alturaInformada * 100);
+    } else {
+      alturaFinalCm = Number(alturaFinalCm.toFixed(1));
     }
 
-    if (isNaN(alturaFinalCm) || alturaFinalCm < 50 || alturaFinalCm > 250) {
-      setErroModal('Por favor, informe uma altura válida entre 50 e 250 cm.');
+    if (!Number.isFinite(alturaFinalCm) || alturaFinalCm < 50 || alturaFinalCm > 250) {
+      setErroModal('Informe uma altura válida entre 50 e 250 cm.');
       return;
     }
 
@@ -283,6 +306,7 @@ export default function PerfilScreen({ navigation }) {
     }
 
     setSalvando(true);
+    let voltarAposSalvar = false;
     try {
       // 1. Atualizar nome do usuário se alterado
       if (nomeFinal !== usuario?.nome) {
@@ -355,12 +379,14 @@ export default function PerfilScreen({ navigation }) {
 
       setModalVisivel(false);
       await carregarDados(true);
+      voltarAposSalvar = Boolean(route?.params?.abrirEdicao);
     } catch (error) {
       console.error('[Perfil] Erro ao salvar:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível salvar o perfil.';
       setErroModal(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
     } finally {
       setSalvando(false);
+      if (voltarAposSalvar && navigation.canGoBack()) navigation.goBack();
     }
   };
 
@@ -431,11 +457,11 @@ export default function PerfilScreen({ navigation }) {
               activeOpacity={0.8}
             >
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
+                <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? formatarPeso(pesoKg, unidades.peso) : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Peso</Text>
               </View>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <Text style={[styles.medidaValor, { color: '#2D9CDB', fontSize: rf(18, 14, 22) }]}>{alturaCm > 0 ? `${alturaCm}cm` : '—'}</Text>
+                <Text style={[styles.medidaValor, { color: '#2D9CDB', fontSize: rf(18, 14, 22) }]}>{alturaCm > 0 ? formatarAltura(alturaCm, unidades.altura) : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Altura</Text>
               </View>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
@@ -516,7 +542,7 @@ export default function PerfilScreen({ navigation }) {
         visible={modalVisivel}
         animationType="slide"
         transparent
-        onRequestClose={() => setModalVisivel(false)}
+        onRequestClose={fecharModalEdicao}
       >
         <View style={styles.fundoModal}>
           <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
@@ -525,7 +551,7 @@ export default function PerfilScreen({ navigation }) {
             <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
               <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>Editar Perfil</Text>
               <TouchableOpacity 
-                onPress={() => setModalVisivel(false)} 
+                onPress={fecharModalEdicao}
                 style={[styles.btnFecharModal, { backgroundColor: isDark ? '#2E2E2E' : '#FDF8F2', borderColor: isDark ? '#3E3E3E' : '#E8DDD0', borderWidth: 1 }]}
                 activeOpacity={0.7}
               >
@@ -562,14 +588,14 @@ export default function PerfilScreen({ navigation }) {
               {/* Linha Peso e Altura */}
               <View style={styles.rowForm}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso (kg)</Text>
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso ({unidades.peso})</Text>
                   <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
                     <Weight size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
                       style={[styles.inputModal, { color: cores.textoEscuro }]}
-                      placeholder="Ex: 75.5"
+                      placeholder="Ex.: 75,5"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                      keyboardType="numeric"
+                      keyboardType="decimal-pad"
                       value={pesoEdit}
                       onChangeText={(t) => { setPesoEdit(t); setErroModal(''); }}
                     />
@@ -577,14 +603,14 @@ export default function PerfilScreen({ navigation }) {
                 </View>
 
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura (cm)</Text>
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura ({unidades.altura})</Text>
                   <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
                     <Ruler size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
                     <TextInput
                       style={[styles.inputModal, { color: cores.textoEscuro }]}
-                      placeholder="Ex: 175"
+                      placeholder={unidades.altura === 'cm' ? 'Ex.: 175' : 'Ex.: 68'}
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                      keyboardType="numeric"
+                      keyboardType="decimal-pad"
                       value={alturaEdit}
                       onChangeText={(t) => { setAlturaEdit(t); setErroModal(''); }}
                     />

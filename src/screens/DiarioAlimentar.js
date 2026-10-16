@@ -28,6 +28,8 @@ import * as metaNutriApi from '../api/metaNutriApi';
 import * as alimentoApi from '../api/alimentoApi';
 import * as fatsecretApi from '../api/fatsecretApi';
 import { formatarDataAPI } from '../util/data';
+import { UNIDADES_PADRAO, formatarAgua } from '../util/medidas';
+import { carregarUnidades } from '../util/unidades';
 
 const normalizarTexto = (txt) => 
   (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -43,6 +45,7 @@ export default function DiarioAlimentar({ navigation }) {
   const [macros, setMacros] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
   const [agua, setAgua] = useState(0);
+  const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState(false);
@@ -234,6 +237,7 @@ export default function DiarioAlimentar({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
+      carregarUnidades().then(setUnidades);
       animEntrada.setValue(0);
       Animated.timing(animEntrada, {
         toValue: 1,
@@ -728,7 +732,7 @@ export default function DiarioAlimentar({ navigation }) {
                     <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro, fontSize: rf(14, 12, 17) }]}>Hidratação</Text>
                   </View>
                   <Text style={[styles.volAguaText, { color: '#2F80ED', fontSize: rf(16, 14, 19) }]}>
-                    {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua} ml</Text>
+                    {formatarAgua(agua, unidades.agua)} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {formatarAgua(metaAgua, unidades.agua)}</Text>
                   </Text>
                 </View>
                 
@@ -747,11 +751,13 @@ export default function DiarioAlimentar({ navigation }) {
                           borderColor: isDark ? '#223B5A' : '#D0E4FF' 
                         }
                       ]} 
-                      onPress={() => adicionarAgua(qtd)} 
+                      onPress={() => adicionarAgua(qtd)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Adicionar ${formatarAgua(qtd, unidades.agua)} de água`}
                       disabled={adicionandoAgua}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{qtd}ml</Text>
+                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{formatarAgua(qtd, unidades.agua)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
