@@ -6,11 +6,8 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  Modal,
   TextInput,
   RefreshControl,
-  Platform,
-  Alert,
   Animated,
   Easing
 } from 'react-native';
@@ -24,7 +21,6 @@ import {
   Flame, 
   Target, 
   ChartNoAxesCombined,
-  X,
   Check,
   User,
   Calendar,
@@ -54,11 +50,12 @@ import { carregarUnidades } from '../util/unidades';
 
 export default function PerfilScreen({ navigation, route }) {
   const { usuario, atualizarUsuario } = useAuth();
-  const { cores, isDark, toggleTema } = useTheme();
+  const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados para dados da API
   const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState('');
   const [atualizando, setAtualizando] = useState(false);
   const [perfilNutri, setPerfilNutri] = useState(null);
   const [ultimoProgresso, setUltimoProgresso] = useState(null);
@@ -66,13 +63,12 @@ export default function PerfilScreen({ navigation, route }) {
   const [resumo, setResumo] = useState(null);
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [unidadesCarregadas, setUnidadesCarregadas] = useState(false);
-  const abriuEdicaoAutomaticamente = useRef(false);
+  const formularioInicializado = useRef(false);
   const modoEdicao = Boolean(route?.params?.abrirEdicao);
 
-  // ↓ Estados do Modal de Edição de Perfil
-  const [modalVisivel, setModalVisivel] = useState(false);
+  // ↓ Estados do formulário de perfil
   const [salvando, setSalvando] = useState(false);
-  const [erroModal, setErroModal] = useState('');
+  const [erroFormulario, setErroFormulario] = useState('');
   const [nomeEdit, setNomeEdit] = useState('');
   const [pesoEdit, setPesoEdit] = useState('');
   const [alturaEdit, setAlturaEdit] = useState('');
@@ -157,7 +153,17 @@ export default function PerfilScreen({ navigation, route }) {
         dashboardApi.resumoDia(idUsuario),
       ]);
 
-      if (resPerfil.status === 'fulfilled') setPerfilNutri(resPerfil.value);
+      if (resPerfil.status === 'fulfilled') {
+        setPerfilNutri(resPerfil.value);
+        setErroCarregamento('');
+      } else if (resPerfil.reason?.response?.status === 404) {
+        // Perfil inexistente é válido para quem ainda está completando o cadastro.
+        setPerfilNutri(null);
+        setErroCarregamento('');
+      } else {
+        setErroCarregamento('Não foi possível carregar seus dados do perfil. Tente novamente.');
+        console.warn('[Perfil] Erro ao carregar dados do perfil:', resPerfil.reason?.message);
+      }
       if (resProgresso.status === 'fulfilled' && resProgresso.value?.length > 0) {
         setUltimoProgresso(resProgresso.value[0]);
       }
@@ -184,14 +190,16 @@ export default function PerfilScreen({ navigation, route }) {
       }).catch((error) => {
         console.warn('[Perfil] Não foi possível carregar unidades:', error?.message);
       }).finally(() => setUnidadesCarregadas(true));
-      animEntrada.setValue(0);
-      Animated.timing(animEntrada, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }, [carregarDados])
+      if (!modoEdicao) {
+        animEntrada.setValue(0);
+        Animated.timing(animEntrada, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }
+    }, [carregarDados, modoEdicao])
   );
 
   const offsetSlide = Math.round(moderateScale(35, 0.3));
@@ -209,10 +217,10 @@ export default function PerfilScreen({ navigation, route }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // ↓ Abrir Modal de Edição com dados preenchidos
+  // Preencher o formulário da rota Perfil quando os dados estiverem carregados.
   // ───────────────────────────────────────────────────────────
-  const abrirModalEdicao = useCallback(() => {
-    setErroModal('');
+  const preencherFormulario = useCallback(() => {
+    setErroFormulario('');
     setNomeEdit(usuario?.nome || '');
     setPesoEdit(pesoKg > 0 ? formatarValorInput(pesoDeKg(pesoKg, unidades.peso)) : '');
     setAlturaEdit(alturaCm > 0 ? formatarValorInput(alturaDeCm(alturaCm, unidades.altura)) : '');
@@ -231,30 +239,29 @@ export default function PerfilScreen({ navigation, route }) {
     setGeneroEdit(perfilNutri?.genero || 'masculino');
     setNivelAtividadeEdit(perfilNutri?.nivel_atividade || 'moderado');
     setObjetivoEdit(perfilNutri?.objetivo_nutricional || 'manter_peso');
-    setModalVisivel(true);
   }, [usuario, pesoKg, alturaCm, perfilNutri, unidades]);
 
   useEffect(() => {
-    if (modoEdicao && !carregando && unidadesCarregadas && !abriuEdicaoAutomaticamente.current) {
-      abriuEdicaoAutomaticamente.current = true;
-      abrirModalEdicao();
+    if (modoEdicao && !carregando && unidadesCarregadas && !erroCarregamento && !formularioInicializado.current) {
+      formularioInicializado.current = true;
+      preencherFormulario();
     }
-  }, [modoEdicao, carregando, unidadesCarregadas, abrirModalEdicao]);
+  }, [modoEdicao, carregando, unidadesCarregadas, erroCarregamento, preencherFormulario]);
 
-  const fecharModalEdicao = () => {
-    if (modoEdicao && navigation.canGoBack()) navigation.goBack();
-    else setModalVisivel(false);
+  const voltarDoEditor = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('AppTabs', { screen: 'Perfil' });
   };
 
   // ───────────────────────────────────────────────────────────
   // ↓ Salvar Perfil e Recalcular Metas
   // ───────────────────────────────────────────────────────────
   const handleSalvarPerfil = async () => {
-    setErroModal('');
+    setErroFormulario('');
 
     const idUsuario = usuario?.id_usuario || usuario?.id;
     if (!idUsuario) {
-      setErroModal('Sessão não encontrada. Faça login novamente.');
+      setErroFormulario('Sessão não encontrada. Faça login novamente.');
       return;
     }
 
@@ -263,13 +270,13 @@ export default function PerfilScreen({ navigation, route }) {
     const pesoInformado = parseFloat(String(pesoEdit).replace(',', '.'));
     const pesoNum = Number(pesoParaKg(pesoInformado, unidades.peso).toFixed(1));
     if (!pesoEdit || isNaN(pesoInformado) || !Number.isFinite(pesoNum) || pesoNum <= 0) {
-      setErroModal(`Por favor, informe seu peso em ${unidades.peso}.`);
+      setErroFormulario(`Por favor, informe seu peso em ${unidades.peso}.`);
       return;
     }
 
     const alturaInformada = parseFloat(String(alturaEdit).replace(',', '.'));
     if (!alturaEdit || isNaN(alturaInformada) || alturaInformada <= 0) {
-      setErroModal(`Por favor, informe sua altura em ${unidades.altura}.`);
+      setErroFormulario(`Por favor, informe sua altura em ${unidades.altura}.`);
       return;
     }
 
@@ -282,7 +289,7 @@ export default function PerfilScreen({ navigation, route }) {
     }
 
     if (!Number.isFinite(alturaFinalCm) || alturaFinalCm < 50 || alturaFinalCm > 250) {
-      setErroModal('Informe uma altura válida entre 50 e 250 cm.');
+      setErroFormulario('Informe uma altura válida entre 50 e 250 cm.');
       return;
     }
 
@@ -375,20 +382,19 @@ export default function PerfilScreen({ navigation, route }) {
         }
       } catch (errMeta) {
         console.warn('[Perfil] Erro ao atualizar meta:', errMeta?.message);
-        setErroModal('Perfil salvo, mas não foi possível atualizar sua meta calórica. Tente novamente.');
+        setErroFormulario('Perfil salvo, mas não foi possível atualizar sua meta calórica. Tente novamente.');
         return;
       }
 
-      setModalVisivel(false);
       await carregarDados(true);
       voltarAposSalvar = modoEdicao;
     } catch (error) {
       console.error('[Perfil] Erro ao salvar:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível salvar o perfil.';
-      setErroModal(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
+      setErroFormulario(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
     } finally {
       setSalvando(false);
-      if (voltarAposSalvar && navigation.canGoBack()) navigation.goBack();
+      if (voltarAposSalvar) voltarDoEditor();
     }
   };
 
@@ -526,64 +532,70 @@ export default function PerfilScreen({ navigation, route }) {
 
       </ScrollView> : null}
 
-      {modoEdicao && !modalVisivel ? (
-        <View style={[styles.carregandoEditor, { backgroundColor: cores.fundo }]}>
-          <ActivityIndicator size="large" color={cores.primaria} />
-          <Text style={{ color: cores.textoSuave, marginTop: 12 }}>Carregando seus dados…</Text>
-        </View>
-      ) : null}
+      {modoEdicao ? (
+        <View style={[styles.editorScreen, { backgroundColor: cores.fundo }]}>
+          <View style={[styles.editorHeader, { borderBottomColor: cores.borda }]}>
+            <TouchableOpacity
+              onPress={voltarDoEditor}
+              style={[styles.editorVoltar, { backgroundColor: cores.branco }]}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+            >
+              <ChevronLeft size={22} color={cores.textoEscuro} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text accessibilityRole="header" style={[styles.editorTitulo, { color: cores.textoEscuro }]}>Perfil</Text>
+              <Text style={[styles.editorSubtitulo, { color: cores.textoSuave }]}>Dados pessoais, medidas e objetivos</Text>
+            </View>
+          </View>
 
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* ↓ MODAL: EDITAR PERFIL                                      */}
-      {/* ─────────────────────────────────────────────────────────── */}
-      <Modal
-        visible={modalVisivel}
-        animationType="slide"
-        transparent={!modoEdicao}
-        onRequestClose={fecharModalEdicao}
-      >
-        <View style={[styles.fundoModal, modoEdicao && { backgroundColor: cores.fundo, justifyContent: 'flex-start' }]}>
-          <SafeAreaView style={modoEdicao ? styles.editorSafeArea : undefined}>
-          <View style={[styles.cardModal, modoEdicao && styles.cardEditorPage, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
-            
-            {/* Header do Modal */}
-            <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
-              <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>{modoEdicao ? 'Editar perfil' : 'Editar Perfil'}</Text>
-              <TouchableOpacity 
-                onPress={fecharModalEdicao}
-                style={[styles.btnFecharModal, { backgroundColor: isDark ? '#2E2E2E' : '#FDF8F2', borderColor: isDark ? '#3E3E3E' : '#E8DDD0', borderWidth: 1 }]}
-                activeOpacity={0.7}
+          {carregando || !unidadesCarregadas || (atualizando && erroCarregamento) ? (
+            <View style={styles.carregandoEditor}>
+              <ActivityIndicator size="large" color={cores.primaria} />
+              <Text style={{ color: cores.textoSuave, marginTop: 12 }}>Carregando seus dados…</Text>
+            </View>
+          ) : erroCarregamento ? (
+            <View style={styles.erroCarregamentoEditor}>
+              <AlertCircle size={24} color={cores.erro} />
+              <Text style={[styles.erroCarregamentoTexto, { color: cores.textoEscuro }]}>{erroCarregamento}</Text>
+              <TouchableOpacity
+                onPress={() => carregarDados(true)}
+                activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={modoEdicao ? 'Voltar para configurações' : 'Fechar edição'}
+                accessibilityLabel="Tentar carregar o perfil novamente"
+                style={[styles.tentarNovamente, { borderColor: cores.borda }]}
               >
-                {modoEdicao ? <ChevronLeft size={22} color={cores.textoEscuro} /> : <X size={20} color={cores.textoEscuro} />}
+                <Text style={[styles.tentarNovamenteTexto, { color: cores.primaria }]}>Tentar novamente</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Banner de Erro em Tempo Real */}
-            {erroModal ? (
-              <View style={styles.bannerErroModal}>
-                <AlertCircle size={16} color="#EB5757" style={{ marginRight: 8, flexShrink: 0 }} />
-                <Text style={styles.textoErroModal}>{erroModal}</Text>
+          ) : (
+            <>
+            {erroFormulario ? (
+              <View style={[styles.bannerErroFormulario, { backgroundColor: cores.mutado, borderColor: cores.erro }]}>
+                <AlertCircle size={18} color={cores.erro} style={{ marginRight: 8, flexShrink: 0 }} />
+                <Text style={[styles.textoErroFormulario, { color: cores.erro }]}>{erroFormulario}</Text>
               </View>
             ) : null}
-
-            <ScrollView 
+            <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: 25 }}
+              contentContainerStyle={[styles.editorFormContainer, getContainer(620)]}
             >
+              <View style={[styles.editorGrupo, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+                <Text style={[styles.editorGrupoTitulo, { color: cores.textoSuave }]}>DADOS PESSOAIS E MEDIDAS</Text>
               {/* Campo Nome Completo */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nome Completo</Text>
-              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+              <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                <User size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={[styles.inputModal, { color: cores.textoEscuro }]}
+                  style={[styles.inputPerfil, { color: cores.textoEscuro }]}
                   accessibilityLabel="Nome completo"
                   placeholder="Seu nome completo"
-                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                  placeholderTextColor={cores.textoSuave}
                   value={nomeEdit}
-                  onChangeText={(t) => { setNomeEdit(t); setErroModal(''); }}
+                  onChangeText={(t) => { setNomeEdit(t); setErroFormulario(''); }}
                 />
               </View>
 
@@ -591,32 +603,32 @@ export default function PerfilScreen({ navigation, route }) {
               <View style={styles.rowForm}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso ({unidades.peso})</Text>
-                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                    <Weight size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+                  <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                    <Weight size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={[styles.inputModal, { color: cores.textoEscuro }]}
+                      style={[styles.inputPerfil, { color: cores.textoEscuro }]}
                       accessibilityLabel={`Peso em ${unidades.peso}`}
                       placeholder="Ex.: 75,5"
-                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      placeholderTextColor={cores.textoSuave}
                       keyboardType="decimal-pad"
                       value={pesoEdit}
-                      onChangeText={(t) => { setPesoEdit(t); setErroModal(''); }}
+                      onChangeText={(t) => { setPesoEdit(t); setErroFormulario(''); }}
                     />
                   </View>
                 </View>
 
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura ({unidades.altura})</Text>
-                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                    <Ruler size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+                  <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                    <Ruler size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={[styles.inputModal, { color: cores.textoEscuro }]}
+                      style={[styles.inputPerfil, { color: cores.textoEscuro }]}
                       accessibilityLabel={`Altura em ${unidades.altura}`}
                       placeholder={unidades.altura === 'cm' ? 'Ex.: 175' : 'Ex.: 68'}
-                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                      placeholderTextColor={cores.textoSuave}
                       keyboardType="decimal-pad"
                       value={alturaEdit}
-                      onChangeText={(t) => { setAlturaEdit(t); setErroModal(''); }}
+                      onChangeText={(t) => { setAlturaEdit(t); setErroFormulario(''); }}
                     />
                   </View>
                 </View>
@@ -624,15 +636,15 @@ export default function PerfilScreen({ navigation, route }) {
 
               {/* Data de Nascimento */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Data de Nascimento (DD/MM/AAAA)</Text>
-              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                <Calendar size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+              <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                <Calendar size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                 <TextInput
                   value={dataNascEdit}
                   accessibilityLabel="Data de nascimento"
-                  onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroModal(''); }}
+                  onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroFormulario(''); }}
                   placeholder="Ex: 15/08/1998"
-                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                  style={[styles.inputModal, { color: cores.textoEscuro }]}
+                  placeholderTextColor={cores.textoSuave}
+                  style={[styles.inputPerfil, { color: cores.textoEscuro }]}
                   keyboardType="numeric"
                   maxLength={10}
                 />
@@ -640,7 +652,7 @@ export default function PerfilScreen({ navigation, route }) {
 
               {/* Seleção de Gênero */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Gênero</Text>
-              <View style={styles.selectorRow}>
+              <View style={styles.selectorRow} accessibilityRole="radiogroup" accessibilityLabel="Gênero">
                 {[
                   { id: 'masculino', label: 'Masculino' },
                   { id: 'feminino', label: 'Feminino' },
@@ -654,15 +666,15 @@ export default function PerfilScreen({ navigation, route }) {
                       accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.chipOpcao, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.chipOpcaoAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.chipOpcaoAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setGeneroEdit(item.id)}
                       activeOpacity={0.7}
                     >
                       <Text style={[
                         styles.chipTexto, 
-                        { color: isDark ? '#B8A89A' : cores.textoSuave },
+                        { color: cores.textoSuave },
                         selecionado && [styles.chipTextoAtivo, { color: cores.primaria }]
                       ]}>
                         {item.label}
@@ -672,9 +684,12 @@ export default function PerfilScreen({ navigation, route }) {
                 })}
               </View>
 
+              </View>
+              <View style={[styles.editorGrupo, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+                <Text style={[styles.editorGrupoTitulo, { color: cores.textoSuave }]}>OBJETIVOS E ATIVIDADE</Text>
               {/* Seleção de Objetivo */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Objetivo Nutricional</Text>
-              <View style={styles.selectorCol}>
+              <View style={styles.selectorCol} accessibilityRole="radiogroup" accessibilityLabel="Objetivo nutricional">
                 {[
                   { id: 'perder_peso', label: 'Perder peso (Déficit calórico)', icone: Flame },
                   { id: 'manter_peso', label: 'Manter peso (Equilíbrio)', icone: Scale },
@@ -690,8 +705,8 @@ export default function PerfilScreen({ navigation, route }) {
                       accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setObjetivoEdit(item.id)}
                       activeOpacity={0.7}
@@ -699,7 +714,7 @@ export default function PerfilScreen({ navigation, route }) {
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
+                          color={selecionado ? cores.primaria : cores.textoSuave}
                           style={{ marginRight: 10 }} 
                         />
                         <Text style={[
@@ -718,7 +733,7 @@ export default function PerfilScreen({ navigation, route }) {
 
               {/* Nível de Atividade */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nível de Atividade</Text>
-              <View style={styles.selectorCol}>
+              <View style={styles.selectorCol} accessibilityRole="radiogroup" accessibilityLabel="Nível de atividade">
                 {[
                   { id: 'sedentario', label: 'Sedentário (pouco ou nenhum exercício)', icone: Armchair },
                   { id: 'leve', label: 'Levemente ativo (1-3x por semana)', icone: Footprints },
@@ -735,8 +750,8 @@ export default function PerfilScreen({ navigation, route }) {
                       accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setNivelAtividadeEdit(item.id)}
                       activeOpacity={0.7}
@@ -744,7 +759,7 @@ export default function PerfilScreen({ navigation, route }) {
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
+                          color={selecionado ? cores.primaria : cores.textoSuave}
                           style={{ marginRight: 10 }} 
                         />
                         <Text style={[
@@ -761,7 +776,9 @@ export default function PerfilScreen({ navigation, route }) {
                 })}
               </View>
 
-              {/* Botão de Salvar Alterações */}
+              </View>
+            </ScrollView>
+            <View style={[styles.editorFooter, { backgroundColor: cores.fundo, borderTopColor: cores.borda }]}>
               <TouchableOpacity
                 style={[styles.btnSalvar, salvando && { opacity: 0.6 }]}
                 onPress={handleSalvarPerfil}
@@ -771,18 +788,13 @@ export default function PerfilScreen({ navigation, route }) {
                 accessibilityLabel="Salvar alterações do perfil"
                 accessibilityState={{ disabled: salvando, busy: salvando }}
               >
-                {salvando ? (
-                  <ActivityIndicator color={CORES.branco} />
-                ) : (
-                  <Text style={styles.btnSalvarTexto}>Salvar Alterações</Text>
-                )}
+                {salvando ? <ActivityIndicator color={cores.branco} /> : <Text style={[styles.btnSalvarTexto, { color: cores.branco }]}>Salvar alterações</Text>}
               </TouchableOpacity>
-
-            </ScrollView>
-          </View>
-          </SafeAreaView>
+            </View>
+            </>
+          )}
         </View>
-      </Modal>
+      ) : null}
 
     </SafeAreaView>
   );
@@ -912,65 +924,50 @@ const styles = StyleSheet.create({
     color: CORES.textoEscuro 
   },
 
-  // ───────────────────────────────────────────────────────────
-  // Estilos do Modal de Edição
-  // ───────────────────────────────────────────────────────────
-  fundoModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+  editorScreen: { flex: 1 },
+  editorHeader: {
+    minHeight: 86,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  cardModal: {
-    backgroundColor: CORES.branco,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-    maxHeight: '90%',
+  editorVoltar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  cardEditorPage: {
-    flex: 1,
-    maxHeight: '100%',
-    alignSelf: 'center',
-    borderRadius: 0,
-    paddingTop: 12,
-  },
-  editorSafeArea: { flex: 1, width: '100%' },
+  editorTitulo: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
+  editorSubtitulo: { fontSize: 13, lineHeight: 18, marginTop: 3 },
   carregandoEditor: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerModal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
+  erroCarregamentoEditor: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  erroCarregamentoTexto: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12, maxWidth: 360 },
+  tentarNovamente: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 12, borderWidth: 1, marginTop: 16 },
+  tentarNovamenteTexto: { fontSize: 14, fontWeight: '700' },
+  editorFormContainer: { width: '100%', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 24 },
+  editorGrupo: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16 },
+  editorGrupoTitulo: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, marginBottom: 8 },
+  editorFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0E4D4',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  tituloModal: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: CORES.textoEscuro,
-  },
-  btnFecharModal: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#FDF8F2',
-  },
-  bannerErroModal: {
+  bannerErroFormulario: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    borderColor: '#FEB2B2',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 14,
+    marginHorizontal: 18,
+    marginTop: 16,
   },
-  textoErroModal: {
+  textoErroFormulario: {
     fontSize: 13,
-    color: '#E53E3E',
     fontWeight: '600',
     flex: 1,
   },
@@ -996,13 +993,14 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: 4,
   },
-  inputModal: {
+  inputPerfil: {
     flex: 1,
     fontSize: 14,
     color: CORES.textoEscuro,
   },
   selectorRow: {
     flexDirection: 'row',
+    gap: 8,
     marginBottom: 6,
   },
   chipOpcao: {
@@ -1014,10 +1012,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CORES.borda,
     alignItems: 'center',
-    marginRight: 8,
   },
   chipOpcaoAtiva: {
-    backgroundColor: '#FDF3E7',
     borderColor: CORES.primaria,
     borderWidth: 1.5,
   },
@@ -1046,7 +1042,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   opcaoCardAtiva: {
-    backgroundColor: '#FDF3E7',
     borderColor: CORES.primaria,
     borderWidth: 1.5,
   },
@@ -1066,8 +1061,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
-    marginBottom: 10,
+    minHeight: 52,
+    marginTop: 0,
+    marginBottom: 0,
   },
   btnSalvarTexto: {
     color: CORES.branco,
