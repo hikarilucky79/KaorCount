@@ -402,8 +402,8 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Respostas coletadas.
   const [genero, setGenero] = useState('');
   const [dataNascimento, setDataNascimento] = useState('2000'); // ano de nascimento
-  const [alturaStr, setAlturaStr] = useState('170');
-  const [pesoStr, setPesoStr] = useState('70,0');
+  const [alturaStr, setAlturaStr] = useState('160');
+  const [pesoStr, setPesoStr] = useState('50,0');
   const [nivelAtividade, setNivelAtividade] = useState('');
   const [objetivo, setObjetivo] = useState('');
   // ↓ Ritmo em que a pessoa quer chegar à meta (só p/ perder/ganhar).
@@ -705,7 +705,7 @@ export default function QuizCadastroScreen({ navigation }) {
       {renderCabecalhoEtapa(Ruler, 'Qual é a sua altura?', 'Um valor aproximado está ótimo.')}
       <View style={styles.seletorEtapaCentralizado}>
         <SeletorRoda
-          valor={parseNumeroBr(alturaStr) || 170}
+          valor={parseNumeroBr(alturaStr) || 160}
           aoMudar={(valor) => { setAlturaStr(String(valor)); setErroEtapa(''); }}
           minimo={100} maximo={260} passo={1} unidade="cm"
           cores={cores}
@@ -720,7 +720,7 @@ export default function QuizCadastroScreen({ navigation }) {
       {renderCabecalhoEtapa(Scale, 'Qual é o seu peso?', 'Um valor aproximado está ótimo.')}
       <View style={styles.seletorEtapaCentralizado}>
         <SeletorRoda
-          valor={parseNumeroBr(pesoStr) || 70}
+          valor={parseNumeroBr(pesoStr) || 50}
           aoMudar={(valor) => { setPesoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
           minimo={20} maximo={350} passo={0.1} unidade="kg"
           cores={cores}
@@ -835,7 +835,7 @@ export default function QuizCadastroScreen({ navigation }) {
       {renderCabecalhoEtapa(Scale, 'Qual é seu peso objetivo?', 'Escolha o peso que quer alcançar.')}
       <View style={styles.seletorEtapaCentralizado}>
         <SeletorRoda
-          valor={parseNumeroBr(pesoObjetivoStr) || parseNumeroBr(pesoStr) || 70}
+          valor={parseNumeroBr(pesoObjetivoStr) || parseNumeroBr(pesoStr) || 50}
           aoMudar={(valor) => { setPesoObjetivoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
           minimo={20} maximo={350} passo={0.1} unidade="kg"
           cores={cores}
