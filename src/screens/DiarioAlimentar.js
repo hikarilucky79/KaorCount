@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, Search, Check, ChevronLeft, ChevronRight, Scale, Apple, Sun, Moon } from 'lucide-react-native';
+import ConfirmacaoAcaoModal from '../components/ConfirmacaoAcaoModal';
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -49,6 +50,10 @@ export default function DiarioAlimentar({ navigation }) {
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState(false);
+  const [confirmacaoRemocaoVisivel, setConfirmacaoRemocaoVisivel] = useState(false);
+  const [idItemPendenteRemocao, setIdItemPendenteRemocao] = useState(null);
+  const [nomeItemPendenteRemocao, setNomeItemPendenteRemocao] = useState('');
+  const [removendoItem, setRemovendoItem] = useState(false);
 
   // ↓ Estados do Modal de Adicionar Alimento
   const [modalVisivel, setModalVisivel] = useState(false);
@@ -493,39 +498,39 @@ export default function DiarioAlimentar({ navigation }) {
   // ───────────────────────────────────────────────────────────
   // ↓ Remover alimento da refeição
   // ───────────────────────────────────────────────────────────
-  const removerItem = (idItem) => {
-    const executarRemocao = async () => {
-      try {
-        await refeicaoApi.removerItem(idItem);
-        await carregarDados(true);
-      } catch (error) {
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert('Não foi possível remover o item.');
-        } else {
-          Alert.alert('Erro', 'Não foi possível remover o item.');
-        }
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmado = typeof window !== 'undefined' ? window.confirm('Deseja remover este item da refeição?') : true;
-      if (confirmado) {
-        executarRemocao();
-      }
-    } else {
-      Alert.alert(
-        'Remover alimento',
-        'Deseja remover este item da refeição?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Remover',
-            style: 'destructive',
-            onPress: executarRemocao,
-          },
-        ]
-      );
+  const removerItem = (idItem, nomeItem) => {
+    if (idItem == null || (typeof idItem === 'string' && !idItem.trim())) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível identificar o alimento.');
+      else Alert.alert('Erro', 'Não foi possível identificar o alimento.');
+      return;
     }
+    setIdItemPendenteRemocao(idItem);
+    setNomeItemPendenteRemocao(nomeItem || 'este alimento');
+    setConfirmacaoRemocaoVisivel(true);
+  };
+
+  const confirmarRemocaoItem = async () => {
+    if (idItemPendenteRemocao == null || removendoItem) return;
+    setRemovendoItem(true);
+    try {
+      await refeicaoApi.removerItem(idItemPendenteRemocao);
+      setConfirmacaoRemocaoVisivel(false);
+      setIdItemPendenteRemocao(null);
+      setNomeItemPendenteRemocao('');
+      await carregarDados(true);
+    } catch (error) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível remover o item.');
+      else Alert.alert('Erro', 'Não foi possível remover o item.');
+    } finally {
+      setRemovendoItem(false);
+    }
+  };
+
+  const cancelarRemocaoItem = () => {
+    if (removendoItem) return;
+    setConfirmacaoRemocaoVisivel(false);
+    setIdItemPendenteRemocao(null);
+    setNomeItemPendenteRemocao('');
   };
 
   // ───────────────────────────────────────────────────────────
@@ -619,9 +624,11 @@ export default function DiarioAlimentar({ navigation }) {
                         backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FFF5F5',
                       }
                     ]}
-                    onPress={() => removerItem(item.id_refeicao_item || item.id_item_refeicao)}
+                    onPress={() => removerItem(item.id_refeicao_item || item.id_item_refeicao, alimentoNome)}
                     activeOpacity={0.6}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remover ${alimentoNome}`}
                   >
                     <Trash2 size={15} color="#FF5C5C" />
                   </TouchableOpacity>
@@ -772,7 +779,7 @@ export default function DiarioAlimentar({ navigation }) {
       {/* ─────────────────────────────────────────────────────────── */}
       {/* ↓ MODAL: ADICIONAR ALIMENTO (FULL SCREEN TOTAL FIGMA)        */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <Modal 
+      <Modal
         visible={modalVisivel} 
         animationType="slide" 
         presentationStyle="fullScreen"
@@ -1056,6 +1063,20 @@ export default function DiarioAlimentar({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <ConfirmacaoAcaoModal
+        visivel={confirmacaoRemocaoVisivel}
+        cores={cores}
+        ocupado={removendoItem}
+        titulo="Remover alimento?"
+        mensagem={`Deseja remover “${nomeItemPendenteRemocao || 'este alimento'}” desta refeição?`}
+        rotuloConfirmar="Remover"
+        labelAcessibilidadeConfirmar="Confirmar remoção do alimento"
+        labelAcessibilidadeCancelar="Cancelar remoção do alimento"
+        IconeAcao={Trash2}
+        aoConfirmar={confirmarRemocaoItem}
+        aoCancelar={cancelarRemocaoItem}
+      />
 
     </SafeAreaView>
   );
