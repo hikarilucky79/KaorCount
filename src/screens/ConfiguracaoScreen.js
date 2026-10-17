@@ -6,6 +6,7 @@ import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, LockKeyhole, UserRound, 
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import ConfirmacaoAcaoModal from '../components/ConfirmacaoAcaoModal';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { UNIDADES_PADRAO } from '../util/medidas';
@@ -13,7 +14,7 @@ import { carregarUnidades, salvarUnidades } from '../util/unidades';
 
 export const ITENS_MENU_CONFIGURACAO = [
   { id: 'conta', rota: 'ConfiguracaoConta', grupo: 'CONTA', titulo: 'Conta', descricao: 'E-mail e acesso', Icone: LockKeyhole },
-  { id: 'perfil', rota: 'ConfiguracaoPerfil', grupo: 'CONTA', titulo: 'Editar perfil', descricao: 'Dados pessoais, medidas e atividade', Icone: UserRound },
+  { id: 'perfil', rota: 'ConfiguracaoPerfil', grupo: 'CONTA', titulo: 'Perfil', descricao: 'Dados pessoais, medidas e atividade', Icone: UserRound },
   { id: 'objetivos', rota: 'ConfiguracaoObjetivos', grupo: 'ROTINA', titulo: 'Meus objetivos', descricao: 'Meta e nível de atividade', Icone: Flag },
   { id: 'diario', aba: 'Diário', grupo: 'ROTINA', titulo: 'Diário & Monitor de água', descricao: 'Refeições e hidratação', Icone: BookMarked },
   { id: 'lembretes', rota: 'ConfiguracaoLembretes', grupo: 'ROTINA', titulo: 'Lembretes', descricao: 'Notificações e tema', Icone: BellRing },
@@ -134,6 +135,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
   const [perfilCompleto, setPerfilCompleto] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [deslogando, setDeslogando] = useState(false);
+  const [confirmacaoSaidaVisivel, setConfirmacaoSaidaVisivel] = useState(false);
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [carregandoUnidades, setCarregandoUnidades] = useState(false);
   const secaoSelecionada = route?.params?.secao || null;
@@ -291,27 +293,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }
   };
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      const confirmado = typeof window !== 'undefined' ? window.confirm('Tem certeza que deseja desconectar da sua conta?') : true;
-      if (confirmado) {
-        executarLogout();
-      }
-    } else {
-      Alert.alert(
-        'Sair da conta',
-        'Tem certeza que deseja desconectar?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Sair',
-            style: 'destructive',
-            onPress: executarLogout,
-          },
-        ]
-      );
-    }
-  };
+  const handleLogout = () => setConfirmacaoSaidaVisivel(true);
 
   const gruposMenu = ['CONTA', 'ROTINA', 'PREFERÊNCIAS', 'SUPORTE'].map((grupo) => ({
     grupo,
@@ -452,7 +434,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
         return (
           <View style={[styles.detalheBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
             <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Como usar o KaorCount</Text>
-            <Text style={[styles.detalheTextoSuave, { color: cores.textoSuave, marginTop: 8 }]}>Registre refeições e acompanhe calorias, macronutrientes e hidratação na aba Diário. Seus dados podem ser ajustados em Editar perfil e seus objetivos em Meus objetivos.</Text>
+            <Text style={[styles.detalheTextoSuave, { color: cores.textoSuave, marginTop: 8 }]}>Registre refeições e acompanhe calorias, macronutrientes e hidratação na aba Diário. Seus dados podem ser ajustados em Perfil e seus objetivos em Meus objetivos.</Text>
           </View>
         );
       case 'sobre':
@@ -526,6 +508,13 @@ export default function ConfiguracaoScreen({ navigation, route }) {
           ))}
         </ScrollView>
       )}
+      <ConfirmacaoAcaoModal
+        visivel={confirmacaoSaidaVisivel}
+        cores={cores}
+        ocupado={deslogando}
+        aoConfirmar={executarLogout}
+        aoCancelar={() => setConfirmacaoSaidaVisivel(false)}
+      />
     </SafeAreaView>
   );
 }
