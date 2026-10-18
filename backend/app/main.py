@@ -29,15 +29,18 @@ from app.api import meta_nutri_router, registro_agua_router, refeicao_router
 from app.api import historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router
 from app.api import dashboard_router
 from app.api import relatorio_router
+from app.api.pesquisa_inicial_router import router as pesquisa_inicial_router
 
 app = FastAPI(
     title="KaorCount API",
     description="API REST do aplicativo mobile de nutrição KaorCount",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    # Em produção: sem docs, sem redoc, sem schema público
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
+
 
 # CORS.
 # Desenvolvimento (padrão): liberado para qualquer origem, como antes.
@@ -71,7 +74,7 @@ for router in [
     auth_router, usuario_router, alimento_router, perfil_nutri_router,
     meta_nutri_router, registro_agua_router, refeicao_router,
     historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router,
-    dashboard_router, relatorio_router,
+    dashboard_router, relatorio_router, pesquisa_inicial_router,
 ]:
     app.include_router(router, prefix=settings.API_V1_PREFIX)
 
@@ -85,15 +88,22 @@ app.add_exception_handler(OperationalError, operational_error_handler)
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 INDEX_HTML = PUBLIC_DIR / "html" / "index.html"
 
-# Servir arquivos estáticos (CSS e JS)
-app.mount("/css", StaticFiles(directory=PUBLIC_DIR / "css"), name="css")
-app.mount("/js", StaticFiles(directory=PUBLIC_DIR / "js"), name="js")
+# Servir arquivos estáticos (CSS e JS).
+# Na Vercel o public/ é promovido ao CDN e não acompanha o bundle da função, e
+# um StaticFiles de diretório ausente derruba o import inteiro. Onde os arquivos
+# existem (Docker) o mount acontece; onde não existem, o CDN já atende a rota.
+for _prefixo in ("css", "js"):
+    _pasta = PUBLIC_DIR / _prefixo
+    if _pasta.is_dir():
+        app.mount(f"/{_prefixo}", StaticFiles(directory=_pasta), name=_prefixo)
 
-# Rota para a raiz e para /index.html
-@app.get("/", include_in_schema=False)
-@app.get("/index.html", include_in_schema=False)
-def root():
-    return FileResponse(INDEX_HTML)
+# Raiz e /index.html — só quando o HTML está no bundle. Na Vercel o vercel.json
+# reescreve "/" para /html/index.html, servido direto do CDN.
+if INDEX_HTML.is_file():
+    @app.get("/", include_in_schema=False)
+    @app.get("/index.html", include_in_schema=False)
+    def root():
+        return FileResponse(INDEX_HTML)
 
 @app.get("/health")
 def health():

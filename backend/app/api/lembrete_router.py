@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.lembrete_service import LembreteService
 
@@ -15,6 +15,7 @@ def buscar_config(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = LembreteService(db)
     return service.buscar(id_usuario)
 
@@ -27,6 +28,7 @@ def configurar_agua(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = LembreteService(db)
     return service.atualizar_agua(id_usuario, intervalo_min, meta_diaria_ml)
 
@@ -38,6 +40,7 @@ def configurar_refeicoes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     lista_horarios = [h.strip() for h in horarios.split(",") if h.strip()]
     service = LembreteService(db)
     return service.atualizar_refeicao(id_usuario, lista_horarios)
@@ -49,6 +52,7 @@ def ativar(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = LembreteService(db)
     return service.ativar(id_usuario)
 
@@ -59,5 +63,6 @@ def desativar(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = LembreteService(db)
     return service.desativar(id_usuario)

@@ -2,13 +2,39 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.limite import limitador_usuario
 from app.core.security import get_usuario_atual
 from app.models.usuario import Usuario
-from app.services.fatsecret_service import FatSecretService
+from app.services import fatsecret_service
+from app.services.fatsecret_service import FatSecretService, FatSecretIndisponivel
 from app.services.alimento_service import AlimentoService
 from app.schemas.alimento import AlimentoCreate, AlimentoResponse
 
-router = APIRouter(prefix="/fatsecret", tags=["FatSecret - Base externa de alimentos"])
+# Toda a base externa sai da NOSSA chave do FatSecret, então o teto é por
+# usuário autenticado: sem ele, uma conta bastava para drenar a cota do dia.
+limitar_fatsecret = limitador_usuario(
+    settings.LIMITE_FATSECRET_POR_USUARIO,
+    settings.LIMITE_JANELA_FATSECRET_SEGUNDOS,
+)
+
+router = APIRouter(
+    prefix="/fatsecret",
+    tags=["FatSecret - Base externa de alimentos"],
+    dependencies=[Depends(limitar_fatsecret)],
+)
+
+
+@router.get("/status")
+def status_fonte_externa(
+    usuario: Usuario = Depends(get_usuario_atual),
+):
+    """Informa se a base externa está no ar, para o app conseguir avisar o usuário."""
+    motivo = fatsecret_service.motivo_fonte_externa_bloqueada()
+    return {
+        "disponivel": motivo is None,
+        "motivo": motivo,
+    }
 
 
 @router.get("/buscar")
@@ -28,7 +54,13 @@ def detalhes_alimento(
     food_id: str,
     usuario: Usuario = Depends(get_usuario_atual),
 ):
-    return FatSecretService.buscar_alimento_por_id(food_id)
+    try:
+        return FatSecretService.buscar_alimento_por_id(food_id)
+    except FatSecretIndisponivel as ex:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Base externa de alimentos indisponível: {ex.mensagem}",
+        )
 
 
 @router.post("/importar/{food_id}", response_model=AlimentoResponse, status_code=status.HTTP_201_CREATED)
@@ -37,7 +69,13 @@ def importar_alimento(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
-    dados_import = FatSecretService.importar_alimento(food_id)
+    try:
+        dados_import = FatSecretService.importar_alimento(food_id)
+    except FatSecretIndisponivel as ex:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Base externa de alimentos indisponível: {ex.mensagem}",
+        )
     service = AlimentoService(db)
     if service.buscar_por_nome(dados_import["nome_alimento"], limit=1):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Alimento já cadastrado na base local")

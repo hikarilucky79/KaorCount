@@ -14,6 +14,7 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
+import { distribuicaoCalorica } from '../util/nutricao';
 
 function BarraSemanalAnimada({ altura, cor, diaNome, corTexto, delay = 0, larguraBarra = 14, alturaTrilho = 65 }) {
   const animAltura = useRef(new Animated.Value(0)).current;
@@ -127,11 +128,12 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
-  // ↓ Distribuição de macros
-  const totalMacrosG = proteinaConsumida + carboidratoConsumido + gorduraConsumida;
-  const distProteina = totalMacrosG > 0 ? Math.round((proteinaConsumida / totalMacrosG) * 100) : 0;
-  const distCarboidrato = totalMacrosG > 0 ? Math.round((carboidratoConsumido / totalMacrosG) * 100) : 0;
-  const distGordura = totalMacrosG > 0 ? Math.round((gorduraConsumida / totalMacrosG) * 100) : 0;
+  // ↓ Distribuição de macros em % calórica (4/4/9), não em gramas.
+  const {
+    proteina: distProteina,
+    carboidratos: distCarboidrato,
+    gorduras: distGordura,
+  } = distribuicaoCalorica(proteinaConsumida, carboidratoConsumido, gorduraConsumida);
 
   // ↓ Dados do gráfico semanal
   const diasDaSemanaAbrev = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -251,9 +253,9 @@ export default function HomeScreen({ navigation }) {
           {/* Header com Saudação */}
           <Animated.View style={[styles.header, { opacity: fadeHeader, transform: [{ translateX: slideHeader }] }]}>
             <View>
-              <Text style={[styles.textoOla, { color: cores.textoEscuro, fontSize: rf(18, 15, 22) }]}>Olá,</Text>
+              <Text style={[styles.textoOla, { color: cores.textoSuave, fontFamily: 'PlusJakartaSansSemiBold', fontSize: rf(18, 16, 20), lineHeight: rf(22, 20, 24), marginBottom: -4 }]}>Olá,</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontSize: rf(28, 22, 34) }]}>{nomeUsuario}</Text>
+                <Text style={[styles.textoNome, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(46, 36, 58), fontWeight: '900', letterSpacing: 1.5 }]}>{nomeUsuario}</Text>
                 <HandMetal color={cores.textoEscuro} size={rf(26, 22, 30)} style={{ marginLeft: 8 }} />
               </View>
             </View>
@@ -445,9 +447,8 @@ const styles = StyleSheet.create({
   header: { 
     marginBottom: 20, 
     marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   btnTema: {
     flexDirection: 'row',

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Coffee, Sandwich, UtensilsCrossed, Cookie, Droplets, Plus, Trash2, X, Search, Check, ChevronLeft, ChevronRight, Scale, Apple, Sun, Moon } from 'lucide-react-native';
+import ConfirmacaoAcaoModal from '../components/ConfirmacaoAcaoModal';
 import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
@@ -27,13 +28,9 @@ import * as registroAguaApi from '../api/registroAguaApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import * as alimentoApi from '../api/alimentoApi';
 import * as fatsecretApi from '../api/fatsecretApi';
-
-const formatarDataAPI = (data) => {
-  const ano = data.getFullYear();
-  const mes = String(data.getMonth() + 1).padStart(2, '0');
-  const dia = String(data.getDate()).padStart(2, '0');
-  return `${ano}-${mes}-${dia}`;
-};
+import { formatarDataAPI } from '../util/data';
+import { UNIDADES_PADRAO, formatarAgua } from '../util/medidas';
+import { carregarUnidades } from '../util/unidades';
 
 const normalizarTexto = (txt) => 
   (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -49,9 +46,14 @@ export default function DiarioAlimentar({ navigation }) {
   const [macros, setMacros] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
   const [agua, setAgua] = useState(0);
+  const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState(false);
+  const [confirmacaoRemocaoVisivel, setConfirmacaoRemocaoVisivel] = useState(false);
+  const [idItemPendenteRemocao, setIdItemPendenteRemocao] = useState(null);
+  const [nomeItemPendenteRemocao, setNomeItemPendenteRemocao] = useState('');
+  const [removendoItem, setRemovendoItem] = useState(false);
 
   // ↓ Estados do Modal de Adicionar Alimento
   const [modalVisivel, setModalVisivel] = useState(false);
@@ -60,6 +62,7 @@ export default function DiarioAlimentar({ navigation }) {
   const [busca, setBusca] = useState('');
   const [alimentosBuscados, setAlimentosBuscados] = useState([]);
   const [buscandoExterna, setBuscandoExterna] = useState(false);
+  const [avisoExterna, setAvisoExterna] = useState(null);
   const [alimentoSelecionado, setAlimentoSelecionado] = useState(null);
   const [quantidadeG, setQuantidadeG] = useState('100');
   const [salvandoItem, setSalvandoItem] = useState(false);
@@ -239,6 +242,7 @@ export default function DiarioAlimentar({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
+      carregarUnidades().then(setUnidades);
       animEntrada.setValue(0);
       Animated.timing(animEntrada, {
         toValue: 1,
@@ -323,6 +327,7 @@ export default function DiarioAlimentar({ navigation }) {
     if (!q) {
       setAlimentosBuscados([]);
       setBuscandoExterna(false);
+      setAvisoExterna(null);
       return;
     }
 
@@ -330,12 +335,17 @@ export default function DiarioAlimentar({ navigation }) {
     const timer = setTimeout(async () => {
       try {
         const res = await fatsecretApi.buscarAlimentos(q, 0, 30);
-        if (res?.alimentos && res.alimentos.length > 0) {
-          setAlimentosBuscados(res.alimentos);
-        } else {
-          setAlimentosBuscados([]);
-        }
+        // A base externa pode estar fora do ar (IP não liberado, cota, etc.).
+        // Nesses casos o backend já devolve o catálogo brasileiro e sinaliza
+        // com `fonte_externa_indisponivel`; não é erro para o usuário.
+        setAlimentosBuscados(res?.alimentos || []);
+        setAvisoExterna(
+          res?.fonte_externa_indisponivel
+            ? 'Busca completa apenas na base brasileira (TACO). A base externa está temporariamente indisponível.'
+            : null
+        );
       } catch (err) {
+        setAvisoExterna('Não foi possível consultar as bases de alimentos.');
         try {
           const resLocal = await alimentoApi.buscarPorNome(q, 30);
           setAlimentosBuscados(resLocal || []);
@@ -488,39 +498,39 @@ export default function DiarioAlimentar({ navigation }) {
   // ───────────────────────────────────────────────────────────
   // ↓ Remover alimento da refeição
   // ───────────────────────────────────────────────────────────
-  const removerItem = (idItem) => {
-    const executarRemocao = async () => {
-      try {
-        await refeicaoApi.removerItem(idItem);
-        await carregarDados(true);
-      } catch (error) {
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert('Não foi possível remover o item.');
-        } else {
-          Alert.alert('Erro', 'Não foi possível remover o item.');
-        }
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmado = typeof window !== 'undefined' ? window.confirm('Deseja remover este item da refeição?') : true;
-      if (confirmado) {
-        executarRemocao();
-      }
-    } else {
-      Alert.alert(
-        'Remover alimento',
-        'Deseja remover este item da refeição?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Remover',
-            style: 'destructive',
-            onPress: executarRemocao,
-          },
-        ]
-      );
+  const removerItem = (idItem, nomeItem) => {
+    if (idItem == null || (typeof idItem === 'string' && !idItem.trim())) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível identificar o alimento.');
+      else Alert.alert('Erro', 'Não foi possível identificar o alimento.');
+      return;
     }
+    setIdItemPendenteRemocao(idItem);
+    setNomeItemPendenteRemocao(nomeItem || 'este alimento');
+    setConfirmacaoRemocaoVisivel(true);
+  };
+
+  const confirmarRemocaoItem = async () => {
+    if (idItemPendenteRemocao == null || removendoItem) return;
+    setRemovendoItem(true);
+    try {
+      await refeicaoApi.removerItem(idItemPendenteRemocao);
+      setConfirmacaoRemocaoVisivel(false);
+      setIdItemPendenteRemocao(null);
+      setNomeItemPendenteRemocao('');
+      await carregarDados(true);
+    } catch (error) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível remover o item.');
+      else Alert.alert('Erro', 'Não foi possível remover o item.');
+    } finally {
+      setRemovendoItem(false);
+    }
+  };
+
+  const cancelarRemocaoItem = () => {
+    if (removendoItem) return;
+    setConfirmacaoRemocaoVisivel(false);
+    setIdItemPendenteRemocao(null);
+    setNomeItemPendenteRemocao('');
   };
 
   // ───────────────────────────────────────────────────────────
@@ -614,9 +624,11 @@ export default function DiarioAlimentar({ navigation }) {
                         backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FFF5F5',
                       }
                     ]}
-                    onPress={() => removerItem(item.id_refeicao_item || item.id_item_refeicao)}
+                    onPress={() => removerItem(item.id_refeicao_item || item.id_item_refeicao, alimentoNome)}
                     activeOpacity={0.6}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remover ${alimentoNome}`}
                   >
                     <Trash2 size={15} color="#FF5C5C" />
                   </TouchableOpacity>
@@ -727,7 +739,7 @@ export default function DiarioAlimentar({ navigation }) {
                     <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro, fontSize: rf(14, 12, 17) }]}>Hidratação</Text>
                   </View>
                   <Text style={[styles.volAguaText, { color: '#2F80ED', fontSize: rf(16, 14, 19) }]}>
-                    {agua} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua} ml</Text>
+                    {formatarAgua(agua, unidades.agua)} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {formatarAgua(metaAgua, unidades.agua)}</Text>
                   </Text>
                 </View>
                 
@@ -746,11 +758,13 @@ export default function DiarioAlimentar({ navigation }) {
                           borderColor: isDark ? '#223B5A' : '#D0E4FF' 
                         }
                       ]} 
-                      onPress={() => adicionarAgua(qtd)} 
+                      onPress={() => adicionarAgua(qtd)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Adicionar ${formatarAgua(qtd, unidades.agua)} de água`}
                       disabled={adicionandoAgua}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{qtd}ml</Text>
+                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{formatarAgua(qtd, unidades.agua)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -765,7 +779,7 @@ export default function DiarioAlimentar({ navigation }) {
       {/* ─────────────────────────────────────────────────────────── */}
       {/* ↓ MODAL: ADICIONAR ALIMENTO (FULL SCREEN TOTAL FIGMA)        */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <Modal 
+      <Modal
         visible={modalVisivel} 
         animationType="slide" 
         presentationStyle="fullScreen"
@@ -908,7 +922,7 @@ export default function DiarioAlimentar({ navigation }) {
                       <View style={styles.containerBuscaVazia}>
                         <Search size={48} color={isDark ? '#3D3126' : '#EDD9C3'} style={{ marginBottom: 14 }} />
                         <Text style={[styles.txtInstrucaoBusca, { color: isDark ? '#B8A89A' : cores.textoSuave }]}>
-                          {busca.trim() ? `Nenhum alimento encontrado para "${busca}"` : 'Digite o nome do alimento para buscar no FatSecret'}
+                          {busca.trim() ? `Nenhum alimento encontrado para "${busca}"` : 'Digite o nome do alimento para buscar'}
                         </Text>
                       </View>
                     ) : (
@@ -918,12 +932,19 @@ export default function DiarioAlimentar({ navigation }) {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 30 }}
                         ListHeaderComponent={
-                          buscandoExterna ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 6 }}>
-                              <ActivityIndicator size="small" color={cores.primaria} />
-                              <Text style={{ fontSize: 12, color: cores.textoSuave }}>Buscando alimentos...</Text>
-                            </View>
-                          ) : null
+                          <>
+                            {buscandoExterna ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 6 }}>
+                                <ActivityIndicator size="small" color={cores.primaria} />
+                                <Text style={{ fontSize: 12, color: cores.textoSuave }}>Buscando alimentos...</Text>
+                              </View>
+                            ) : null}
+                            {avisoExterna && !buscandoExterna ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: isDark ? '#2A241C' : '#FFF6E5', borderRadius: 8 }}>
+                                <Text style={{ fontSize: 12, color: isDark ? '#E3C88A' : '#8A6D3B', flex: 1 }}>{avisoExterna}</Text>
+                              </View>
+                            ) : null}
+                          </>
                         }
                         renderItem={({ item }) => (
                           <TouchableOpacity 
@@ -1042,6 +1063,20 @@ export default function DiarioAlimentar({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <ConfirmacaoAcaoModal
+        visivel={confirmacaoRemocaoVisivel}
+        cores={cores}
+        ocupado={removendoItem}
+        titulo="Remover alimento?"
+        mensagem={`Deseja remover “${nomeItemPendenteRemocao || 'este alimento'}” desta refeição?`}
+        rotuloConfirmar="Remover"
+        labelAcessibilidadeConfirmar="Confirmar remoção do alimento"
+        labelAcessibilidadeCancelar="Cancelar remoção do alimento"
+        IconeAcao={Trash2}
+        aoConfirmar={confirmarRemocaoItem}
+        aoCancelar={cancelarRemocaoItem}
+      />
 
     </SafeAreaView>
   );

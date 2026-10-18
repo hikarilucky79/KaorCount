@@ -17,8 +17,11 @@
 	# E-mail para avisos do Let's Encrypt (renovação, expiração).
 	email {$ACME_EMAIL}
 
-	# Redireciona todo o tráfego HTTP para HTTPS.
-	admin off
+	# Admin do Caddy na loopback do container (o default dele). O healthcheck do
+	# docker-compose.prod.yml sonda :2019/config/, e "admin off" desligava esse
+	# endpoint — o container nunca ficava saudável. A porta não é publicada no
+	# host, então a API de admin continua alcançável só de dentro do container.
+	admin localhost:2019
 }
 
 # ─── App web + API no mesmo domínio ────────────────────────────────

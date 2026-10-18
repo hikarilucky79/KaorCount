@@ -26,6 +26,8 @@ Projeto Integrador do Curso Técnico em Desenvolvimento de Sistemas do
 - [Documentação da API](#documentação-da-api)
 - [Endpoints](#endpoints)
 - [Banco de dados](#banco-de-dados)
+- [CI/CD (GitHub Actions)](#cicd-github-actions)
+- [Backend na Vercel (sem Docker)](#backend-na-vercel-sem-docker)
 - [Mapeamento dos requisitos funcionais](#mapeamento-dos-requisitos-funcionais)
 - [Equipe](#equipe)
 
@@ -71,7 +73,7 @@ acessíveis.
 
 | Módulo | Descrição |
 |---|---|
-| **Autenticação** | Cadastro, login e JWT (HS256). Modo híbrido opcional com Auth0 (RS256 + provisionamento JIT) |
+| **Autenticação** | Cadastro, login e JWT (HS256) emitidos pelo próprio backend |
 | **Perfil nutricional** | Data de nascimento, gênero, objetivo (perder/manter/ganhar) e nível de atividade |
 | **Metas nutricionais** | Calorias e macros por período, com TMB calculada pela fórmula de Mifflin-St Jeor |
 | **Refeições** | Registro por tipo (café, almoço, lanche, jantar) com itens e quantidades em gramas |
@@ -189,7 +191,7 @@ KaorCount/
 ├── metro.config.js            # Config do Metro + shim de gesture-handler no web
 ├── src/
 │   ├── api/                   # Clientes HTTP por domínio (auth, refeicao, metaNutri, ...)
-│   ├── auth/                  # Config do Auth0 e bridge de token
+│   ├── auth/                  # Leitura do token no AsyncStorage
 │   ├── components/            # Componentes reutilizáveis
 │   ├── constants/             # Paleta de cores
 │   ├── contexts/              # AuthContext e ThemeContext
@@ -426,7 +428,7 @@ explicativa.
 | `CADDY_DOMAIN` | Domínio que receberá o HTTPS. O DNS precisa apontar para o servidor |
 | `ACME_EMAIL` | E-mail para avisos do Let's Encrypt sobre o certificado |
 | `CORS_ORIGINS` | Domínios liberados no CORS, separados por vírgula |
-| `SECRET_KEY` | **Obrigatória.** Chave de assinatura do JWT |
+| `SECRET_KEY` | **Obrigatória.** Chave de assinatura do JWT — a API recusa subir em produção se ela for a padrão do repositório ou tiver menos de 32 caracteres |
 | `DB_PASSWORD` | **Obrigatória.** Senha do usuário do banco |
 | `DB_ROOT_PASSWORD` | **Obrigatória.** Senha do root do MySQL |
 
@@ -437,12 +439,10 @@ explicativa.
 | `DATABASE_URL` | `mysql+pymysql://root:senha@localhost:3306/kaorcount` | String de conexão |
 | `SECRET_KEY` | `trocar-esta-chave-em-producao` | Chave de assinatura do JWT |
 | `ALGORITHM` | `HS256` | Algoritmo do JWT |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Validade do token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `43200` (30 dias) | Validade da sessão; configure menor se necessário |
 | `API_V1_PREFIX` | `/api/v1` | Prefixo de todas as rotas |
 | `FATSECRET_CLIENT_ID` | vazio | Credencial da API FatSecret |
 | `FATSECRET_CLIENT_SECRET` | vazio | Credencial da API FatSecret |
-| `AUTH0_DOMAIN` | vazio | Domínio do tenant Auth0 |
-| `AUTH0_AUDIENCE` | vazio | Audience do Auth0 |
 | `ENVIRONMENT` | `development` | `production` ativa as travas de segurança |
 | `CORS_ORIGINS` | vazio | Domínios permitidos no CORS (obrigatório em produção) |
 
@@ -451,23 +451,50 @@ explicativa.
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | vazio | Sobrescreve a URL da API (ex.: `/api/v1` ou `https://api.exemplo.com/api/v1`) |
-| `EXPO_PUBLIC_AUTH0_DOMAIN` | vazio | Domínio do Auth0 (vazio = login legado com JWT) |
-| `EXPO_PUBLIC_AUTH0_CLIENT_ID` | vazio | Client ID do Auth0 |
-| `EXPO_PUBLIC_AUTH0_AUDIENCE` | vazio | Audience do Auth0 |
 
 As variáveis `EXPO_PUBLIC_*` são **embutidas no bundle em tempo de build** — mudar uma
 delas exige rebuild.
 
-### Modo híbrido de autenticação
+### Autenticação
 
-O projeto tem dois fluxos de login:
+A autenticação é **100% local**, sem provedor externo:
 
-1. **Legado (padrão)** — token HS256 gerado pelo próprio backend.
-2. **Auth0 (opcional)** — habilitado quando `AUTH0_DOMAIN` + `EXPO_PUBLIC_AUTH0_DOMAIN`
-   e `EXPO_PUBLIC_AUTH0_CLIENT_ID` estão preenchidos. O backend valida tokens RS256
-   contra o JWKS público do tenant e faz o provisionamento do usuário pelo `sub`.
+1. O app envia e-mail e senha para `POST /api/v1/auth/login`.
+2. O backend confere a senha com **bcrypt** e devolve um **JWT HS256**.
+3. O token fica salvo no `AsyncStorage` e é injetado automaticamente
+   em toda requisição pelo interceptor do `src/api/client.js`.
 
-O Auth0 só é ativado no **web**; o mobile continua no fluxo legado.
+Endpoints disponíveis:
+
+| Endpoint | Uso |
+|---|---|
+| `POST /api/v1/auth/registrar` | Cria a conta (nome, e-mail e senha) |
+| `POST /api/v1/auth/login` | Valida a senha e emite o token |
+| `GET  /api/v1/auth/me` | Devolve o perfil do usuário logado |
+
+As senhas nunca saem do banco: são armazenadas apenas como hash bcrypt,
+e o `SECRET_KEY` que assina o token é uma variável de ambiente.
+
+> ⚠️ **Migração obrigatória no banco.** O Auth0 foi removido do código, mas
+> as colunas `auth0_sub` e `auth0_email_verified` podem continuar existindo
+> em bancos já criados. Como `auth0_email_verified` é `NOT NULL` sem valor
+> padrão, o `INSERT` de novos usuários passa a falhar e o cadastro passa a
+> responder **409**. Rode **uma vez** o script
+> [`backend/banco_de_dados/migracao_remover_auth0.sql`](backend/banco_de_dados/migracao_remover_auth0.sql)
+> em todo banco que já tenha a tabela `usuario` (MySQL de produção e o
+> SQLite local). Bancos novos, criados a partir do `banco.sql` já
+> atualizado, não precisam do script.
+
+> ⚠️ **Migração obrigatória (Auth0 removido).** Quem já tinha o banco criado
+> precisa remover as colunas `auth0_sub` e `auth0_email_verified` da tabela
+> `usuario`. Sem isso o cadastro falha com `409`, porque
+> `auth0_email_verified` é `NOT NULL` e o código não a preenche mais.
+>
+> ```bash
+> mysql -u USER -p NOME_DO_BANCO < backend/banco_de_dados/migracao_remover_auth0.sql
+> ```
+>
+> Bases novas já nascem corretas a partir de `banco.sql`.
 
 ---
 
@@ -558,8 +585,8 @@ curl http://localhost:8000/api/v1/auth/me \
 | GET | `/alimentos/buscar?nome=...` | Busca alimentos por nome |
 | GET | `/alimentos/{id_alimento}` | Busca alimento por id |
 | POST | `/alimentos/` | Cadastra alimento |
-| PUT | `/alimentos/{id_alimento}` | Atualiza alimento |
-| DELETE | `/alimentos/{id_alimento}` | Remove alimento |
+
+Sem `PUT` nem `DELETE`: o catálogo é compartilhado entre os usuários, então editar ou remover um alimento alteraria refeições já registradas por outras contas. A API aceita apenas inclusão.
 
 ### Bases externas (FatSecret e TACO)
 
@@ -671,7 +698,7 @@ aplicação. Principais entidades:
 
 | Tabela | Descrição | Relação |
 |---|---|---|
-| `usuario` | Usuários (UUID, email único, hash da senha, vínculo Auth0) | — |
+| `usuario` | Usuários (UUID, nome, e-mail único, hash da senha) | — |
 | `perfil_nutri` | Perfil antropométrico e objetivo | 1:1 com usuário |
 | `meta_nutri` | Metas calóricas e de macros por data | 1:N com usuário |
 | `registro_agua` | Ingestão de água por dia | 1:N com usuário |
@@ -910,6 +937,80 @@ EXPO_PUBLIC_API_URL=https://seudominio.com.br/api/v1
 ./run.sh down      # derruba (mantém banco e certificados)
 ./run.sh reset     # ⚠️ apaga o banco (pede confirmação)
 ```
+
+---
+
+## CI/CD (GitHub Actions)
+
+Dois workflows em `.github/workflows/`.
+
+### `ci.yml` — verificação
+
+Roda em todo push e em toda PR para `main`, em três jobs independentes:
+
+| Job | O que confere |
+|---|---|
+| **API (FastAPI)** | compila os módulos, **importa `app.main`** (um import quebrado passa pelo `compileall` e só apareceria no deploy), e confirma que a produção continua recusando `SECRET_KEY` padrão ou curta e que `/alimentos` continua sem `PUT`/`DELETE` |
+| **Compose + Caddy** | `docker compose config` dos dois arquivos, `CADDY_DOMAIN` chegando de fato ao container, MySQL sem porta publicada no host, e `caddy validate` no Caddyfile |
+| **App (Expo web)** | `npm ci` + `npx expo export --platform web` — o mesmo build do Dockerfile, e o único passo que faz o parse das telas (o `tsconfig.json` é um stub sem nenhum `.ts`) |
+
+O repositório ainda não tem testes automatizados, então a CI é um gate
+**estrutural**, não de comportamento. E ela nunca vê as senhas reais: a validação
+do compose de produção usa o `.env.prod.example` versionado.
+
+### `deploy.yml` — publicação
+
+Disparado à mão (Actions → *Deploy* → **Run workflow**). Entra por SSH no
+servidor, faz `git pull`, roda `./run.sh check` e `./run.sh prod`, e espera os
+containers `kaorcount-caddy`, `kaorcount-web` e `kaorcount-db` ficarem
+saudáveis. A concorrência é serializada de propósito: cancelar um deploy no
+meio deixaria a stack pela metade.
+
+Precisa existir no repositório (Settings → Secrets and variables → Actions):
+
+| Tipo | Nome | Conteúdo |
+|---|---|---|
+| Secret | `DEPLOY_SSH_KEY` | chave **privada** cujo par público está no `authorized_keys` do servidor |
+| Secret | `DEPLOY_HOST`, `DEPLOY_USER` | host e usuário do SSH — não é o domínio do site |
+| Secret | `DEPLOY_KNOWN_HOSTS` | saída de `ssh-keyscan -t ed25519,rsa <host>` |
+| Variable | `DEPLOY_PATH` | caminho do repositório no servidor (padrão `KaorCount`) |
+| Variable | `DEPLOY_BRANCH` | branch publicada (padrão `main`) |
+
+O `.env.prod` **não** passa pelo GitHub: ele fica no servidor, e é de lá que o
+compose o lê. Se faltar qualquer item, o workflow falha no primeiro passo
+dizendo qual.
+
+---
+
+## Backend na Vercel (sem Docker)
+
+Sobe **só a API** e a página institucional da Keenko; o app Expo e o compose
+ficam de fora.
+
+1. Importe o repositório e defina **Root Directory = `backend`**
+   (Settings → General). É o que limita o deploy à API + `public/`.
+2. Copie `.env.vercel.example` para as **Environment Variables** do painel
+   (Settings → Environment Variables). `DATABASE_URL`, `SECRET_KEY`,
+   `CORS_ORIGINS` e `ENVIRONMENT=production` são obrigatórios — a API recusa
+   subir sem eles.
+3. `backend/vercel.json` já traz o resto: região `gru1` (São Paulo), 1024 MB /
+   30 s de `maxDuration` (o PDF de relatório é o que mais demora) e os
+   cabeçalhos de segurança que hoje só o Caddy aplica.
+
+Não precisa criar `api/index.py` nem `asgi.py`: o Vercel detecta FastAPI e procura
+a instância `app` em `app/main.py`, que é exatamente onde ela já está.
+
+**O banco tem que ser alcançável pela internet.** O MySQL do `docker-compose` não
+serve — ele escuta só na rede interna do host. Com `ENVIRONMENT=production` a API
+recusa a cair para SQLite e falha no import; e mesmo em desenvolvimento o SQLite
+não teria onde persistir, porque o disco da function é somente leitura fora de
+`/tmp` e efêmero a cada invocação.
+
+Dois efeitos colaterais, ambos bons: na Vercel o `backend/public/` é servido na
+raiz, então `/img/logo_KaorCount.svg` passa a existir (conserta as imagens que hoje
+quebram porque a API monta só `/css` e `/js`), e a landing page vira arquivo
+estático de CDN — o `vercel.json` reescreve `/` e `/index.html` para
+`/html/index.html` em vez de depender do `FileResponse` dentro da function.
 
 ---
 

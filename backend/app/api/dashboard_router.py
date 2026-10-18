@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.dashboard_service import DashboardService
 
@@ -27,6 +27,7 @@ def resumo_dia(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = DashboardService(db)
     return service.resumo_dia(id_usuario, data)
 
@@ -42,6 +43,7 @@ def resumo_semana(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = DashboardService(db)
     return service.resumo_semana(id_usuario, data_fim)
 
@@ -57,6 +59,7 @@ def resumo_mes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = DashboardService(db)
     return service.resumo_mes(id_usuario, data_fim)
 
@@ -72,5 +75,6 @@ def evolucao_peso(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = DashboardService(db)
     return service.evolucao_peso(id_usuario, limit)

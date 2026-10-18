@@ -46,7 +46,7 @@ checar_producao() {
     echo "      cp .env.prod.example $ENV_PROD   e edite os valores."
     exit 1
   fi
-  for var in SECRET_KEY DB_PASSWORD DB_ROOT_PASSWORD CORS_ORIGINS CADDY_DOMAIN; do
+  for var in SECRET_KEY DB_PASSWORD DB_ROOT_PASSWORD CORS_ORIGINS CADDY_DOMAIN ACME_EMAIL; do
     if ! grep -qE "^${var}=.+" "$ENV_PROD"; then
       echo "ERRO: variável $var vazia ou ausente no $ENV_PROD."
       ok=0

@@ -1,21 +1,44 @@
 import os
+import ssl
+
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.core.config import settings
 
 Base = declarative_base()
 
+
+def _ssl_do_banco():
+    """
+    TiDB Cloud (e afins) exigem TLS e o certificado encadeia numa CA pública,
+    então dá para verificar sem arquivo. O pymysql só liga check_hostname quando
+    recebe um ssl_ca; sem ele, ssl_verify_identity é ignorado e sobra apenas a
+    validação de cadeia. Aqui o contexto do sistema cobre os dois.
+    """
+    consulta = make_url(settings.DATABASE_URL).query
+    if consulta.get("ssl_ca"):
+        return None  # quem forneceu o PEM segue pelo caminho nativo do pymysql
+    if consulta.get("ssl_verify_identity") or consulta.get("ssl_verify_cert"):
+        return ssl.create_default_context()
+    return None
+
+
 def criar_engine():
     db_url = settings.DATABASE_URL
     if not db_url.startswith("sqlite"):
+        connect_args = {"connect_timeout": 10}
+        contexto_ssl = _ssl_do_banco()
+        if contexto_ssl:
+            connect_args["ssl"] = contexto_ssl
         try:
             test_engine = create_engine(
                 db_url,
                 pool_pre_ping=True,
                 pool_size=5,
                 max_overflow=10,
-                connect_args={"connect_timeout": 3},
+                connect_args=connect_args,
                 echo=False,
             )
             with test_engine.connect() as conn:

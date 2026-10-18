@@ -42,19 +42,5 @@ export const criar = async (dados) => {
   return response.data;
 };
 
-/**
- * Atualizar alimento.
- * PUT /alimentos/{id_alimento}
- */
-export const atualizar = async (idAlimento, dados) => {
-  const response = await api.put(`/alimentos/${idAlimento}`, dados);
-  return response.data;
-};
-
-/**
- * Deletar alimento.
- * DELETE /alimentos/{id_alimento}
- */
-export const deletar = async (idAlimento) => {
-  await api.delete(`/alimentos/${idAlimento}`);
-};
+// O catálogo de alimentos é compartilhado: a API aceita apenas inclusão, nunca
+// edição ou remoção de um alimento já usado nas refeições de outros usuários.

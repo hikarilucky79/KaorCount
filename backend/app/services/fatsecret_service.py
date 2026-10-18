@@ -3,10 +3,68 @@
 # Serviço de integração com FatSecret com Catálogo Híbrido/Fallback Offline
 # ───────────────────────────────────────────────────────────────
 import re
+import time
 import unicodedata
 import httpx
-from fastapi import HTTPException, status
 from app.services.fatsecret_auth_service import FatAuthService
+
+
+# ───────────────────────────────────────────────────────────────
+# Estado de disponibilidade da API externa
+# ───────────────────────────────────────────────────────────────
+# Enquanto a FatSecret estiver bloqueando as chamadas (IP não liberado,
+# credencial inválida, cota estourada), não vale a pena chamar o servidor
+# a cada tecla digitada na busca. Guardamos um cooldown curto e seguimos
+# servindo apenas o catálogo brasileiro (TACO + culinária).
+COOLDOWN_FONTE_EXTERNA_SEGUNDOS = 300
+
+_fonte_externa_bloqueada_ate: float = 0.0
+_fonte_externa_motivo: str | None = None
+
+# Padrões de mensagem que caracterizam erro de configuração/conta, ou seja,
+# erro que uma nova requisição não resolve.
+_PADROES_ERRO_IRRECUPERAVEL = (
+    "invalid ip address",
+    "invalid ip",
+    "invalid consumer",
+    "consumer key invalid",
+)
+
+
+class FatSecretIndisponivel(Exception):
+    """Sinaliza que a API do FatSecret não respondeu de forma utilizável."""
+
+    def __init__(self, mensagem: str, *, codigo=None, irrecuperavel: bool = False):
+        super().__init__(mensagem)
+        self.mensagem = mensagem
+        self.codigo = codigo
+        self.irrecuperavel = irrecuperavel
+
+
+def _classificar_erro(mensagem: str) -> bool:
+    """Diz se o erro do FatSecret é de configuração (não adianta repetir)."""
+    texto = (mensagem or "").lower()
+    return any(padrao in texto for padrao in _PADROES_ERRO_IRRECUPERAVEL)
+
+
+def fonte_externa_bloqueada() -> bool:
+    return time.time() < _fonte_externa_bloqueada_ate
+
+
+def motivo_fonte_externa_bloqueada() -> str | None:
+    return _fonte_externa_motivo if fonte_externa_bloqueada() else None
+
+
+def _bloquear_fonte_externa(motivo: str) -> None:
+    global _fonte_externa_bloqueada_ate, _fonte_externa_motivo
+    _fonte_externa_bloqueada_ate = time.time() + COOLDOWN_FONTE_EXTERNA_SEGUNDOS
+    _fonte_externa_motivo = motivo
+
+
+def _liberar_fonte_externa() -> None:
+    global _fonte_externa_bloqueada_ate, _fonte_externa_motivo
+    _fonte_externa_bloqueada_ate = 0.0
+    _fonte_externa_motivo = None
 
 
 def _as_list(val) -> list:
@@ -57,6 +115,22 @@ def _parse_food_description(desc: str) -> dict:
 
 
 # ───────────────────────────────────────────────────────────────
+# Códigos de erro do FatSecret que exigem ação de configuração,
+# traduzidos para uma mensagem que aponta a causa real.
+_ERROS_ACAO = {
+    21: (
+        "IP do servidor nao autorizado pelo FatSecret. "
+        "Adicione o IP publico de deploy em MyFatSecretPlatform > "
+        "Application > IP Ranges (ou remova a restricao)."
+    ),
+}
+
+
+def _traduzir_erro_fatsecret(code, msg: str) -> str:
+    """Devolve uma mensagem acionavel para erros conhecidos do FatSecret."""
+    return _ERROS_ACAO.get(code, f"FatSecret API Error [{code}]: {msg}")
+
+
 # ───────────────────────────────────────────────────────────────
 # Catálogo Extenso Brasileiro & Tabela TACO / IBGE
 # (Permite testar e pesquisar alimentos típicos do Brasil com riqueza de detalhes)
@@ -67,25 +141,52 @@ class FatSecretService:
 
     @classmethod
     def _request(cls, params: dict) -> dict:
-        token = FatAuthService.get_token()
+        # Se a fonte externa acabou de falhar por motivo de configuração,
+        # não gastamos chamada: devolvemos o erro em cache.
+        if fonte_externa_bloqueada():
+            raise FatSecretIndisponivel(
+                motivo_fonte_externa_bloqueada() or "API externa temporariamente indisponível",
+                irrecuperavel=True,
+            )
+
+        try:
+            token = FatAuthService.get_token()
+        except Exception as ex:
+            raise FatSecretIndisponivel(f"Falha ao autenticar na API: {ex}") from ex
+
         params["format"] = "json"
-        response = httpx.post(
-            cls.API_URL,
-            data=params,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded"},
-            timeout=15,
-        )
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = httpx.post(
+                cls.API_URL,
+                data=params,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as ex:
+            raise FatSecretIndisponivel(f"Falha de rede ao consultar a API: {ex}") from ex
+
         if isinstance(data, dict) and "error" in data:
             err = data["error"]
+            if not isinstance(err, dict):
+                err = {"code": None, "message": str(err)}
             code = err.get("code")
             msg = err.get("message")
+            irrecuperavel = _classificar_erro(msg)
             print(f"[FatSecret] Erro retornado pela API ({code}): {msg}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"FatSecret API Error [{code}]: {msg}",
+            # Usa a mensagem traduzida: ela diz qual ação de configuração resolver.
+            detalhe = _traduzir_erro_fatsecret(code, msg)
+            if irrecuperavel:
+                _bloquear_fonte_externa(detalhe)
+            raise FatSecretIndisponivel(
+                detalhe,
+                codigo=code,
+                irrecuperavel=irrecuperavel,
             )
+
+        # Resposta utilizável: limpa o bloqueio anterior.
+        _liberar_fonte_externa()
         return data
 
     @classmethod
@@ -182,21 +283,36 @@ class FatSecretService:
                 })
                 nomes_existentes.add(_normalizar(nome_f))
 
+            # Resposta parcial: a fonte externa respondeu, mas a lista final
+            # pode exceder o limite pedido.
             return {
-                "alimentos": alimentos_formatados,
-                "total_resultados": len(alimentos_formatados),
+                "alimentos": alimentos_formatados[:max_resultados],
+                "total_resultados": len(alimentos_formatados[:max_resultados]),
                 "pagina": pagina,
                 "max_resultados": max_resultados,
+                "fonte_externa_indisponivel": False,
             }
-        except HTTPException:
-            raise
+        except FatSecretIndisponivel as ex:
+            # A base brasileira (TACO + culinária) já foi consultada com sucesso
+            # antes desta chamada. Devolvemos esses resultados em vez de quebrar
+            # a busca inteira: o usuário continua buscando normalmente.
+            print(f"[FatSecret] Fonte externa indisponível, servindo catálogo local: {ex}")
+            return {
+                "alimentos": alimentos_formatados[:max_resultados],
+                "total_resultados": len(alimentos_formatados[:max_resultados]),
+                "pagina": pagina,
+                "max_resultados": max_resultados,
+                "fonte_externa_indisponivel": True,
+                "aviso_fonte_externa": ex.mensagem,
+            }
         except Exception as ex:
             print(f"[FatSecret] Erro na busca de alimentos: {ex}")
             return {
-                "alimentos": alimentos_formatados,
-                "total_resultados": len(alimentos_formatados),
+                "alimentos": alimentos_formatados[:max_resultados],
+                "total_resultados": len(alimentos_formatados[:max_resultados]),
                 "pagina": pagina,
                 "max_resultados": max_resultados,
+                "fonte_externa_indisponivel": True,
             }
 
     @classmethod

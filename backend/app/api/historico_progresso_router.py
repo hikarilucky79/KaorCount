@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.historico_progresso_service import HistoricoProgressoService
 from app.schemas.historico_progresso import HistoricoProgressoCreate, HistoricoProgressoUpdate, HistoricoProgressoResponse
@@ -21,6 +21,7 @@ def listar_historico(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = HistoricoProgressoService(db)
     return service.listar_por_usuario(id_usuario, skip, limit)
 
@@ -33,6 +34,7 @@ def historico_por_periodo(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = HistoricoProgressoService(db)
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
@@ -44,7 +46,9 @@ def buscar_historico(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = HistoricoProgressoService(db)
-    return service.buscar_por_id(id_progresso)
+    registro = service.buscar_por_id(id_progresso)
+    garantir_proprio_usuario(usuario, registro.id_usuario)
+    return registro
 
 
 @router.post("/", response_model=HistoricoProgressoResponse, status_code=status.HTTP_201_CREATED)
@@ -53,6 +57,7 @@ def criar_historico(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, dados.id_usuario)
     service = HistoricoProgressoService(db)
     return service.criar(dados)
 
@@ -65,6 +70,7 @@ def atualizar_historico(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = HistoricoProgressoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_progresso).id_usuario)
     return service.atualizar(id_progresso, dados)
 
 
@@ -75,4 +81,5 @@ def deletar_historico(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = HistoricoProgressoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_progresso).id_usuario)
     service.deletar(id_progresso)

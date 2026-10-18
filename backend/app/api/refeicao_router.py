@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.refeicao_service import RefeicaoService
 from app.schemas.refeicao import RefeicaoCreate, RefeicaoUpdate, RefeicaoResponse
@@ -22,6 +22,7 @@ def listar_refeicoes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RefeicaoService(db)
     return service.listar_por_usuario(id_usuario, skip, limit)
 
@@ -34,6 +35,7 @@ def refeicoes_por_periodo(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RefeicaoService(db)
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
@@ -45,6 +47,7 @@ def refeicoes_por_dia(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RefeicaoService(db)
     return service.listar_por_dia(id_usuario, data)
 
@@ -56,6 +59,7 @@ def resumo_macros_dia(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RefeicaoService(db)
     macros = service.resumo_macros_dia(id_usuario, data)
     return {"id_usuario": str(id_usuario), "data": str(data), "macros": macros}
@@ -68,7 +72,9 @@ def buscar_refeicao(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
-    return service.buscar_por_id(id_refeicao)
+    refeicao = service.buscar_por_id(id_refeicao)
+    garantir_proprio_usuario(usuario, refeicao.id_usuario)
+    return refeicao
 
 
 @router.post("/", response_model=RefeicaoResponse, status_code=status.HTTP_201_CREATED)
@@ -77,6 +83,7 @@ def criar_refeicao(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, dados.id_usuario)
     service = RefeicaoService(db)
     return service.criar(dados)
 
@@ -89,6 +96,7 @@ def atualizar_refeicao(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_refeicao).id_usuario)
     return service.atualizar(id_refeicao, dados)
 
 
@@ -99,6 +107,7 @@ def deletar_refeicao(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_refeicao).id_usuario)
     service.deletar(id_refeicao)
 
 
@@ -109,6 +118,7 @@ def listar_itens(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_refeicao).id_usuario)
     return service.listar_itens(id_refeicao)
 
 
@@ -121,6 +131,7 @@ def adicionar_item(
 ):
     dados.id_refeicao = id_refeicao
     service = RefeicaoService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_refeicao).id_usuario)
     return service.adicionar_item(dados)
 
 
@@ -132,6 +143,10 @@ def atualizar_item(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
+    item = service.item_repo.get_by_id(id_item)
+    if item:
+        refeicao = service.buscar_por_id(item.id_refeicao)
+        garantir_proprio_usuario(usuario, refeicao.id_usuario)
     return service.atualizar_item(id_item, dados)
 
 
@@ -142,4 +157,8 @@ def remover_item(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RefeicaoService(db)
+    item = service.item_repo.get_by_id(id_item)
+    if item:
+        refeicao = service.buscar_por_id(item.id_refeicao)
+        garantir_proprio_usuario(usuario, refeicao.id_usuario)
     service.remover_item(id_item)

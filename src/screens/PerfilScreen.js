@@ -6,11 +6,8 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  Modal,
   TextInput,
   RefreshControl,
-  Platform,
-  Alert,
   Animated,
   Easing
 } from 'react-native';
@@ -20,12 +17,10 @@ import { CORES } from '../constants/Cores';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import { 
-  PencilLine, 
   BookOpenText, 
   Flame, 
   Target, 
   ChartNoAxesCombined,
-  X,
   Check,
   User,
   Calendar,
@@ -38,7 +33,9 @@ import {
   Zap,
   Armchair,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Settings,
+  ChevronLeft,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import * as perfilNutriApi from '../api/perfilNutriApi';
@@ -46,24 +43,32 @@ import * as metaNutriApi from '../api/metaNutriApi';
 import * as dashboardApi from '../api/dashboardApi';
 import * as historicoProgressoApi from '../api/historicoProgressoApi';
 import * as usuarioApi from '../api/usuarioApi';
+import { calcularIdade, calcularPlanoNutricional } from '../util/nutricao';
+import { dataDeHoje } from '../util/data';
+import { UNIDADES_PADRAO, alturaDeCm, alturaParaCm, formatarAltura, formatarPeso, formatarValorInput, pesoDeKg, pesoParaKg } from '../util/medidas';
+import { carregarUnidades } from '../util/unidades';
 
-export default function PerfilScreen({ navigation }) {
+export default function PerfilScreen({ navigation, route }) {
   const { usuario, atualizarUsuario } = useAuth();
-  const { cores, isDark, toggleTema } = useTheme();
+  const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados para dados da API
   const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState('');
   const [atualizando, setAtualizando] = useState(false);
   const [perfilNutri, setPerfilNutri] = useState(null);
   const [ultimoProgresso, setUltimoProgresso] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
   const [resumo, setResumo] = useState(null);
+  const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
+  const [unidadesCarregadas, setUnidadesCarregadas] = useState(false);
+  const formularioInicializado = useRef(false);
+  const modoEdicao = Boolean(route?.params?.abrirEdicao);
 
-  // ↓ Estados do Modal de Edição de Perfil
-  const [modalVisivel, setModalVisivel] = useState(false);
+  // ↓ Estados do formulário de perfil
   const [salvando, setSalvando] = useState(false);
-  const [erroModal, setErroModal] = useState('');
+  const [erroFormulario, setErroFormulario] = useState('');
   const [nomeEdit, setNomeEdit] = useState('');
   const [pesoEdit, setPesoEdit] = useState('');
   const [alturaEdit, setAlturaEdit] = useState('');
@@ -114,18 +119,9 @@ export default function PerfilScreen({ navigation }) {
   };
   const objetivoTexto = objetivoMap[perfilNutri?.objetivo_nutricional] || objetivoMap[perfilNutri?.objetivo] || '—';
 
-  // ↓ Calcular idade a partir da data de nascimento
-  const calcularIdade = (dataNasc) => {
-    if (!dataNasc) return '—';
-    const nasc = new Date(dataNasc);
-    const hoje = new Date();
-    let idade = hoje.getFullYear() - nasc.getFullYear();
-    const mDiff = hoje.getMonth() - nasc.getMonth();
-    if (mDiff < 0 || (mDiff === 0 && hoje.getDate() < nasc.getDate())) idade--;
-    return `${idade > 0 ? idade : 0} anos`;
-  };
-
-  const idadeTexto = calcularIdade(perfilNutri?.data_nascimento);
+  // ↓ Idade a partir da data de nascimento (mesma função do quiz e do backend)
+  const idade = calcularIdade(perfilNutri?.data_nascimento);
+  const idadeTexto = idade > 0 ? `${idade} anos` : '—';
 
   // ↓ Estatísticas
   const diasRegistrados = resumo?.dias_registrados || resumo?.streak_dias || 0;
@@ -157,7 +153,17 @@ export default function PerfilScreen({ navigation }) {
         dashboardApi.resumoDia(idUsuario),
       ]);
 
-      if (resPerfil.status === 'fulfilled') setPerfilNutri(resPerfil.value);
+      if (resPerfil.status === 'fulfilled') {
+        setPerfilNutri(resPerfil.value);
+        setErroCarregamento('');
+      } else if (resPerfil.reason?.response?.status === 404) {
+        // Perfil inexistente é válido para quem ainda está completando o cadastro.
+        setPerfilNutri(null);
+        setErroCarregamento('');
+      } else {
+        setErroCarregamento('Não foi possível carregar seus dados do perfil. Tente novamente.');
+        console.warn('[Perfil] Erro ao carregar dados do perfil:', resPerfil.reason?.message);
+      }
       if (resProgresso.status === 'fulfilled' && resProgresso.value?.length > 0) {
         setUltimoProgresso(resProgresso.value[0]);
       }
@@ -179,14 +185,21 @@ export default function PerfilScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
-      animEntrada.setValue(0);
-      Animated.timing(animEntrada, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }, [carregarDados])
+      carregarUnidades().then((preferencias) => {
+        setUnidades(preferencias);
+      }).catch((error) => {
+        console.warn('[Perfil] Não foi possível carregar unidades:', error?.message);
+      }).finally(() => setUnidadesCarregadas(true));
+      if (!modoEdicao) {
+        animEntrada.setValue(0);
+        Animated.timing(animEntrada, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }
+    }, [carregarDados, modoEdicao])
   );
 
   const offsetSlide = Math.round(moderateScale(35, 0.3));
@@ -204,13 +217,13 @@ export default function PerfilScreen({ navigation }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // ↓ Abrir Modal de Edição com dados preenchidos
+  // Preencher o formulário da rota Perfil quando os dados estiverem carregados.
   // ───────────────────────────────────────────────────────────
-  const abrirModalEdicao = () => {
-    setErroModal('');
+  const preencherFormulario = useCallback(() => {
+    setErroFormulario('');
     setNomeEdit(usuario?.nome || '');
-    setPesoEdit(pesoKg > 0 ? String(pesoKg) : '');
-    setAlturaEdit(alturaCm > 0 ? String(alturaCm) : '');
+    setPesoEdit(pesoKg > 0 ? formatarValorInput(pesoDeKg(pesoKg, unidades.peso)) : '');
+    setAlturaEdit(alturaCm > 0 ? formatarValorInput(alturaDeCm(alturaCm, unidades.altura)) : '');
 
     if (perfilNutri?.data_nascimento) {
       const partes = String(perfilNutri.data_nascimento).split('-');
@@ -226,44 +239,57 @@ export default function PerfilScreen({ navigation }) {
     setGeneroEdit(perfilNutri?.genero || 'masculino');
     setNivelAtividadeEdit(perfilNutri?.nivel_atividade || 'moderado');
     setObjetivoEdit(perfilNutri?.objetivo_nutricional || 'manter_peso');
+  }, [usuario, pesoKg, alturaCm, perfilNutri, unidades]);
 
-    setModalVisivel(true);
+  useEffect(() => {
+    if (modoEdicao && !carregando && unidadesCarregadas && !erroCarregamento && !formularioInicializado.current) {
+      formularioInicializado.current = true;
+      preencherFormulario();
+    }
+  }, [modoEdicao, carregando, unidadesCarregadas, erroCarregamento, preencherFormulario]);
+
+  const voltarDoEditor = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('AppTabs', { screen: 'Perfil' });
   };
 
   // ───────────────────────────────────────────────────────────
   // ↓ Salvar Perfil e Recalcular Metas
   // ───────────────────────────────────────────────────────────
   const handleSalvarPerfil = async () => {
-    setErroModal('');
+    setErroFormulario('');
 
     const idUsuario = usuario?.id_usuario || usuario?.id;
     if (!idUsuario) {
-      setErroModal('Sessão não encontrada. Faça login novamente.');
+      setErroFormulario('Sessão não encontrada. Faça login novamente.');
       return;
     }
 
     const nomeFinal = nomeEdit.trim() || usuario?.nome || 'Usuário';
 
-    const pesoNum = parseFloat(String(pesoEdit).replace(',', '.'));
-    if (!pesoEdit || isNaN(pesoNum) || pesoNum <= 0) {
-      setErroModal('Por favor, informe seu peso em kg (ex: 75.5).');
+    const pesoInformado = parseFloat(String(pesoEdit).replace(',', '.'));
+    const pesoNum = Number(pesoParaKg(pesoInformado, unidades.peso).toFixed(1));
+    if (!pesoEdit || isNaN(pesoInformado) || !Number.isFinite(pesoNum) || pesoNum <= 0) {
+      setErroFormulario(`Por favor, informe seu peso em ${unidades.peso}.`);
       return;
     }
 
-    const alturaNum = parseFloat(String(alturaEdit).replace(',', '.'));
-    if (!alturaEdit || isNaN(alturaNum) || alturaNum <= 0) {
-      setErroModal('Por favor, informe sua altura (ex: 175).');
+    const alturaInformada = parseFloat(String(alturaEdit).replace(',', '.'));
+    if (!alturaEdit || isNaN(alturaInformada) || alturaInformada <= 0) {
+      setErroFormulario(`Por favor, informe sua altura em ${unidades.altura}.`);
       return;
     }
 
-    // Se informou em metros (ex: 1.75), converte para cm (175)
-    let alturaFinalCm = alturaNum;
-    if (alturaNum < 3) {
-      alturaFinalCm = Math.round(alturaNum * 100);
+    let alturaFinalCm = alturaParaCm(alturaInformada, unidades.altura);
+    // Em centímetros, também aceita metros (ex.: 1,75).
+    if (unidades.altura === 'cm' && alturaInformada < 3) {
+      alturaFinalCm = Math.round(alturaInformada * 100);
+    } else {
+      alturaFinalCm = Number(alturaFinalCm.toFixed(1));
     }
 
-    if (isNaN(alturaFinalCm) || alturaFinalCm < 50 || alturaFinalCm > 250) {
-      setErroModal('Por favor, informe uma altura válida entre 50 e 250 cm.');
+    if (!Number.isFinite(alturaFinalCm) || alturaFinalCm < 50 || alturaFinalCm > 250) {
+      setErroFormulario('Informe uma altura válida entre 50 e 250 cm.');
       return;
     }
 
@@ -289,6 +315,7 @@ export default function PerfilScreen({ navigation }) {
     }
 
     setSalvando(true);
+    let voltarAposSalvar = false;
     try {
       // 1. Atualizar nome do usuário se alterado
       if (nomeFinal !== usuario?.nome) {
@@ -309,7 +336,7 @@ export default function PerfilScreen({ navigation }) {
       });
 
       // 3. Registrar novo Histórico de Progresso
-      const dataHojeStr = new Date().toISOString().split('T')[0];
+      const dataHojeStr = dataDeHoje();
       try {
         await historicoProgressoApi.criar({
           id_usuario: idUsuario,
@@ -322,37 +349,27 @@ export default function PerfilScreen({ navigation }) {
       }
 
       // 4. Calcular e Criar Nova Meta Nutricional
-      const hoje = new Date();
-      let idade = hoje.getFullYear() - anoNasc;
-      if (hoje.getMonth() < (mesNasc - 1) || (hoje.getMonth() === (mesNasc - 1) && hoje.getDate() < diaNasc)) {
-        idade--;
-      }
-      idade = Math.max(idade, 12);
-
-      const baseTmb = 10 * pesoNum + 6.25 * alturaFinalCm - 5 * idade;
-      const ajusteGen = (generoEdit || '').toLowerCase() === 'masculino' ? 5 : -161;
-      const tmb = Math.max(baseTmb + ajusteGen, 1000);
-
-      const fatores = { sedentario: 1.2, leve: 1.375, moderado: 1.55, muito_ativo: 1.9, ativo: 1.725 };
-      const ajustesObj = { perder_peso: 0.8, manter_peso: 1.0, ganhar_massa: 1.2, ganhar_peso: 1.15 };
-      const fator = fatores[nivelAtividadeEdit] || 1.2;
-      const ajusteObj = ajustesObj[objetivoEdit] || 1.0;
-      const cals = Math.max(Math.round(tmb * fator * ajusteObj), 1200);
-
-      const macrosMap = {
-        perder_peso: { carb: 0.35, prot: 0.40, gord: 0.25 },
-        ganhar_massa: { carb: 0.50, prot: 0.30, gord: 0.20 },
-        manter_peso: { carb: 0.45, prot: 0.30, gord: 0.25 },
-      };
-      const dist = macrosMap[objetivoEdit] || macrosMap.manter_peso;
+      //   Tudo sai de util/nutricao — a mesma fonte do quiz e o espelho do
+      //   backend (nutricao_service.py). Antes esta tela refazia as fórmulas e
+      //   chegava a números diferentes do resto do app.
+      const plano = calcularPlanoNutricional({
+        dataNascimento: dataNascimentoISO,
+        // Mesmo valor persistido no perfil em (2): a meta tem que nascer do
+        // gênero que ficou gravado, não do que estava no formulário.
+        genero: generoEdit || 'masculino',
+        pesoKg: pesoNum,
+        alturaCm: alturaFinalCm,
+        nivelAtividade: nivelAtividadeEdit,
+        objetivo: objetivoEdit,
+      });
 
       try {
-        const dataHoje = new Date().toISOString().split('T')[0];
+        const dataHoje = dataDeHoje();
         const payloadMeta = {
-          calorias_diarias: cals,
-          proteina_g: Math.round((cals * dist.prot) / 4),
-          carboidrato_g: Math.round((cals * dist.carb) / 4),
-          gordura_g: Math.round((cals * dist.gord) / 9),
+          calorias_diarias: plano.calorias_diarias,
+          proteina_g: plano.proteina_g,
+          carboidrato_g: plano.carboidrato_g,
+          gordura_g: plano.gordura_g,
           data_inicio: dataHoje,
         };
         // Atualiza a meta atual no lugar (evita linhas duplicadas no mesmo dia,
@@ -365,24 +382,26 @@ export default function PerfilScreen({ navigation }) {
         }
       } catch (errMeta) {
         console.warn('[Perfil] Erro ao atualizar meta:', errMeta?.message);
-        setErroModal('Perfil salvo, mas não foi possível atualizar sua meta calórica. Tente novamente.');
+        setErroFormulario('Perfil salvo, mas não foi possível atualizar sua meta calórica. Tente novamente.');
         return;
       }
 
-      setModalVisivel(false);
       await carregarDados(true);
+      voltarAposSalvar = modoEdicao;
     } catch (error) {
       console.error('[Perfil] Erro ao salvar:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível salvar o perfil.';
-      setErroModal(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
+      setErroFormulario(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
     } finally {
       setSalvando(false);
+      if (voltarAposSalvar) voltarDoEditor();
     }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }}>
-      <ScrollView 
+      {!modoEdicao ? <ScrollView
+        style={{ backgroundColor: cores.fundo }}
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
@@ -396,8 +415,17 @@ export default function PerfilScreen({ navigation }) {
         <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
           {/* ↓ Cabeçalho do Perfil */}
           <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
-          <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 }]}>
-            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontSize: rf(24, 20, 28) }]}>Meu Perfil</Text>
+          <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginHorizontal: -20, marginTop: -20, marginBottom: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, minHeight: 92, backgroundColor: cores.fundo }]}>
+            <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(46, 36, 58), fontWeight: '900', letterSpacing: 1.5 }]}>Perfil</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Configuracao')}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir configurações"
+              style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }}
+            >
+              <Settings size={26} color={cores.textoEscuro} strokeWidth={2} />
+            </TouchableOpacity>
           </View>
 
           {/* ↓ Loading (apenas no carregamento inicial) */}
@@ -419,46 +447,35 @@ export default function PerfilScreen({ navigation }) {
                 <Text style={[styles.subInfoPerfil, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>{idadeTexto}  •  {objetivoTexto}</Text>
               </View>
               
-              {/* Botão Editar funcional */}
-              <TouchableOpacity 
-                style={[styles.botaoEditar, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
-                onPress={abrirModalEdicao}
-                activeOpacity={0.7}
-              >
-                <PencilLine color={cores.primaria} size={14} style={{ marginRight: 5 }} />
-                <Text style={[styles.textoEditar, { color: cores.primaria, fontSize: rf(12, 11, 14) }]}>Editar</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* ↓ Grid de Medidas (Clicáveis para editar) */}
-            <TouchableOpacity 
-              style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}
-              onPress={abrirModalEdicao}
-              activeOpacity={0.8}
-            >
+            {/* Medidas informativas; edição disponível nas Configurações. */}
+            <View style={[styles.row, { justifyContent: 'space-between', marginTop: 20 }]}>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? `${pesoKg}kg` : '—'}</Text>
+                <Text style={[styles.medidaValor, { color: cores.textoEscuro, fontSize: rf(18, 14, 22) }]}>{pesoKg > 0 ? formatarPeso(pesoKg, unidades.peso) : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Peso</Text>
               </View>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <Text style={[styles.medidaValor, { color: '#2D9CDB', fontSize: rf(18, 14, 22) }]}>{alturaCm > 0 ? `${alturaCm}cm` : '—'}</Text>
+                <Text style={[styles.medidaValor, { color: '#2D9CDB', fontSize: rf(18, 14, 22) }]}>{alturaCm > 0 ? formatarAltura(alturaCm, unidades.altura) : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Altura</Text>
               </View>
               <View style={[styles.blocoMedida, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
                 <Text style={[styles.medidaValor, { color: statusIMC.cor, fontSize: rf(18, 14, 22) }]}>{alturaM > 0 && pesoKg > 0 ? imc : '—'}</Text>
                 <Text style={[styles.medidaRotulo, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>IMC</Text>
               </View>
-            </TouchableOpacity>
+            </View>
 
             {/* ↓ Se o perfil estiver incompleto, exibe o botão/link de ação */}
             {!perfilCompleto ? (
-              <TouchableOpacity 
-                onPress={abrirModalEdicao} 
-                activeOpacity={0.7}
-                style={[styles.btnCompletarPerfil, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ConfiguracaoPerfil', { secao: 'perfil', abrirEdicao: true })}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Completar perfil"
+                style={[styles.btnCompletarPerfil, { backgroundColor: cores.mutado, borderColor: cores.borda }]}
               >
-                <Text style={[styles.txtCompletarPerfil, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Complete seu perfil</Text>
-                <ChevronRight size={15} color={cores.primaria} style={{ marginLeft: 4 }} />
+                <Text style={[styles.txtCompletarPerfil, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Completar perfil</Text>
+                <ChevronRight size={16} color={cores.primaria} />
               </TouchableOpacity>
             ) : null}
 
@@ -513,86 +530,105 @@ export default function PerfilScreen({ navigation }) {
           </Animated.View>
         </View>
 
-      </ScrollView>
+      </ScrollView> : null}
 
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* ↓ MODAL: EDITAR PERFIL                                      */}
-      {/* ─────────────────────────────────────────────────────────── */}
-      <Modal
-        visible={modalVisivel}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisivel(false)}
-      >
-        <View style={styles.fundoModal}>
-          <View style={[styles.cardModal, { backgroundColor: cores.branco, borderColor: cores.borda }, getContainer(580)]}>
-            
-            {/* Header do Modal */}
-            <View style={[styles.headerModal, { borderBottomColor: cores.borda }]}>
-              <Text style={[styles.tituloModal, { color: cores.textoEscuro }]}>Editar Perfil</Text>
-              <TouchableOpacity 
-                onPress={() => setModalVisivel(false)} 
-                style={[styles.btnFecharModal, { backgroundColor: isDark ? '#2E2E2E' : '#FDF8F2', borderColor: isDark ? '#3E3E3E' : '#E8DDD0', borderWidth: 1 }]}
-                activeOpacity={0.7}
+      {modoEdicao ? (
+        <View style={[styles.editorScreen, { backgroundColor: cores.fundo }]}>
+          <View style={[styles.editorHeader, { borderBottomColor: cores.borda }]}>
+            <TouchableOpacity
+              onPress={voltarDoEditor}
+              style={[styles.editorVoltar, { backgroundColor: cores.branco }]}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+            >
+              <ChevronLeft size={22} color={cores.textoEscuro} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text accessibilityRole="header" style={[styles.editorTitulo, { color: cores.textoEscuro }]}>Perfil</Text>
+              <Text style={[styles.editorSubtitulo, { color: cores.textoSuave }]}>Dados pessoais, medidas e objetivos</Text>
+            </View>
+          </View>
+
+          {carregando || !unidadesCarregadas || (atualizando && erroCarregamento) ? (
+            <View style={styles.carregandoEditor}>
+              <ActivityIndicator size="large" color={cores.primaria} />
+              <Text style={{ color: cores.textoSuave, marginTop: 12 }}>Carregando seus dados…</Text>
+            </View>
+          ) : erroCarregamento ? (
+            <View style={styles.erroCarregamentoEditor}>
+              <AlertCircle size={24} color={cores.erro} />
+              <Text style={[styles.erroCarregamentoTexto, { color: cores.textoEscuro }]}>{erroCarregamento}</Text>
+              <TouchableOpacity
+                onPress={() => carregarDados(true)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Tentar carregar o perfil novamente"
+                style={[styles.tentarNovamente, { borderColor: cores.borda }]}
               >
-                <X size={20} color={cores.textoEscuro} />
+                <Text style={[styles.tentarNovamenteTexto, { color: cores.primaria }]}>Tentar novamente</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Banner de Erro em Tempo Real */}
-            {erroModal ? (
-              <View style={styles.bannerErroModal}>
-                <AlertCircle size={16} color="#EB5757" style={{ marginRight: 8, flexShrink: 0 }} />
-                <Text style={styles.textoErroModal}>{erroModal}</Text>
+          ) : (
+            <>
+            {erroFormulario ? (
+              <View style={[styles.bannerErroFormulario, { backgroundColor: cores.mutado, borderColor: cores.erro }]}>
+                <AlertCircle size={18} color={cores.erro} style={{ marginRight: 8, flexShrink: 0 }} />
+                <Text style={[styles.textoErroFormulario, { color: cores.erro }]}>{erroFormulario}</Text>
               </View>
             ) : null}
-
-            <ScrollView 
+            <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: 25 }}
+              contentContainerStyle={[styles.editorFormContainer, getContainer(620)]}
             >
+              <View style={[styles.editorGrupo, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+                <Text style={[styles.editorGrupoTitulo, { color: cores.textoSuave }]}>DADOS PESSOAIS E MEDIDAS</Text>
               {/* Campo Nome Completo */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nome Completo</Text>
-              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                <User size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+              <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                <User size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={[styles.inputModal, { color: cores.textoEscuro }]}
+                  style={[styles.inputPerfil, { color: cores.textoEscuro }]}
+                  accessibilityLabel="Nome completo"
                   placeholder="Seu nome completo"
-                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                  placeholderTextColor={cores.textoSuave}
                   value={nomeEdit}
-                  onChangeText={(t) => { setNomeEdit(t); setErroModal(''); }}
+                  onChangeText={(t) => { setNomeEdit(t); setErroFormulario(''); }}
                 />
               </View>
 
               {/* Linha Peso e Altura */}
               <View style={styles.rowForm}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso (kg)</Text>
-                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                    <Weight size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Peso ({unidades.peso})</Text>
+                  <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                    <Weight size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={[styles.inputModal, { color: cores.textoEscuro }]}
-                      placeholder="Ex: 75.5"
-                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                      keyboardType="numeric"
+                      style={[styles.inputPerfil, { color: cores.textoEscuro }]}
+                      accessibilityLabel={`Peso em ${unidades.peso}`}
+                      placeholder="Ex.: 75,5"
+                      placeholderTextColor={cores.textoSuave}
+                      keyboardType="decimal-pad"
                       value={pesoEdit}
-                      onChangeText={(t) => { setPesoEdit(t); setErroModal(''); }}
+                      onChangeText={(t) => { setPesoEdit(t); setErroFormulario(''); }}
                     />
                   </View>
                 </View>
 
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura (cm)</Text>
-                  <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                    <Ruler size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+                  <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Altura ({unidades.altura})</Text>
+                  <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                    <Ruler size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={[styles.inputModal, { color: cores.textoEscuro }]}
-                      placeholder="Ex: 175"
-                      placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                      keyboardType="numeric"
+                      style={[styles.inputPerfil, { color: cores.textoEscuro }]}
+                      accessibilityLabel={`Altura em ${unidades.altura}`}
+                      placeholder={unidades.altura === 'cm' ? 'Ex.: 175' : 'Ex.: 68'}
+                      placeholderTextColor={cores.textoSuave}
+                      keyboardType="decimal-pad"
                       value={alturaEdit}
-                      onChangeText={(t) => { setAlturaEdit(t); setErroModal(''); }}
+                      onChangeText={(t) => { setAlturaEdit(t); setErroFormulario(''); }}
                     />
                   </View>
                 </View>
@@ -600,14 +636,15 @@ export default function PerfilScreen({ navigation }) {
 
               {/* Data de Nascimento */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Data de Nascimento (DD/MM/AAAA)</Text>
-              <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
-                <Calendar size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 8 }} />
+              <View style={[styles.inputContainer, { backgroundColor: cores.fundoInput, borderColor: cores.borda }]}>
+                <Calendar size={18} color={cores.textoSuave} style={{ marginRight: 8 }} />
                 <TextInput
                   value={dataNascEdit}
-                  onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroModal(''); }}
+                  accessibilityLabel="Data de nascimento"
+                  onChangeText={(t) => { setDataNascEdit(formatarDataInput(t)); setErroFormulario(''); }}
                   placeholder="Ex: 15/08/1998"
-                  placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
-                  style={[styles.inputModal, { color: cores.textoEscuro }]}
+                  placeholderTextColor={cores.textoSuave}
+                  style={[styles.inputPerfil, { color: cores.textoEscuro }]}
                   keyboardType="numeric"
                   maxLength={10}
                 />
@@ -615,7 +652,7 @@ export default function PerfilScreen({ navigation }) {
 
               {/* Seleção de Gênero */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Gênero</Text>
-              <View style={styles.selectorRow}>
+              <View style={styles.selectorRow} accessibilityRole="radiogroup" accessibilityLabel="Gênero">
                 {[
                   { id: 'masculino', label: 'Masculino' },
                   { id: 'feminino', label: 'Feminino' },
@@ -624,17 +661,20 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.chipOpcao, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.chipOpcaoAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.chipOpcaoAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setGeneroEdit(item.id)}
                       activeOpacity={0.7}
                     >
                       <Text style={[
                         styles.chipTexto, 
-                        { color: isDark ? '#B8A89A' : cores.textoSuave },
+                        { color: cores.textoSuave },
                         selecionado && [styles.chipTextoAtivo, { color: cores.primaria }]
                       ]}>
                         {item.label}
@@ -644,9 +684,12 @@ export default function PerfilScreen({ navigation }) {
                 })}
               </View>
 
+              </View>
+              <View style={[styles.editorGrupo, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+                <Text style={[styles.editorGrupoTitulo, { color: cores.textoSuave }]}>OBJETIVOS E ATIVIDADE</Text>
               {/* Seleção de Objetivo */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Objetivo Nutricional</Text>
-              <View style={styles.selectorCol}>
+              <View style={styles.selectorCol} accessibilityRole="radiogroup" accessibilityLabel="Objetivo nutricional">
                 {[
                   { id: 'perder_peso', label: 'Perder peso (Déficit calórico)', icone: Flame },
                   { id: 'manter_peso', label: 'Manter peso (Equilíbrio)', icone: Scale },
@@ -657,10 +700,13 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setObjetivoEdit(item.id)}
                       activeOpacity={0.7}
@@ -668,7 +714,7 @@ export default function PerfilScreen({ navigation }) {
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
+                          color={selecionado ? cores.primaria : cores.textoSuave}
                           style={{ marginRight: 10 }} 
                         />
                         <Text style={[
@@ -687,7 +733,7 @@ export default function PerfilScreen({ navigation }) {
 
               {/* Nível de Atividade */}
               <Text style={[styles.labelForm, { color: cores.textoSuave }]}>Nível de Atividade</Text>
-              <View style={styles.selectorCol}>
+              <View style={styles.selectorCol} accessibilityRole="radiogroup" accessibilityLabel="Nível de atividade">
                 {[
                   { id: 'sedentario', label: 'Sedentário (pouco ou nenhum exercício)', icone: Armchair },
                   { id: 'leve', label: 'Levemente ativo (1-3x por semana)', icone: Footprints },
@@ -699,10 +745,13 @@ export default function PerfilScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ checked: selecionado }}
                       style={[
                         styles.opcaoCard, 
-                        { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda },
-                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7', borderColor: cores.primaria }]
+                        { backgroundColor: cores.fundoInput, borderColor: cores.borda },
+                        selecionado && [styles.opcaoCardAtiva, { backgroundColor: cores.mutado, borderColor: cores.primaria }]
                       ]}
                       onPress={() => setNivelAtividadeEdit(item.id)}
                       activeOpacity={0.7}
@@ -710,7 +759,7 @@ export default function PerfilScreen({ navigation }) {
                       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                         <IconeComp 
                           size={18} 
-                          color={selecionado ? cores.primaria : (isDark ? '#8A7E74' : '#9C8E81')} 
+                          color={selecionado ? cores.primaria : cores.textoSuave}
                           style={{ marginRight: 10 }} 
                         />
                         <Text style={[
@@ -727,24 +776,25 @@ export default function PerfilScreen({ navigation }) {
                 })}
               </View>
 
-              {/* Botão de Salvar Alterações */}
+              </View>
+            </ScrollView>
+            <View style={[styles.editorFooter, { backgroundColor: cores.fundo, borderTopColor: cores.borda }]}>
               <TouchableOpacity
                 style={[styles.btnSalvar, salvando && { opacity: 0.6 }]}
                 onPress={handleSalvarPerfil}
                 disabled={salvando}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Salvar alterações do perfil"
+                accessibilityState={{ disabled: salvando, busy: salvando }}
               >
-                {salvando ? (
-                  <ActivityIndicator color={CORES.branco} />
-                ) : (
-                  <Text style={styles.btnSalvarTexto}>Salvar Alterações</Text>
-                )}
+                {salvando ? <ActivityIndicator color={cores.branco} /> : <Text style={[styles.btnSalvarTexto, { color: cores.branco }]}>Salvar alterações</Text>}
               </TouchableOpacity>
-
-            </ScrollView>
-          </View>
+            </View>
+            </>
+          )}
         </View>
-      </Modal>
+      ) : null}
 
     </SafeAreaView>
   );
@@ -793,21 +843,6 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave, 
     marginTop: 2 
   },
-  botaoEditar: { 
-    backgroundColor: '#FDF8F2', 
-    paddingHorizontal: 12, 
-    paddingVertical: 8, 
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EADCC9'
-  },
-  textoEditar: { 
-    fontSize: 12, 
-    color: CORES.primaria, 
-    fontWeight: 'bold' 
-  },
   blocoMedida: { 
     flex: 1, 
     backgroundColor: '#FDF8F2', 
@@ -828,24 +863,12 @@ const styles = StyleSheet.create({
     color: CORES.textoSuave, 
     marginTop: 2 
   },
-  btnCompletarPerfil: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-    backgroundColor: '#FDF3E7',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: '#F0D6BE',
-  },
   txtCompletarPerfil: {
     fontSize: 13,
     fontWeight: 'bold',
     color: CORES.primaria,
   },
+  btnCompletarPerfil: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, alignSelf: 'center', borderWidth: 1 },
   containerStatusImc: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -901,56 +924,50 @@ const styles = StyleSheet.create({
     color: CORES.textoEscuro 
   },
 
-  // ───────────────────────────────────────────────────────────
-  // Estilos do Modal de Edição
-  // ───────────────────────────────────────────────────────────
-  fundoModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+  editorScreen: { flex: 1 },
+  editorHeader: {
+    minHeight: 86,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  cardModal: {
-    backgroundColor: CORES.branco,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+  editorVoltar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  editorTitulo: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
+  editorSubtitulo: { fontSize: 13, lineHeight: 18, marginTop: 3 },
+  carregandoEditor: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  erroCarregamentoEditor: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  erroCarregamentoTexto: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12, maxWidth: 360 },
+  tentarNovamente: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 12, borderWidth: 1, marginTop: 16 },
+  tentarNovamenteTexto: { fontSize: 14, fontWeight: '700' },
+  editorFormContainer: { width: '100%', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 24 },
+  editorGrupo: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16 },
+  editorGrupoTitulo: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, marginBottom: 8 },
+  editorFooter: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-    maxHeight: '90%',
-  },
-  headerModal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
+    paddingTop: 12,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0E4D4',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  tituloModal: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: CORES.textoEscuro,
-  },
-  btnFecharModal: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#FDF8F2',
-  },
-  bannerErroModal: {
+  bannerErroFormulario: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    borderColor: '#FEB2B2',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 14,
+    marginHorizontal: 18,
+    marginTop: 16,
   },
-  textoErroModal: {
+  textoErroFormulario: {
     fontSize: 13,
-    color: '#E53E3E',
     fontWeight: '600',
     flex: 1,
   },
@@ -976,13 +993,14 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: 4,
   },
-  inputModal: {
+  inputPerfil: {
     flex: 1,
     fontSize: 14,
     color: CORES.textoEscuro,
   },
   selectorRow: {
     flexDirection: 'row',
+    gap: 8,
     marginBottom: 6,
   },
   chipOpcao: {
@@ -994,10 +1012,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CORES.borda,
     alignItems: 'center',
-    marginRight: 8,
   },
   chipOpcaoAtiva: {
-    backgroundColor: '#FDF3E7',
     borderColor: CORES.primaria,
     borderWidth: 1.5,
   },
@@ -1026,7 +1042,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   opcaoCardAtiva: {
-    backgroundColor: '#FDF3E7',
     borderColor: CORES.primaria,
     borderWidth: 1.5,
   },
@@ -1046,8 +1061,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
-    marginBottom: 10,
+    minHeight: 52,
+    marginTop: 0,
+    marginBottom: 0,
   },
   btnSalvarTexto: {
     color: CORES.branco,

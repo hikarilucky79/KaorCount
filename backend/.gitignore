@@ -61,3 +61,11 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+# Vercel CLI
+.vercel
+# O CLI escreve ".env*" aqui, o que ignoraria o .env.example versionado
+# (regra mais profunda vence a do root). Fica só o que é local de verdade.
+.env
+.env.local
+.env.*.local
+!.env.example

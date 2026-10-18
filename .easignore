@@ -1,0 +1,92 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# ─── Dependências ───────────────────────────────────────────────
+node_modules/
+
+# Logs gerados ao subir o ambiente (api.log, web.log).
+*.log
+
+# O package-lock.json É versionado de propósito. Ele trava as versões
+# exatas para que todos instalem o mesmo ambiente — sem ele, cada
+# máquina baixa versões diferentes e o app quebra de formas difíceis
+# de diagnosticar (erro de módulo faltando, incompatibilidade de API).
+# O yarn.lock e pnpm-lock.yaml continuam ignorados: use npm neste projeto.
+
+# ─── Backend / Python ───────────────────────────────────────────
+*.db
+*.db-*
+*.sqlite3
+*.sqlite3-*
+*.py[cod]
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+# ─── Expo / React Native ────────────────────────────────────────
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+*.orig.*
+*.orig
+
+# ─── Segredos ──────────────────────────────────────────────────
+# Regra defensiva: QUALQUER arquivo .env* é ignorado por padrão.
+# As exceções abaixo liberam só os templates (sem valores reais).
+.env
+.env.*
+.env*.local
+!.env.example
+!.env.example.*
+!.env.prod.example
+!.env.vercel.example
+
+# ─── Vercel ──────────────────────────────────────────────────────
+# .vercel/ guarda o projectId e o orgId do link do CLI. Nao e segredo, mas e
+# especifico da maquina e do usuario logado: versionar faz o link apontar para
+# o projeto de quem criou.
+.vercel/
+
+# ─── IDE / editores ─────────────────────────────────────────────
+.vscode/
+.idea/
+.history/
+*.swp
+*.swo
+*.tsbuildinfo
+
+# ─── Sistemas / utilitários ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# ─── Produção ─────────────────────────────────────────────────
+# Certificados do Caddy e dumps do MySQL nunca devem ir para o git.
+*.sql.gz
+caddy_data/
+caddy_config/
+backup-*.sql
+
+# ─── Debug ──────────────────────────────────────────────────────
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.metro-health-check*
+
+# ─── Pastas nativas geradas ─────────────────────────────────────
+/ios
+/android
+# O backend roda separado do app mobile; nao deve ser enviado ao EAS.
+/backend/

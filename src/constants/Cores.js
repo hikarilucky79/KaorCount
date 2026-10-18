@@ -5,6 +5,7 @@
 
 export const CORES_CLARO = {
   primaria: '#C88242',       // Laranja caramelo / marrom quente oficial
+  marcaEscura: '#85461E',    // Marrom da marca usado em banners e cards de destaque
   fundo: '#F4E6D6',          // Bege claro suave acolhedor para fundo das telas
   fundoInput: '#FAF3EC',     // Bege ultra claro para caixas de texto e inputs
   textoEscuro: '#2D1E12',    // Marrom café escuro para títulos e textos com alta legibilidade
@@ -16,12 +17,13 @@ export const CORES_CLARO = {
   proteina: '#C88242',       // Caramelo para proteínas
   gordura: '#9B59B6',        // Roxo suave para gorduras
   borda: '#E1D5C7',          // Borda suave e clara
-  mutado: '#EDD9C3',         // Bege claro para botões secundários/demo
+  mutado: '#EDD9C3',         // Bege claro de fundo para opção não selecionada
   erro: '#D94F4F',           // Vermelho para erros e avisos
 };
 
 export const CORES_ESCURO = {
   primaria: '#C88242',       // Laranja caramelo / marrom quente oficial
+  marcaEscura: '#6E3A18',    // Marrom da marca, escurecido para o tema escuro
   fundo: '#121212',          // Fundo oficial do tema escuro (#121212)
   fundoCard: '#1E1E1E',      // Fundo dos cards no tema escuro
   fundoInput: '#262626',     // Fundo das caixas de texto e inputs

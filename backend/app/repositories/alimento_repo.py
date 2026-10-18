@@ -22,9 +22,16 @@ class AlimentoRepository(BaseRepository[Alimento]):
         )
 
     def buscar_por_origem(self, origem: str, food_id: str) -> Alimento | None:
+        """
+        Busca um alimento pela origem externa.
+
+        O `food_id` é gravado em `origem_dados` no formato "FatSecret:<id>".
+        Antes esta busca filtrava `nome_alimento LIKE %food_id%`, o que nunca
+        casava (o nome do alimento não contém o id externo), fazendo o mesmo
+        alimento ser importado repetidamente.
+        """
         return (
             self.db.query(Alimento)
-            .filter(Alimento.origem_dados == origem)
-            .filter(Alimento.nome_alimento.like(f"%{food_id}%"))
+            .filter(Alimento.origem_dados == f"{origem}:{food_id}")
             .first()
         )

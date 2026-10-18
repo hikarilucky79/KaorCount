@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.registro_agua_service import RegistroAguaService
 from app.schemas.registro_agua import RegistroAguaCreate, RegistroAguaUpdate, RegistroAguaResponse
@@ -21,6 +21,7 @@ def listar_registros(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RegistroAguaService(db)
     return service.listar_por_usuario(id_usuario, skip, limit)
 
@@ -32,6 +33,7 @@ def total_agua_dia(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RegistroAguaService(db)
     total = service.total_dia(id_usuario, data)
     return {"id_usuario": str(id_usuario), "data": str(data), "total_ml": total}
@@ -45,6 +47,7 @@ def registros_por_periodo(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = RegistroAguaService(db)
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
@@ -55,6 +58,7 @@ def criar_registro(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, dados.id_usuario)
     service = RegistroAguaService(db)
     return service.criar(dados)
 
@@ -67,6 +71,7 @@ def atualizar_registro(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RegistroAguaService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_registro).id_usuario)
     return service.atualizar(id_registro, dados)
 
 
@@ -77,4 +82,5 @@ def deletar_registro(
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     service = RegistroAguaService(db)
+    garantir_proprio_usuario(usuario, service.buscar_por_id(id_registro).id_usuario)
     service.deletar(id_registro)

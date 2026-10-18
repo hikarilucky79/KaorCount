@@ -3,6 +3,9 @@
 # ─── Dependências ───────────────────────────────────────────────
 node_modules/
 
+# Logs gerados ao subir o ambiente (api.log, web.log).
+*.log
+
 # O package-lock.json É versionado de propósito. Ele trava as versões
 # exatas para que todos instalem o mesmo ambiente — sem ele, cada
 # máquina baixa versões diferentes e o app quebra de formas difíceis
@@ -42,6 +45,13 @@ expo-env.d.ts
 !.env.example
 !.env.example.*
 !.env.prod.example
+!.env.vercel.example
+
+# ─── Vercel ──────────────────────────────────────────────────────
+# .vercel/ guarda o projectId e o orgId do link do CLI. Nao e segredo, mas e
+# especifico da maquina e do usuario logado: versionar faz o link apontar para
+# o projeto de quem criou.
+.vercel/
 
 # ─── IDE / editores ─────────────────────────────────────────────
 .vscode/

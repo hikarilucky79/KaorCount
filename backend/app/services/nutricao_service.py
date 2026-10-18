@@ -3,6 +3,11 @@ from datetime import date
 
 class NutricaoService:
 
+    # Usados quando o usuário ainda não tem medida registrada. Ficam nomeados
+    # para que "70 kg" não apareça espalhado como número mágico nos callers.
+    PESO_PADRAO_KG = 70.0
+    ALTURA_PADRAO_CM = 170.0
+
     FATOR_ATIVIDADE = {"sedentario": 1.2, "leve": 1.375, "moderado": 1.55, "ativo": 1.725, "muito_ativo": 1.9}
     OBJETIVO_CALORIAS = {"perder_peso": 0.8, "manter_peso": 1.0, "ganhar_peso": 1.15, "ganhar_massa": 1.2}
     MACROS_POR_OBJETIVO = {
@@ -12,7 +17,7 @@ class NutricaoService:
     MACROS_PADRAO = (0.45, 0.30, 0.25)
 
     @staticmethod
-    def calcular_tmb(data_nascimento: date, genero: str, peso_kg: float = 70.0, altura_cm: float = 170.0) -> float:
+    def calcular_tmb(data_nascimento: date, genero: str, peso_kg: float = PESO_PADRAO_KG, altura_cm: float = ALTURA_PADRAO_CM) -> float:
         hoje = date.today()
         idade = hoje.year - data_nascimento.year - (
             (hoje.month, hoje.day) < (data_nascimento.month, data_nascimento.day)

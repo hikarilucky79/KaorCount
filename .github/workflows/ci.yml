@@ -1,0 +1,165 @@
+# ─────────────────────────────────────────────────────────────────────
+# KaorCount — CI
+#
+# Três jobs independentes: API, infra (compose + Caddy) e bundle web.
+# Cada passo abaixo foi executado antes de ser commitado; onde um comando
+# só roda no runner (docker run do Caddy) está marcado no comentário.
+#
+# Não há testes automatizados no repositório, então este pipeline é um gate
+# estrutural: pega import quebrado, config inválida e as travas de produção
+# que já existiram e foram removidas sem querer.
+# ─────────────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── API (FastAPI) ────────────────────────────────────────────────
+  backend:
+    name: API (FastAPI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Compilar todos os módulos
+        run: python -m compileall -q app
+
+      # compileall não executa import: um "from x import Y" quebrado passa
+      # despercebido nele. Já aconteceu (AlimentoUpdate removido do schema sem
+      # tirar o import do service), e a API inteira não subiria no deploy.
+      - name: Importar a aplicação
+        env:
+          DATABASE_URL: sqlite:///./ci_smoke.db
+        run: |
+          python -c "import app.main; n=len(app.main.app.routes); print(f'{n} rotas carregadas'); assert n > 0"
+          rm -f ci_smoke.db
+
+      # As travas de produção precisam continuar recusando chave padrão e
+      # chave curta. Se alguém afrouxar o validador, o job falha aqui.
+      - name: Produção recusa SECRET_KEY padrão ou curta
+        run: |
+          for chave in "trocar-esta-chave-em-producao" "so16chars"; do
+            if saida=$(ENVIRONMENT=production SECRET_KEY="$chave" DATABASE_URL="sqlite:///./ci.db" \
+                python -c "from app.core.config import Settings; Settings()" 2>&1); then
+              echo "ERRO: a API aceitou SECRET_KEY=\"$chave\" em produção."
+              exit 1
+            fi
+            case "$saida" in
+              *SECRET_KEY*) echo "bloqueada: ok" ;;
+              *) echo "ERRO: falha inesperada ao validar a chave:"; echo "$saida"; exit 1 ;;
+            esac
+          done
+          rm -f ci.db
+
+      - name: Catálogo de alimentos continua somente aditivo
+        env:
+          DATABASE_URL: sqlite:///./ci.db
+        run: |
+          python - <<'PY'
+          import app.main
+          metodos = {
+              path: sorted(m.upper() for m in ops)
+              for path, ops in app.main.app.openapi()["paths"].items()
+              if "/alimentos" in path
+          }
+          for path, ms in sorted(metodos.items()):
+              print(f"{ms} {path}")
+              proibidos = {"PUT", "PATCH", "DELETE"} & set(ms)
+              assert not proibidos, f"{path} voltou a expor {proibidos}"
+          print("catálogo sem mutação compartilhada: ok")
+          PY
+          rm -f ci.db
+
+  # ─── Compose + Caddy ──────────────────────────────────────────────
+  infra:
+    name: Compose + Caddy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar compose de desenvolvimento
+        run: docker compose -f docker-compose.yml config --quiet
+
+      # O serviço api declara env_file .env.prod com required: true, então o
+      # arquivo precisa existir em disco — não basta o --env-file do run.sh.
+      # O template versionado tem valor para todas as variáveis obrigatórias.
+      - name: Validar compose de produção
+        run: |
+          cp .env.prod.example .env.prod
+          docker compose --env-file .env.prod \
+            -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+      # Regressão já ocorrida: CADDY_DOMAIN era interpolado no host mas nunca
+      # chegava ao container, e o Caddyfile usa {$CADDY_DOMAIN} sem default —
+      # o serviço abortava no startup enquanto o "run.sh check" dizia OK.
+      - name: Conferir injeção de CADDY_DOMAIN e exposição de portas
+        run: |
+          cp .env.prod.example .env.prod
+          docker compose --env-file .env.prod \
+            -f docker-compose.yml -f docker-compose.prod.yml config > /tmp/prod.yml
+
+          sed -n '/^  caddy:/,/^  [a-z]/p' /tmp/prod.yml | grep -q 'CADDY_DOMAIN:' \
+            || { echo "ERRO: CADDY_DOMAIN não chega ao container do Caddy."; exit 1; }
+
+          sed -n '/^  db:/,/^  [a-z]/p' /tmp/prod.yml | grep -q 'published' \
+            && { echo "ERRO: o MySQL voltou a publicar porta no host."; exit 1; }
+
+          echo "topologia de produção ok"
+
+      # Único passo que não pude rodar localmente (sem daemon do Docker aqui).
+      - name: Validar Caddyfile
+        run: |
+          docker run --rm \
+            -v "$PWD/docker:/cfg:ro" \
+            -e CADDY_DOMAIN=localhost \
+            -e ACME_EMAIL=ci@kaorcount.local \
+            caddy:2-alpine \
+            caddy validate --config /cfg/Caddyfile --adapter caddyfile
+
+  # ─── Bundle web (Expo) ────────────────────────────────────────────
+  web:
+    name: App (Expo web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      # O mesmo comando do Dockerfile. É o que de fato faz o parse das telas:
+      # node --check não entende JSX, e o tsconfig é um stub sem nenhum .ts.
+      - name: Exportar bundle web
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+          EXPO_PUBLIC_API_URL: /api/v1
+        run: npx expo export --platform web --output-dir dist --clear

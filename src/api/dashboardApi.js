@@ -3,14 +3,16 @@
 // Endpoints do dashboard: resumos diário, semanal, mensal.
 // ───────────────────────────────────────────────────────────────
 import api from './client';
+import { dataDeHoje } from '../util/data';
 
 /**
  * Resumo nutricional do dia.
  * GET /dashboard/usuario/{id_usuario}?data=YYYY-MM-DD
+ * A data vai sempre explícita: sem ela o servidor usa o próprio "hoje", que na
+ * hospedagem é UTC e divergia do dia que o usuário está vendo.
  */
-export const resumoDia = async (idUsuario, data = null) => {
-  const params = data ? { data } : {};
-  const response = await api.get(`/dashboard/usuario/${idUsuario}`, { params });
+export const resumoDia = async (idUsuario, data = dataDeHoje()) => {
+  const response = await api.get(`/dashboard/usuario/${idUsuario}`, { params: { data } });
   return response.data;
 };
 
@@ -18,9 +20,8 @@ export const resumoDia = async (idUsuario, data = null) => {
  * Resumo semanal (últimos 7 dias).
  * GET /dashboard/usuario/{id_usuario}/semana?data_fim=YYYY-MM-DD
  */
-export const resumoSemana = async (idUsuario, dataFim = null) => {
-  const params = dataFim ? { data_fim: dataFim } : {};
-  const response = await api.get(`/dashboard/usuario/${idUsuario}/semana`, { params });
+export const resumoSemana = async (idUsuario, dataFim = dataDeHoje()) => {
+  const response = await api.get(`/dashboard/usuario/${idUsuario}/semana`, { params: { data_fim: dataFim } });
   return response.data;
 };
 
@@ -28,9 +29,8 @@ export const resumoSemana = async (idUsuario, dataFim = null) => {
  * Resumo mensal (últimos 31 dias).
  * GET /dashboard/usuario/{id_usuario}/mes?data_fim=YYYY-MM-DD
  */
-export const resumoMes = async (idUsuario, dataFim = null) => {
-  const params = dataFim ? { data_fim: dataFim } : {};
-  const response = await api.get(`/dashboard/usuario/${idUsuario}/mes`, { params });
+export const resumoMes = async (idUsuario, dataFim = dataDeHoje()) => {
+  const response = await api.get(`/dashboard/usuario/${idUsuario}/mes`, { params: { data_fim: dataFim } });
   return response.data;
 };
 

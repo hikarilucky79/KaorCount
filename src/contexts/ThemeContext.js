@@ -10,7 +10,7 @@ import { CORES_CLARO, CORES_ESCURO } from '../constants/Cores';
 
 export const ThemeContext = createContext({
   tema: 'claro',
-  modoTema: 'sistema', // 'sistema' | 'claro' | 'escuro'
+  modoTema: 'claro', // 'sistema' | 'claro' | 'escuro'
   isDark: false,
   cores: CORES_CLARO,
   toggleTema: () => {},
@@ -24,7 +24,7 @@ const THEME_STORAGE_KEY = '@kaorcount_tema_modo';
 export const ThemeProvider = ({ children }) => {
   // Captura o esquema de cores do celular (Dark / Light)
   const systemScheme = useColorScheme(); // 'dark' | 'light' | null / undefined
-  const [modoTema, setModoTemaState] = useState('sistema'); // 'sistema' | 'claro' | 'escuro'
+  const [modoTema, setModoTemaState] = useState('claro'); // 'sistema' | 'claro' | 'escuro'
   const [carregado, setCarregado] = useState(false);
 
   // Carrega a preferência salva no AsyncStorage
@@ -36,7 +36,7 @@ export const ThemeProvider = ({ children }) => {
           setModoTemaState(salvo);
         } else {
           // Por padrão inicial, usa detecção automática do celular
-          setModoTemaState('sistema');
+          setModoTemaState('claro');
         }
       } catch (e) {
         console.warn('[ThemeContext] Erro ao carregar preferência de tema:', e?.message);

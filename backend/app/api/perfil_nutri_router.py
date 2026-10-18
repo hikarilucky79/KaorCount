@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_usuario_atual
+from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.perfil_nutri_service import PerfilNutriService
 from app.schemas.perfil_nutri import PerfilNutriCreate, PerfilNutriUpdate, PerfilNutriResponse
@@ -18,6 +18,7 @@ def buscar_perfil(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = PerfilNutriService(db)
     return service.buscar_por_usuario(id_usuario)
 
@@ -28,6 +29,7 @@ def criar_perfil(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, dados.id_usuario)
     service = PerfilNutriService(db)
     return service.criar(dados)
 
@@ -39,6 +41,7 @@ def atualizar_perfil(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = PerfilNutriService(db)
     return service.atualizar(id_usuario, dados)
 
@@ -49,5 +52,6 @@ def deletar_perfil(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
+    garantir_proprio_usuario(usuario, id_usuario)
     service = PerfilNutriService(db)
     service.deletar(id_usuario)
