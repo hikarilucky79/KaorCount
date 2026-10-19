@@ -40,8 +40,8 @@ export const listarPorPeriodo = async (idUsuario, dataInicio, dataFim) => {
  * POST /registro-agua/
  * @param {{ id_usuario: string, quantidade_ml: number, data_registro: string }} dados
  */
-export const criar = async (dados) => {
-  const response = await api.post('/registro-agua/', dados);
+export const criar = async (dados, config = {}) => {
+  const response = await api.post('/registro-agua/', dados, config);
   return response.data;
 };
 

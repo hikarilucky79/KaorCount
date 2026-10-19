@@ -6,8 +6,7 @@
 // Coleta, em etapas, gênero, data de nascimento, altura/peso,
 // nível de atividade e objetivo. Ao final, salva as respostas e mostra
 // o resultado personalizado do plano nutricional.
-// Quando o backend dedicado do quiz for criado por outro agente, o
-// ponto de integração é a função salvarTudo().
+// As respostas são salvas atomicamente pelo endpoint dedicado do quiz.
 // ───────────────────────────────────────────────────────────────
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
@@ -25,12 +24,10 @@ import {
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
-import * as perfilNutriApi from '../api/perfilNutriApi';
-import * as historicoProgressoApi from '../api/historicoProgressoApi';
-import * as metaNutriApi from '../api/metaNutriApi';
-import * as pesquisaInicialApi from '../api/pesquisaInicialApi';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
+import * as quizApi from '../api/quizApi';
+import { chaveDaOperacao } from '../api/idempotencia';
 
 // ↓ Etapas que contam nos marcadores de progresso (boas-vindas não conta).
 //   1=gênero 2=nascimento 3=altura 4=peso 5=meta de peso 6=objetivo,
@@ -394,6 +391,8 @@ export default function QuizCadastroScreen({ navigation }) {
   const [erroEtapa, setErroEtapa] = useState('');
   const [erroGeral, setErroGeral] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const operacaoQuizRef = useRef(null);
+  const enviandoQuizRef = useRef(false);
 
   // ↓ Tela de conclusão depois de salvar com sucesso.
   const [concluido, setConcluido] = useState(false);
@@ -555,15 +554,11 @@ export default function QuizCadastroScreen({ navigation }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // ↓ Salvamento no backend
-  //   PONTO DE INTEGRAÇÃO: quando existir um endpoint dedicado
-  //   do quiz (ex.: POST /quiz-cadastro/), concentre aqui a troca.
-  //   Hoje usa os endpoints já existentes:
-  //     • perfilNutriApi.salvarOuAtualizar → perfil nutricional
-  //     • historicoProgressoApi.criar      → peso/altura iniciais
-  //     • metaNutriApi.criar               → meta de kcal e macros
-  // ───────────────────────────────────────────────────────────
+  // ↓ Cadastro e respostas são confirmados juntos pelo backend.
+  // A chave permanece estável ao tentar novamente após uma falha de rede.
   const salvarTudo = async () => {
+    if (enviandoQuizRef.current) return;
+    enviandoQuizRef.current = true;
     setErroGeral('');
     setEnviando(true);
     try {
@@ -584,43 +579,24 @@ export default function QuizCadastroScreen({ navigation }) {
         nivelAtividade: nivelSel, objetivo: objetivoSel, ritmo: ritmoSel,
       });
 
-      // O cadastro só é enviado depois que a pessoa completa e confirma o quiz.
-      let usuarioFinal = usuario;
-      if (!usuarioFinal && cadastroPendente) {
-        usuarioFinal = await registrar(cadastroPendente);
-      }
-      const idUser = usuarioFinal?.id_usuario || usuarioFinal?.id;
-      if (!idUser) throw new Error('Não foi possível identificar a conta para salvar suas respostas.');
-
-      await perfilNutriApi.salvarOuAtualizar(idUser, {
-        data_nascimento: nascISO,
-        genero: generoSel,
-        objetivo_nutricional: objetivoSel,
-        nivel_atividade: nivelSel,
-        ...(plano.tmb ? { tmb_calculo: plano.tmb } : {}),
-      });
-
-      await pesquisaInicialApi.salvarOuAtualizar(idUser, {
-        origem_app: origemApp,
-        ja_contou_calorias: jaContouCalorias,
+      const respostas = {
+        data_nascimento: nascISO, genero: generoSel,
+        objetivo_nutricional: objetivoSel, nivel_atividade: nivelSel,
+        tmb_calculo: plano.tmb, data_registro: hoje,
+        peso_atual: pesoKg, altura_atual: alturaCm,
+        origem_app: origemApp, ja_contou_calorias: jaContouCalorias,
         peso_objetivo_kg: parseNumeroBr(pesoObjetivoStr),
-      });
-
-      await historicoProgressoApi.criar({
-        id_usuario: idUser,
-        data_registro: hoje,
-        peso_atual: pesoKg,
-        altura_atual: alturaCm,
-      });
-
-      await metaNutriApi.criar({
-        id_usuario: idUser,
-        data_inicio: hoje,
-        calorias_diarias: plano.calorias_diarias,
-        proteina_g: plano.proteina_g,
-        carboidrato_g: plano.carboidrato_g,
-        gordura_g: plano.gordura_g,
-      });
+        calorias_diarias: plano.calorias_diarias, proteina_g: plano.proteina_g,
+        carboidrato_g: plano.carboidrato_g, gordura_g: plano.gordura_g,
+      };
+      const chave = chaveDaOperacao(operacaoQuizRef, respostas);
+      if (!usuario && cadastroPendente) {
+        await registrar(cadastroPendente, respostas, chave);
+      } else {
+        const idUser = usuario?.id_usuario || usuario?.id;
+        if (!idUser) throw new Error('Não foi possível identificar a conta para salvar suas respostas.');
+        await quizApi.salvar(idUser, respostas, chave);
+      }
 
       setResumoFinal({
         plano,
@@ -635,6 +611,7 @@ export default function QuizCadastroScreen({ navigation }) {
       console.error('[QuizCadastro] Erro ao salvar:', error);
       setErroGeral(error?.message || 'Não foi possível salvar suas respostas. Tente novamente.');
     } finally {
+      enviandoQuizRef.current = false;
       setEnviando(false);
     }
   };

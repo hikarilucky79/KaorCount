@@ -409,32 +409,32 @@ class SugestaoService:
             return None
 
         try:
-            existente = self.alimento_repo.buscar_por_origem("FatSecret", food_id)
-            if existente:
-                return {
-                    "id_alimento": existente.id_alimento,
-                    "nome_alimento": existente.nome_alimento,
-                    "porcao_padrao_g": existente.porcao_padrao_g,
-                }
+            with self.db.begin_nested():
+                existente = self.alimento_repo.buscar_por_origem("FatSecret", food_id)
+                if existente:
+                    return {
+                        "id_alimento": existente.id_alimento,
+                        "nome_alimento": existente.nome_alimento,
+                        "porcao_padrao_g": existente.porcao_padrao_g,
+                    }
 
-            # Os macros já estão normalizados para 100 g por `_para_100g`.
-            dados = {
-                "nome_alimento": item["nome"],
-                "porcao_padrao_g": 100.0,
-                "calorias": item["calorias"],
-                "carboidratos": item["carboidratos"],
-                "proteinas": item["proteinas"],
-                "gorduras": item["gorduras"],
-                "origem_dados": f"FatSecret:{food_id}",
-            }
-            alimento = self.alimento_repo.create(dados)
-            return {
-                "id_alimento": alimento.id_alimento,
-                "nome_alimento": alimento.nome_alimento,
-                "porcao_padrao_g": alimento.porcao_padrao_g,
-            }
+                # Os macros já estão normalizados para 100 g por `_para_100g`.
+                dados = {
+                    "nome_alimento": item["nome"],
+                    "porcao_padrao_g": 100.0,
+                    "calorias": item["calorias"],
+                    "carboidratos": item["carboidratos"],
+                    "proteinas": item["proteinas"],
+                    "gorduras": item["gorduras"],
+                    "origem_dados": f"FatSecret:{food_id}",
+                }
+                alimento = self.alimento_repo.create(dados)
+                return {
+                    "id_alimento": alimento.id_alimento,
+                    "nome_alimento": alimento.nome_alimento,
+                    "porcao_padrao_g": alimento.porcao_padrao_g,
+                }
         except Exception:
-            self.db.rollback()
             return None
 
     def gerar_todas(self, id_usuario: UUID | str) -> List[SugestaoRefeicao]:

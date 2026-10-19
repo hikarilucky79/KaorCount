@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -9,7 +10,7 @@ from app.models.usuario import Usuario
 from app.services.perfil_nutri_service import PerfilNutriService
 from app.schemas.perfil_nutri import PerfilNutriCreate, PerfilNutriUpdate, PerfilNutriResponse
 
-router = APIRouter(prefix="/perfil-nutri", tags=["Perfil Nutricional"])
+router = RouterIdempotente(prefix="/perfil-nutri", tags=["Perfil Nutricional"])
 
 
 @router.get("/{id_usuario}", response_model=PerfilNutriResponse)

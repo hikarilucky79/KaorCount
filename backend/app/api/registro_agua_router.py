@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from datetime import date
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from app.models.usuario import Usuario
 from app.services.registro_agua_service import RegistroAguaService
 from app.schemas.registro_agua import RegistroAguaCreate, RegistroAguaUpdate, RegistroAguaResponse
 
-router = APIRouter(prefix="/registro-agua", tags=["Registro de Água"])
+router = RouterIdempotente(prefix="/registro-agua", tags=["Registro de Água"])
 
 
 @router.get("/usuario/{id_usuario}", response_model=list[RegistroAguaResponse])

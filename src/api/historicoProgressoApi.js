@@ -20,8 +20,8 @@ export const listarPorUsuario = async (idUsuario, skip = 0, limit = 100) => {
  * POST /historico-progresso/
  * @param {{ id_usuario, data_registro, peso_atual, altura_atual }} dados
  */
-export const criar = async (dados) => {
-  const response = await api.post('/historico-progresso/', dados);
+export const criar = async (dados, config = {}) => {
+  const response = await api.post('/historico-progresso/', dados, config);
   return response.data;
 };
 

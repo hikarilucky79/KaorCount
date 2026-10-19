@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,7 @@ limitar_fatsecret = limitador_usuario(
     settings.LIMITE_JANELA_FATSECRET_SEGUNDOS,
 )
 
-router = APIRouter(
+router = RouterIdempotente(
     prefix="/fatsecret",
     tags=["FatSecret - Base externa de alimentos"],
     dependencies=[Depends(limitar_fatsecret)],

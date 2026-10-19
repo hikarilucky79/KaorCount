@@ -1,3 +1,4 @@
+import { chaveDaOperacao, configIdempotente } from '../api/idempotencia';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
@@ -66,6 +67,10 @@ export default function DiarioAlimentar({ navigation }) {
   const [alimentoSelecionado, setAlimentoSelecionado] = useState(null);
   const [quantidadeG, setQuantidadeG] = useState('100');
   const [salvandoItem, setSalvandoItem] = useState(false);
+  const operacaoItemRef = useRef(null);
+  const operacaoAguaRef = useRef(null);
+  const salvandoItemRef = useRef(false);
+  const adicionandoAguaRef = useRef(false);
 
   // ↓ Nomes de calendário
   const diasDaSemanaNome = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
@@ -365,23 +370,28 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Hidratação (+150, +250, +350)
   // ───────────────────────────────────────────────────────────
   const adicionarAgua = async (quantidade) => {
+    if (adicionandoAguaRef.current) return;
     if (!usuario?.id_usuario) {
       setAgua(prev => prev + quantidade);
       return;
     }
 
+    adicionandoAguaRef.current = true;
     setAdicionandoAgua(true);
     try {
-      await registroAguaApi.criar({
+      const dados = {
         id_usuario: usuario.id_usuario,
         quantidade_ml: quantidade,
         data_registro: formatarDataAPI(dataSelecionada),
-      });
+      };
+      const chave = chaveDaOperacao(operacaoAguaRef, dados);
+      await registroAguaApi.criar(dados, configIdempotente(chave));
+      operacaoAguaRef.current = null;
       setAgua(prev => prev + quantidade);
     } catch (error) {
-      // Fallback local se offline
-      setAgua(prev => prev + quantidade);
+      Alert.alert('Não foi possível confirmar o registro', 'Verifique sua conexão e tente novamente.');
     } finally {
+      adicionandoAguaRef.current = false;
       setAdicionandoAgua(false);
     }
   };
@@ -390,6 +400,7 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Abrir modal para adicionar alimento
   // ───────────────────────────────────────────────────────────
   const abrirModalAdicionar = (tipo) => {
+    operacaoItemRef.current = null;
     setTipoRefeicaoAtual(tipo);
     setAlimentoSelecionado(null);
     setQuantidadeG('100');
@@ -403,6 +414,7 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Salvar alimento na refeição
   // ───────────────────────────────────────────────────────────
   const confirmarAdicionarAlimento = async () => {
+    if (salvandoItemRef.current) return;
     if (!alimentoSelecionado) {
       Alert.alert('Atenção', 'Selecione um alimento para adicionar.');
       return;
@@ -424,9 +436,14 @@ export default function DiarioAlimentar({ navigation }) {
       return;
     }
 
+    salvandoItemRef.current = true;
     setSalvandoItem(true);
     try {
       const dataStr = formatarDataAPI(dataSelecionada);
+      const chave = chaveDaOperacao(operacaoItemRef, {
+        idUsuario, dataStr, tipoRefeicaoAtual, qtd,
+        alimento: alimentoSelecionado.id_alimento || alimentoSelecionado.id || alimentoSelecionado.nome_alimento,
+      });
 
       // 1. Garantir que o alimento exista no backend (se for do FatSecret ou Mock)
       let idAlimentoReal = alimentoSelecionado.id_alimento || alimentoSelecionado.id;
@@ -448,7 +465,7 @@ export default function DiarioAlimentar({ navigation }) {
             carboidratos: alimentoSelecionado.carboidratos || 0,
             gorduras: alimentoSelecionado.gorduras || 0,
             origem_dados: alimentoSelecionado.origem_dados || 'FatSecret',
-          });
+          }, configIdempotente(`${chave}:alimento`));
           idAlimentoReal = novoAlimento.id_alimento;
         } catch (e) {
           // Se já existir ou falhar, buscar por nome no banco
@@ -471,14 +488,14 @@ export default function DiarioAlimentar({ navigation }) {
           id_usuario: idUsuario,
           data_refeicao: dataStr,
           tipo_refeicao: tipoRefeicaoAtual,
-        });
+        }, configIdempotente(`${chave}:refeicao`));
       }
 
       // 3. Adicionar o item à refeição
       await refeicaoApi.adicionarItem(refeicaoAlvo.id_refeicao, {
         id_alimento: idAlimentoReal,
         quantidade_alimento_g: qtd,
-      });
+      }, configIdempotente(`${chave}:item`));
 
       // Fechar modal e recarregar os dados atualizados
       setModalVisivel(false);
@@ -491,6 +508,7 @@ export default function DiarioAlimentar({ navigation }) {
         Alert.alert('Erro', error?.message || 'Não foi possível salvar o alimento.');
       }
     } finally {
+      salvandoItemRef.current = false;
       setSalvandoItem(false);
     }
   };

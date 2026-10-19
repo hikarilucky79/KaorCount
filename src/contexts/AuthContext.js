@@ -87,8 +87,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Só é chamado ao concluir o quiz: cria a conta e autentica a pessoa.
-  const registrar = useCallback(async (dados) => {
-    await authApi.registrar(dados);
+  const registrar = useCallback(async (dados, quiz, chave) => {
+    if (quiz) {
+      await authApi.registrarComQuiz(dados, quiz, chave);
+    } else {
+      await authApi.registrar(dados);
+    }
     const perfil = await login(dados.email, dados.senha);
     setCadastroPendente(null);
     return perfil;

@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from datetime import date
 from uuid import UUID
 
@@ -11,7 +12,7 @@ from app.services.refeicao_service import RefeicaoService
 from app.schemas.refeicao import RefeicaoCreate, RefeicaoUpdate, RefeicaoResponse
 from app.schemas.item_refeicao import ItemRefeicaoCreate, ItemRefeicaoUpdate, ItemRefeicaoResponse
 
-router = APIRouter(prefix="/refeicoes", tags=["Refeições"])
+router = RouterIdempotente(prefix="/refeicoes", tags=["Refeições"])
 
 
 @router.get("/usuario/{id_usuario}", response_model=list[RefeicaoResponse])

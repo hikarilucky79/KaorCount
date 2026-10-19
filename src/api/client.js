@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { obterTokenAutorizacao, limparSessaoGlobal } from '../auth/tokenBridge';
+import { novaChaveIdempotente } from './idempotencia';
 
 // ↓ URL base da API dinâmica conforme o ambiente:
 //   - EXPO_PUBLIC_API_URL: se definida, tem precedência (usada no Docker/produção
@@ -118,6 +119,12 @@ const api = axios.create({
 // ───────────────────────────────────────────────────────────────
 api.interceptors.request.use(
   async (config) => {
+    const escrita = ['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase());
+    if (escrita && !config.url?.replace(/\/$/, '').endsWith('/auth/login')) {
+      if (!config.headers.get('Idempotency-Key')) {
+        config.headers.set('Idempotency-Key', novaChaveIdempotente());
+      }
+    }
     // ↓ 1. Injetar o token de autenticação guardado no AsyncStorage.
     try {
       const token = await obterTokenAutorizacao();
@@ -157,6 +164,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Reenvio limitado da MESMA requisição: conserva chave, corpo e usuário.
+    // Uma resposta perdida depois do commit recupera o recibo no backend.
+    const config = error.config;
+    if (config?.headers?.get('Idempotency-Key') && !config._reenvioIdempotente &&
+        (!error.response || [500, 502, 503, 504].includes(error.response.status)) &&
+        error.code !== 'ERR_CANCELED') {
+      config._reenvioIdempotente = true;
+      return api.request(config);
+    }
     if (error.response) {
       const { status, data } = error.response;
 

@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { CORES } from '../constants/Cores';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import { chaveDaOperacao, configIdempotente } from '../api/idempotencia';
 import { 
   BookOpenText, 
   Flame, 
@@ -68,6 +69,8 @@ export default function PerfilScreen({ navigation, route }) {
 
   // ↓ Estados do formulário de perfil
   const [salvando, setSalvando] = useState(false);
+  const operacaoPerfilRef = useRef(null);
+  const salvandoPerfilRef = useRef(false);
   const [erroFormulario, setErroFormulario] = useState('');
   const [nomeEdit, setNomeEdit] = useState('');
   const [pesoEdit, setPesoEdit] = useState('');
@@ -257,6 +260,7 @@ export default function PerfilScreen({ navigation, route }) {
   // ↓ Salvar Perfil e Recalcular Metas
   // ───────────────────────────────────────────────────────────
   const handleSalvarPerfil = async () => {
+    if (salvandoPerfilRef.current) return;
     setErroFormulario('');
 
     const idUsuario = usuario?.id_usuario || usuario?.id;
@@ -314,6 +318,7 @@ export default function PerfilScreen({ navigation, route }) {
       }
     }
 
+    salvandoPerfilRef.current = true;
     setSalvando(true);
     let voltarAposSalvar = false;
     try {
@@ -338,12 +343,16 @@ export default function PerfilScreen({ navigation, route }) {
       // 3. Registrar novo Histórico de Progresso
       const dataHojeStr = dataDeHoje();
       try {
+        const chave = chaveDaOperacao(operacaoPerfilRef, {
+          idUsuario, dataHojeStr, nomeFinal, pesoNum, alturaFinalCm,
+          dataNascimentoISO, generoEdit, nivelAtividadeEdit, objetivoEdit,
+        });
         await historicoProgressoApi.criar({
           id_usuario: idUsuario,
           data_registro: dataHojeStr,
           peso_atual: pesoNum,
           altura_atual: alturaFinalCm,
-        });
+        }, configIdempotente(chave));
       } catch (hErr) {
         console.warn('[Perfil] Erro ao criar progresso:', hErr?.message);
       }
@@ -387,12 +396,14 @@ export default function PerfilScreen({ navigation, route }) {
       }
 
       await carregarDados(true);
+      operacaoPerfilRef.current = null;
       voltarAposSalvar = modoEdicao;
     } catch (error) {
       console.error('[Perfil] Erro ao salvar:', error);
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível salvar o perfil.';
       setErroFormulario(typeof msg === 'string' ? msg : 'Erro ao salvar alterações.');
     } finally {
+      salvandoPerfilRef.current = false;
       setSalvando(false);
       if (voltarAposSalvar) voltarDoEditor();
     }

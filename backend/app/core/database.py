@@ -3,7 +3,7 @@ import ssl
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from app.core.config import settings
 
@@ -67,8 +67,17 @@ def criar_engine():
         echo=False,
     )
 
+class SessionTransacional(Session):
+    def commit(self):
+        # A rota idempotente confirma os efeitos e a resposta em um único commit.
+        if self.info.get("idempotencia"):
+            self.flush()
+        else:
+            super().commit()
+
+
 engine = criar_engine()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(class_=SessionTransacional, autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
     db = SessionLocal()

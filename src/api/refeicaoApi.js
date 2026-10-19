@@ -47,8 +47,8 @@ export const buscarPorId = async (idRefeicao) => {
  * POST /refeicoes/
  * @param {{ id_usuario: string, tipo_refeicao: string, data_refeicao: string }} dados
  */
-export const criar = async (dados) => {
-  const response = await api.post('/refeicoes/', dados);
+export const criar = async (dados, config = {}) => {
+  const response = await api.post('/refeicoes/', dados, config);
   return response.data;
 };
 
@@ -82,8 +82,8 @@ export const listarItens = async (idRefeicao) => {
  * Adicionar item a uma refeição.
  * POST /refeicoes/{id_refeicao}/itens
  */
-export const adicionarItem = async (idRefeicao, dados) => {
-  const response = await api.post(`/refeicoes/${idRefeicao}/itens`, dados);
+export const adicionarItem = async (idRefeicao, dados, config = {}) => {
+  const response = await api.post(`/refeicoes/${idRefeicao}/itens`, dados, config);
   return response.data;
 };
 

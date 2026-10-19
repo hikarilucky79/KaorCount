@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Column, Date, Float, ForeignKey, String
+from sqlalchemy import Column, Date, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import CHAR
 
@@ -10,6 +10,7 @@ from app.core.database import Base
 
 class MetaNutri(Base):
     __tablename__ = "meta_nutri"
+    __table_args__ = (UniqueConstraint("id_usuario", "data_inicio", name="uq_meta_usuario_dia"),)
 
     id_meta = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     id_usuario = Column(CHAR(36), ForeignKey("usuario.id_usuario", ondelete="CASCADE"), nullable=False, index=True)

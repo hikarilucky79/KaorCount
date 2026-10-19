@@ -55,7 +55,8 @@ class AuthService:
             self.repo.db.add(perfil)
             self.repo.db.commit()
         except Exception:
-            pass
+            self.repo.db.rollback()
+            raise
         return novo_usuario
 
     def login(self, dados: UsuarioLogin) -> Token:
