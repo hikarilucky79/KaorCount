@@ -112,6 +112,45 @@ nav a:hover::after {
     color: #038c57;
 }
 
+.sec-qr-code {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    background-color: #e3f8e0;
+}
+
+.sec-qr-code h2 {
+    margin: 0 0 1rem;
+    color: #003122;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.sec-qr-code p {
+    margin: 0 0 1.5rem;
+    color: #003122;
+    line-height: 1.6;
+}
+
+.qr-code-imagem {
+    position: relative;
+    width: min(280px, 100%);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 16px;
+    background-color: #fff;
+}
+
+/* Exibe apenas o quadrado branco do anexo, ocultando a área preta externa. */
+.qr-code-imagem img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300%;
+    max-width: none;
+    height: auto;
+    transform: translate(-50%, -50%);
+}
+
 section{
     border-top: 3px solid #038c57;
     padding: 1rem; 
