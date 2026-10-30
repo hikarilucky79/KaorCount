@@ -416,33 +416,33 @@ class SugestaoService:
             return None
 
         try:
-            origem = "TACO" if str(food_id).startswith("taco_") else "FatSecret"
-            existente = self.alimento_repo.buscar_por_origem(origem, food_id)
-            if existente:
-                return {
-                    "id_alimento": existente.id_alimento,
-                    "nome_alimento": existente.nome_alimento,
-                    "porcao_padrao_g": existente.porcao_padrao_g,
-                }
+            with self.db.begin_nested():
+                origem = "TACO" if str(food_id).startswith("taco_") else "FatSecret"
+                existente = self.alimento_repo.buscar_por_origem(origem, food_id)
+                if existente:
+                    return {
+                        "id_alimento": existente.id_alimento,
+                        "nome_alimento": existente.nome_alimento,
+                        "porcao_padrao_g": existente.porcao_padrao_g,
+                    }
 
-            # Os macros já estão normalizados para 100 g por `_para_100g`.
-            dados = {
-                "nome_alimento": item["nome"],
-                "porcao_padrao_g": 100.0,
-                "calorias": item["calorias"],
-                "carboidratos": item["carboidratos"],
-                "proteinas": item["proteinas"],
-                "gorduras": item["gorduras"],
-                "origem_dados": f"{origem}:{food_id}",
-            }
-            alimento = self.alimento_repo.create(dados)
-            return {
-                "id_alimento": alimento.id_alimento,
-                "nome_alimento": alimento.nome_alimento,
-                "porcao_padrao_g": alimento.porcao_padrao_g,
-            }
+                # Os macros já estão normalizados para 100 g por `_para_100g`.
+                dados = {
+                    "nome_alimento": item["nome"],
+                    "porcao_padrao_g": 100.0,
+                    "calorias": item["calorias"],
+                    "carboidratos": item["carboidratos"],
+                    "proteinas": item["proteinas"],
+                    "gorduras": item["gorduras"],
+                    "origem_dados": f"{origem}:{food_id}",
+                }
+                alimento = self.alimento_repo.create(dados)
+                return {
+                    "id_alimento": alimento.id_alimento,
+                    "nome_alimento": alimento.nome_alimento,
+                    "porcao_padrao_g": alimento.porcao_padrao_g,
+                }
         except Exception:
-            self.db.rollback()
             return None
 
     def gerar_todas(self, id_usuario: UUID | str) -> List[SugestaoRefeicao]:
@@ -502,7 +502,7 @@ class SugestaoService:
                     alimentos = self._buscar_alimentos_fatsecret(termo, max_resultados=10)
                     # A consulta inclui TACO e FatSecret; exclui complementos fixos em código.
                     todos_alimentos.extend(a for a in alimentos if not str(a.get("food_id", "")).startswith("br_"))
-            
+
             # Remove duplicatas por food_id
             vistos = set()
             unicos = []
@@ -511,17 +511,17 @@ class SugestaoService:
                 if fid and fid not in vistos:
                     vistos.add(fid)
                     unicos.append(a)
-            
+
             # Filtra por macros compatíveis
             filtrados = self._filtrar_alimentos_por_macros(
                 unicos, alvo_cal, alvo_carb, alvo_prot, alvo_gord
             )
-            
+
             # Seleciona melhor combinação
             combinacao = self._selecionar_combinacao_otima(
                 filtrados, alvo_cal, alvo_carb, alvo_prot, alvo_gord
             )
-            
+
             # Importa alimentos selecionados para base local
             alimentos_sugeridos = []
             total_cal = total_carb = total_prot = total_gord = 0.0

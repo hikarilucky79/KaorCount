@@ -37,8 +37,8 @@ export const buscarPorNome = async (nome, limit = 20) => {
  * Criar novo alimento na base local.
  * POST /alimentos/
  */
-export const criar = async (dados) => {
-  const response = await api.post('/alimentos/', dados);
+export const criar = async (dados, config = {}) => {
+  const response = await api.post('/alimentos/', dados, config);
   return response.data;
 };
 

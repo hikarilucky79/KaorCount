@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -9,7 +10,7 @@ from app.models.usuario import Usuario
 from app.services.alimento_service import AlimentoService
 from app.schemas.alimento import AlimentoCreate, AlimentoResponse
 
-router = APIRouter(prefix="/alimentos", tags=["Alimentos"])
+router = RouterIdempotente(prefix="/alimentos", tags=["Alimentos"])
 
 
 @router.get("/", response_model=list[AlimentoResponse])

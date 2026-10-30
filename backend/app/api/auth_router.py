@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from app.core.idempotencia import RouterIdempotente
+from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -13,8 +14,11 @@ from app.schemas.usuario import (
     UsuarioResponse,
 )
 from app.schemas.token import Token
+from app.schemas.quiz import CadastroComQuiz
+from app.services.quiz_service import QuizService
+from app.services.usuario_service import UsuarioService
 
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+router = RouterIdempotente(prefix="/auth", tags=["Autenticação"])
 
 # O login é o alvo óbvio de força bruta: sem teto por IP, uma lista de senhas
 # vazadas roda contra a API até achar uma conta.
@@ -40,6 +44,17 @@ def registrar(dados: UsuarioCreate, db: Session = Depends(get_db)):
 def login(dados: UsuarioLogin, db: Session = Depends(get_db)):
     service = AuthService(db)
     return service.login(dados)
+
+
+@router.post("/registrar-com-quiz", response_model=UsuarioResponse, status_code=201, dependencies=[Depends(guarda_cadastro)])
+def registrar_com_quiz(
+    dados: CadastroComQuiz,
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+):
+    usuario = UsuarioService(db).criar(dados.cadastro)
+    QuizService(db).salvar(usuario.id_usuario, dados.quiz)
+    return usuario
 
 
 @router.get("/me", response_model=UsuarioResponse)

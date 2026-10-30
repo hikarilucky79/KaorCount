@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from app.main import app
-from app.core.database import Base, get_db, engine as engine_importacao
+from app.core.database import Base, get_db, engine as engine_importacao, SessionTransacional
 from app.services import nutricao_service
 from app.services.nutricao_service import NutricaoService
 
@@ -32,7 +32,7 @@ def limpar_banco_importacao():
 def client():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
-    sessao = sessionmaker(bind=engine)
+    sessao = sessionmaker(bind=engine, class_=SessionTransacional)
     def banco_teste():
         with sessao() as db:
             yield db

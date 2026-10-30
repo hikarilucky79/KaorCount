@@ -1,4 +1,5 @@
 from datetime import date
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status, HTTPException
@@ -13,7 +14,7 @@ from app.models.alimento import Alimento
 from app.schemas.sugestao import SugestaoAceitaResponse, SugestaoRefeicaoResponse
 from app.services.sugestao_service import SugestaoService
 
-router = APIRouter(prefix="/sugestoes", tags=["Sugestões de Refeições"])
+router = RouterIdempotente(prefix="/sugestoes", tags=["Sugestões de Refeições"])
 
 # gerar_todas() bate no FatSecret várias vezes numa só chamada; sem teto, um
 # script com um token bastava para esvaziar a cota do dia.

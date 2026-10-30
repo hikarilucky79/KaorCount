@@ -3,6 +3,7 @@
 // Endpoints de autenticação: login, registro e perfil atual.
 // ───────────────────────────────────────────────────────────────
 import api from './client';
+import { configIdempotente } from './idempotencia';
 
 /**
  * Registrar um novo usuário.
@@ -11,6 +12,11 @@ import api from './client';
  */
 export const registrar = async (dados) => {
   const response = await api.post('/auth/registrar', dados);
+  return response.data;
+};
+
+export const registrarComQuiz = async (cadastro, quiz, chave) => {
+  const response = await api.post('/auth/registrar-com-quiz', { cadastro, quiz }, configIdempotente(chave));
   return response.data;
 };
 

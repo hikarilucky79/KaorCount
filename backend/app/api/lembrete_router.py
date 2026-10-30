@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -6,7 +7,7 @@ from app.core.security import get_usuario_atual, garantir_proprio_usuario
 from app.models.usuario import Usuario
 from app.services.lembrete_service import LembreteService
 
-router = APIRouter(prefix="/lembretes", tags=["Lembretes e Notificações"])
+router = RouterIdempotente(prefix="/lembretes", tags=["Lembretes e Notificações"])
 
 
 @router.get("/config/{id_usuario}")

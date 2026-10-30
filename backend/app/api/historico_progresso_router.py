@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from datetime import date
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from app.models.usuario import Usuario
 from app.services.historico_progresso_service import HistoricoProgressoService
 from app.schemas.historico_progresso import HistoricoProgressoCreate, HistoricoProgressoUpdate, HistoricoProgressoResponse
 
-router = APIRouter(prefix="/historico-progresso", tags=["Histórico de Progresso"])
+router = RouterIdempotente(prefix="/historico-progresso", tags=["Histórico de Progresso"])
 
 
 @router.get("/usuario/{id_usuario}", response_model=list[HistoricoProgressoResponse])

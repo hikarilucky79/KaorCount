@@ -5,7 +5,7 @@
 # Cada passo abaixo foi executado antes de ser commitado; onde um comando
 # só roda no runner (docker run do Caddy) está marcado no comentário.
 #
-# Executa os testes de comportamento e verifica imports e configuração.
+# Executa testes de comportamento, idempotência e validações de configuração.
 # ─────────────────────────────────────────────────────────────────────
 name: CI
 
@@ -48,6 +48,9 @@ jobs:
 
       - name: Compilar todos os módulos
         run: python -m compileall -q app
+
+      - name: Testar idempotência e transações
+        run: python -m unittest discover -s tests -v
 
       # compileall não executa import: um "from x import Y" quebrado passa
       # despercebido nele. Já aconteceu (AlimentoUpdate removido do schema sem
@@ -161,6 +164,9 @@ jobs:
 
       # O mesmo comando do Dockerfile. É o que de fato faz o parse das telas:
       # node --check não entende JSX, e o tsconfig é um stub sem nenhum .ts.
+      - name: Testar reenvios idempotentes no app
+        run: node --experimental-vm-modules src/api/tests/idempotencia.test.cjs
+
       - name: Exportar bundle web
         env:
           CI: '1'

@@ -11,6 +11,7 @@ from app.models.lembrete_config import LembreteConfig
 from app.models.limite_requisicao import LimiteRequisicao
 from app.models.usuario import Usuario
 from app.models.preferencia_usuario import PreferenciaUsuario
+from app.models.operacao_idempotente import OperacaoIdempotente
 
 __all__ = [
     "Alimento",
@@ -26,4 +27,5 @@ __all__ = [
     "SugestaoRefeicao",
     "Usuario",
     "PreferenciaUsuario",
+    "OperacaoIdempotente",
 ]

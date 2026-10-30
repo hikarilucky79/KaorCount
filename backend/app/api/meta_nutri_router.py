@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -9,7 +10,7 @@ from app.models.usuario import Usuario
 from app.services.meta_nutri_service import MetaNutriService
 from app.schemas.meta_nutri import MetaNutriCreate, MetaNutriUpdate, MetaNutriResponse
 
-router = APIRouter(prefix="/metas-nutri", tags=["Metas Nutricionais"])
+router = RouterIdempotente(prefix="/metas-nutri", tags=["Metas Nutricionais"])
 
 
 @router.get("/usuario/{id_usuario}", response_model=list[MetaNutriResponse])

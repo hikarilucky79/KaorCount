@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -9,7 +10,7 @@ from app.models.usuario import Usuario
 from app.services.usuario_service import UsuarioService
 from app.schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 
-router = APIRouter(prefix="/usuarios", tags=["Usuários"])
+router = RouterIdempotente(prefix="/usuarios", tags=["Usuários"])
 
 
 @router.get("/", response_model=list[UsuarioResponse])

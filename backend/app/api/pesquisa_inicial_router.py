@@ -1,3 +1,4 @@
+from app.core.idempotencia import RouterIdempotente
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -9,7 +10,7 @@ from app.models.pesquisa_inicial import PesquisaInicial
 from app.models.usuario import Usuario
 from app.schemas.pesquisa_inicial import PesquisaInicialResponse, PesquisaInicialUpsert
 
-router = APIRouter(prefix="/pesquisa-inicial", tags=["Pesquisa Inicial"])
+router = RouterIdempotente(prefix="/pesquisa-inicial", tags=["Pesquisa Inicial"])
 
 
 @router.put("/{id_usuario}", response_model=PesquisaInicialResponse)
