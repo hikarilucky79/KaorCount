@@ -6,7 +6,7 @@ import unicodedata
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Any
 
 from app.models.sugestao_refeicao import SugestaoRefeicao
@@ -17,6 +17,7 @@ from app.repositories.meta_nutri_repo import MetaNutriRepository
 from app.repositories.alimento_repo import AlimentoRepository
 from app.repositories.refeicao_repo import RefeicaoRepository
 from app.services.fatsecret_service import FatSecretService
+from app.services.taco_service import TacoService
 from app.services.nutricao_service import NutricaoService
 from fastapi import HTTPException, status
 
@@ -133,7 +134,7 @@ class SugestaoService:
 
         Aqui convertemos tudo para 100 g, que é a base comparável.
         """
-        porcao = float(alimento.get("quantidade_metrica") or 100.0)
+        porcao = float(alimento.get("quantidade_metrica") or alimento.get("porcao_padrao_g") or 100.0)
         if porcao <= 0:
             porcao = 100.0
         fator = 100.0 / porcao
@@ -159,6 +160,8 @@ class SugestaoService:
             "unidade_metrica": alimento.get("unidade_metrica") or "g",
             "porcao_padrao_g": porcao_padrao,
             "food_id": alimento.get("food_id"),
+            "id_alimento_local": alimento.get("id_alimento_local"),
+            "origem_dados": alimento.get("origem_dados"),
         }
 
     def _filtrar_alimentos_por_macros(
@@ -404,12 +407,17 @@ class SugestaoService:
           uma requisição HTTP por item. Como já temos os dados normalizados
           para 100 g em mãos, gravamos direto, sem rede.
         """
+        id_local = item.get("id_alimento_local")
+        if id_local:
+            existente = self.alimento_repo.get_by_id(id_local)
+            return {"id_alimento": existente.id_alimento} if existente else None
         food_id = item.get("food_id")
         if not food_id:
             return None
 
         try:
-            existente = self.alimento_repo.buscar_por_origem("FatSecret", food_id)
+            origem = "TACO" if str(food_id).startswith("taco_") else "FatSecret"
+            existente = self.alimento_repo.buscar_por_origem(origem, food_id)
             if existente:
                 return {
                     "id_alimento": existente.id_alimento,
@@ -425,7 +433,7 @@ class SugestaoService:
                 "carboidratos": item["carboidratos"],
                 "proteinas": item["proteinas"],
                 "gorduras": item["gorduras"],
-                "origem_dados": f"FatSecret:{food_id}",
+                "origem_dados": f"{origem}:{food_id}",
             }
             alimento = self.alimento_repo.create(dados)
             return {
@@ -461,8 +469,21 @@ class SugestaoService:
             SugestaoRefeicao.data_geracao == hoje,
         ).delete()
 
+        # Os alimentos cadastrados são dados reais do catálogo, não uma lista de receitas fixa.
+        locais = [
+            {"food_id": f"local:{alimento.id_alimento}", "id_alimento_local": alimento.id_alimento,
+             "nome": alimento.nome_alimento, "porcao_padrao_g": alimento.porcao_padrao_g,
+             "calorias": alimento.calorias, "carboidratos": alimento.carboidratos,
+             "proteinas": alimento.proteinas, "gorduras": alimento.gorduras,
+             "origem_dados": alimento.origem_dados}
+            for alimento in self.db.query(self.alimento_repo.model)
+                .filter(self.alimento_repo.model.porcao_padrao_g > 0, self.alimento_repo.model.calorias > 0)
+                .limit(300).all()
+        ]
+        # Complementa catálogos pequenos com a tabela brasileira, quando disponível.
+        taco_disponivel = bool(TacoService._obter_dados_taco()) if 0 < len(locais) < 10 else False
         sugestoes = []
-        
+
         for tipo, pct in self.REFEICOES_CONFIG:
             # Metas para esta refeição
             alvo_cal = meta_cal * pct
@@ -470,11 +491,17 @@ class SugestaoService:
             alvo_prot = meta_prot * pct
             alvo_gord = meta_gord * pct
 
-            # Busca alimentos variados no FatSecret para este tipo de refeição
-            todos_alimentos = []
-            for termo in self.BUSCA_POR_TIPO.get(tipo, []):
-                alimentos = self._buscar_alimentos_fatsecret(termo, max_resultados=10)
-                todos_alimentos.extend(alimentos)
+            # O catálogo local funciona mesmo quando fontes externas estão indisponíveis.
+            todos_alimentos = list(locais)
+            if taco_disponivel:
+                for termo in self.BUSCA_POR_TIPO.get(tipo, []):
+                    todos_alimentos.extend(a for a in TacoService.buscar_alimentos(termo, max_resultados=10)
+                                            if str(a.get("food_id", "")).startswith("taco_"))
+            if not todos_alimentos:
+                for termo in self.BUSCA_POR_TIPO.get(tipo, []):
+                    alimentos = self._buscar_alimentos_fatsecret(termo, max_resultados=10)
+                    # A consulta inclui TACO e FatSecret; exclui complementos fixos em código.
+                    todos_alimentos.extend(a for a in alimentos if not str(a.get("food_id", "")).startswith("br_"))
             
             # Remove duplicatas por food_id
             vistos = set()
@@ -555,7 +582,24 @@ class SugestaoService:
         }
 
     @staticmethod
-    def _serializar(sugestao: SugestaoRefeicao) -> Dict:
+    def _tipo_normalizado(tipo: str) -> str:
+        nome = _normalizar(tipo).replace(" ", "_")
+        return {"cafe_da_manha": "cafe_manha", "jantar": "janta", "lanches": "lanche"}.get(nome, nome)
+
+    def _refeicoes_equivalentes(self, sugestao: SugestaoRefeicao, dia: date) -> list[Refeicao]:
+        itens = json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else []
+        assinatura = sorted((str(item["id_alimento_local"]), float(item["quantidade_g"]))
+                            for item in itens if item.get("id_alimento_local") and float(item.get("quantidade_g") or 0) > 0)
+        if not assinatura:
+            return []
+        refeicoes = self.db.query(Refeicao).options(joinedload(Refeicao.itens)).filter(
+            Refeicao.id_usuario == str(sugestao.id_usuario), Refeicao.data_refeicao == dia,
+        ).all()
+        tipo = self._tipo_normalizado(sugestao.tipo_refeicao)
+        return [refeicao for refeicao in refeicoes if self._tipo_normalizado(refeicao.tipo_refeicao) == tipo and
+                sorted((str(item.id_alimento), float(item.quantidade_alimento_g)) for item in refeicao.itens) == assinatura]
+
+    def _serializar(self, sugestao: SugestaoRefeicao) -> Dict:
         """Converte o model em dict de resposta (com o JSON deserializado)."""
         return {
             "id_sugestao": sugestao.id_sugestao,
@@ -567,7 +611,7 @@ class SugestaoService:
             "carboidratos": sugestao.carboidratos,
             "proteinas": sugestao.proteinas,
             "gorduras": sugestao.gorduras,
-            "aceita": sugestao.aceita,
+            "aceita": sugestao.aceita or bool(self._refeicoes_equivalentes(sugestao, date.fromisoformat(sugestao.data_geracao))),
             "data_geracao": sugestao.data_geracao,
             "alimentos_sugeridos": (
                 json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else []
@@ -585,7 +629,25 @@ class SugestaoService:
         )
         return [self._serializar(s) for s in lista]
 
-    def aceitar(self, id_sugestao: UUID | str, id_usuario: UUID | str | None = None) -> Dict:
+    def desfazer(self, id_sugestao: UUID | str, id_usuario: UUID | str, dia: date | None = None) -> Dict:
+        sugestao = self.db.query(SugestaoRefeicao).filter(
+            SugestaoRefeicao.id_sugestao == str(id_sugestao)
+        ).with_for_update().first()
+        if not sugestao:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sugestão não encontrada")
+        if str(sugestao.id_usuario) != str(id_usuario):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sugestão de outro usuário")
+        refeicoes = self._refeicoes_equivalentes(sugestao, dia or date.today())
+        if len(refeicoes) != 1:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Não foi possível identificar uma única refeição igual. Confira e remova os alimentos no Diário.")
+        self.db.delete(refeicoes[0])
+        sugestao.aceita = False
+        self.db.commit()
+        self.db.refresh(sugestao)
+        return {"sugestao": self._serializar(sugestao), "id_refeicao": None, "itens_criados": 0}
+
+    def aceitar(self, id_sugestao: UUID | str, id_usuario: UUID | str | None = None, data_refeicao: date | None = None) -> Dict:
         """
         Marca a sugestão como aceita e materializa a refeição no diário.
 
@@ -605,11 +667,21 @@ class SugestaoService:
         if id_usuario is not None and str(sugestao.id_usuario) != str(id_usuario):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sugestão de outro usuário")
 
+        dia = data_refeicao or date.today()
+        alteradas = self.db.query(SugestaoRefeicao).filter(
+            SugestaoRefeicao.id_sugestao == str(id_sugestao),
+            SugestaoRefeicao.aceita.is_(False),
+        ).update({SugestaoRefeicao.aceita: True}, synchronize_session="fetch")
+        if not alteradas:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta sugestão já foi registrada.")
+        if self._refeicoes_equivalentes(sugestao, dia):
+            self.db.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta refeição já está registrada neste dia.")
         itens = json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else []
 
         refeicao = Refeicao(
             id_usuario=str(sugestao.id_usuario),
-            data_refeicao=date.today(),
+            data_refeicao=dia,
             tipo_refeicao=sugestao.tipo_refeicao,
         )
         self.db.add(refeicao)

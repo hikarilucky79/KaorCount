@@ -10,6 +10,7 @@ from app.models.sugestao_refeicao import SugestaoRefeicao
 from app.models.lembrete_config import LembreteConfig
 from app.models.limite_requisicao import LimiteRequisicao
 from app.models.usuario import Usuario
+from app.models.preferencia_usuario import PreferenciaUsuario
 
 __all__ = [
     "Alimento",
@@ -24,4 +25,5 @@ __all__ = [
     "RegistroAgua",
     "SugestaoRefeicao",
     "Usuario",
+    "PreferenciaUsuario",
 ]

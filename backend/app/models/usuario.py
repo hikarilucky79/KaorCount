@@ -18,6 +18,7 @@ class Usuario(Base):
     data_cadastro = Column(DateTime, nullable=False, default=datetime.utcnow)
     status_conta = Column(String(20), nullable=False, default="ativo")
 
+    preferencias = relationship("PreferenciaUsuario", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
     perfil_nutri = relationship("PerfilNutri", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
     metas_nutri = relationship("MetaNutri", back_populates="usuario", cascade="all, delete-orphan")
     registros_agua = relationship("RegistroAgua", back_populates="usuario", cascade="all, delete-orphan")

@@ -54,7 +54,7 @@ class RefeicaoService(BaseService):
         total = {"calorias": 0.0, "carboidratos": 0.0, "proteinas": 0.0, "gorduras": 0.0}
 
         for refeicao in refeicoes:
-            for item in self.item_repo.get_by_refeicao(refeicao.id_refeicao):
+            for item in refeicao.itens:
                 macros = NutricaoService.calcular_macros_item(
                     calorias_porcao=item.alimento.calorias,
                     carb_porcao=item.alimento.carboidratos,

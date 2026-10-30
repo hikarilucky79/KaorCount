@@ -1,5 +1,6 @@
 from datetime import date
 from uuid import UUID
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.registro_agua import RegistroAgua
@@ -36,8 +37,21 @@ class RegistroAguaRepository(BaseRepository[RegistroAgua]):
         )
 
     def get_total_dia(self, id_usuario: UUID | str, data: date) -> float:
-        registros = self.db.query(RegistroAgua).filter(
+        total = self.db.query(func.sum(RegistroAgua.quantidade_ml)).filter(
             RegistroAgua.id_usuario == str(id_usuario),
             RegistroAgua.data_registro == data,
-        ).all()
-        return sum(r.quantidade_ml for r in registros)
+        ).scalar()
+        return float(total or 0.0)
+
+    def get_totais_por_periodo(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> dict[date, float]:
+        totais = (
+            self.db.query(RegistroAgua.data_registro, func.sum(RegistroAgua.quantidade_ml))
+            .filter(
+                RegistroAgua.id_usuario == str(id_usuario),
+                RegistroAgua.data_registro >= data_inicio,
+                RegistroAgua.data_registro <= data_fim,
+            )
+            .group_by(RegistroAgua.data_registro)
+            .all()
+        )
+        return {dia: float(total or 0.0) for dia, total in totais}

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_senha
 from app.models.usuario import Usuario
+from app.models.preferencia_usuario import PreferenciaUsuario
 from app.repositories.usuario_repo import UsuarioRepository
 from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
 from app.services.base_service import BaseService
@@ -30,6 +31,15 @@ class UsuarioService(BaseService):
     def atualizar(self, id_usuario: UUID | str, dados: UsuarioUpdate) -> Usuario:
         usuario = self.buscar_por_id(id_usuario)
         update_data = dados.model_dump(exclude_unset=True)
+        preferencias = update_data.pop("preferencias", None)
+        if preferencias is not None:
+            config = usuario.preferencias
+            if config is None:
+                config = PreferenciaUsuario(id_usuario=str(id_usuario))
+                self.repo.db.add(config)
+            for campo, valor in preferencias.items():
+                if valor is not None:
+                    setattr(config, campo, valor)
         if "email" in update_data and update_data["email"] != usuario.email:
             if self.repo.get_by_email(update_data["email"]):
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já está em uso")

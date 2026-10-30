@@ -1,13 +1,15 @@
+from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.limite import limitador_usuario
+from app.core.limite import limitador_usuario, consumir, _segundos_ate_reiniciar
 from app.core.security import get_usuario_atual
 from app.models.usuario import Usuario
+from app.models.alimento import Alimento
 from app.schemas.sugestao import SugestaoAceitaResponse, SugestaoRefeicaoResponse
 from app.services.sugestao_service import SugestaoService
 
@@ -19,6 +21,17 @@ limitar_geracao = limitador_usuario(
     settings.LIMITE_SUGESTOES_POR_USUARIO,
     settings.LIMITE_JANELA_SUGESTAO_SEGUNDOS,
 )
+
+
+def limitar_geracao_por_fonte(db: Session = Depends(get_db), usuario: Usuario = Depends(get_usuario_atual)) -> None:
+    possui_catalogo = db.query(Alimento.id_alimento).filter(Alimento.porcao_padrao_g > 0, Alimento.calorias > 0).first()
+    if not possui_catalogo:
+        return limitar_geracao(db=db, usuario=usuario)
+    chave = f"sugestoes_local:{usuario.id_usuario}"
+    _, restante = consumir(db, chave, 10, 60)
+    if restante <= 0:
+        raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde antes de tentar de novo.",
+                            headers={"Retry-After": str(_segundos_ate_reiniciar(db, chave, 60))})
 
 
 def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
@@ -41,7 +54,7 @@ def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
 @router.post(
     "/gerar/{id_usuario}",
     response_model=list[SugestaoRefeicaoResponse],
-    dependencies=[Depends(limitar_geracao)],
+    dependencies=[Depends(limitar_geracao_por_fonte)],
 )
 def gerar_sugestoes(
     id_usuario: UUID,
@@ -67,8 +80,13 @@ def listar_sugestoes(
 @router.post("/aceitar/{id_sugestao}", response_model=SugestaoAceitaResponse)
 def aceitar(
     id_sugestao: UUID,
+    data: date | None = Query(None),
+    desfazer: bool = Query(False),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_atual),
 ):
     """Aceita a sugestão e já cria a refeição no diário."""
-    return SugestaoService(db).aceitar(id_sugestao, id_usuario=usuario.id_usuario)
+    service = SugestaoService(db)
+    if desfazer:
+        return service.desfazer(id_sugestao, id_usuario=usuario.id_usuario, dia=data)
+    return service.aceitar(id_sugestao, id_usuario=usuario.id_usuario, data_refeicao=data)

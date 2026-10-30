@@ -30,35 +30,17 @@ def _to_float(val, default: float = 0.0) -> float:
 
 
 def _formatar_nome_amigavel(desc: str) -> str:
-    """Transforma nomes laboratoriais com vírgulas ('Pastel, de carne, frito') em nomes naturais."""
-    if not desc:
-        return ""
-    partes = [p.strip() for p in desc.split(",") if p.strip()]
+    """Preserva as características da descrição original da TACO."""
+    partes = [parte.strip() for parte in (desc or "").split(",") if parte.strip() and _normalizar(parte) not in ("cru", "crua", "crus", "cruas")]
     if not partes:
-        return desc
-
-    # Ex: Carne, bovina, picanha, grelhada -> Picanha Bovina Grelhada
-    if len(partes) >= 3 and partes[0].lower() == "carne" and partes[1].lower() == "bovina":
-        corte = partes[2]
-        resto = " ".join(partes[3:])
-        return f"{corte.title()} Bovina {resto.title()}".strip()
-
-    # Ex: Arroz, tipo 1, cozido -> Arroz Branco Cozido
-    if len(partes) >= 2 and partes[0].lower() == "arroz" and "tipo 1" in partes[1].lower():
-        resto = " ".join(partes[2:])
-        return f"Arroz Branco {resto.title()}".strip()
-
-    texto = " ".join(partes)
-    # Ajusta capitalização de conectivos
-    palavras = texto.split()
-    conectivos = {"de", "da", "do", "das", "dos", "com", "e", "em", "sem"}
-    res = []
-    for i, p in enumerate(palavras):
-        if i > 0 and p.lower() in conectivos:
-            res.append(p.lower())
-        else:
-            res.append(p.capitalize())
-    return " ".join(res)
+        return ""
+    if len(partes) >= 2 and _normalizar(partes[0]) == "milho" and _normalizar(partes[1]) == "fuba":
+        partes = ["Fubá de milho", *partes[2:]]
+    elif len(partes) >= 2 and _normalizar(partes[0]) == "frango" and _normalizar(partes[1]) == "peito":
+        partes = ["Peito de frango", *partes[2:]]
+    else:
+        partes[0] = partes[0][:1].upper() + partes[0][1:]
+    return " ".join(partes)
 
 
 # Variações populares autênticas da culinária brasileira para complementar termos comuns

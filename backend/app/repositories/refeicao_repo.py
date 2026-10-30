@@ -1,8 +1,9 @@
 from datetime import date
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.refeicao import Refeicao
+from app.models.item_refeicao import ItemRefeicao
 from app.repositories.base import BaseRepository
 
 
@@ -26,6 +27,7 @@ class RefeicaoRepository(BaseRepository[Refeicao]):
     def get_by_periodo(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> list[Refeicao]:
         return (
             self.db.query(Refeicao)
+            .options(selectinload(Refeicao.itens).joinedload(ItemRefeicao.alimento))
             .filter(
                 Refeicao.id_usuario == str(id_usuario),
                 Refeicao.data_refeicao >= data_inicio,
@@ -38,6 +40,7 @@ class RefeicaoRepository(BaseRepository[Refeicao]):
     def get_by_dia(self, id_usuario: UUID | str, data: date) -> list[Refeicao]:
         return (
             self.db.query(Refeicao)
+            .options(selectinload(Refeicao.itens).joinedload(ItemRefeicao.alimento))
             .filter(Refeicao.id_usuario == str(id_usuario), Refeicao.data_refeicao == data)
             .order_by(Refeicao.data_refeicao.desc())
             .all()
