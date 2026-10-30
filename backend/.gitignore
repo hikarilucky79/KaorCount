@@ -8,6 +8,9 @@ build/
 develop-eggs/
 dist/
 downloads/
+!/public/downloads/
+/public/downloads/*
+!/public/downloads/KaorCount-android.apk
 eggs/
 .eggs/
 lib/
