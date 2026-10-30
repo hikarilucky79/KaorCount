@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-18T00:00:00Z",
+  "title": "Design System: Keenko",
+  "extensions": {
+    "colorMeta": {
+      "cream": { "role": "neutral", "displayName": "Creme", "canonical": "#F5F5EF" },
+      "olive": { "role": "primary", "displayName": "Oliva", "canonical": "#4A5D23" },
+      "terracotta": { "role": "accent", "displayName": "Terracota", "canonical": "#D9824B" },
+      "ink": { "role": "text", "displayName": "Tinta", "canonical": "#1A1A1A" },
+      "white": { "role": "neutral", "displayName": "Branco", "canonical": "#FFFFFF" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Título principal da página Keenko." },
+      "heading": { "displayName": "Heading", "purpose": "Títulos de seção." },
+      "body": { "displayName": "Body", "purpose": "Texto e leitura geral." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 5px 24px rgba(26,26,26,0.045)", "purpose": "Elevação discreta dos cartões de recursos da página principal." }
+    ],
+    "motion": [
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: reduce", "purpose": "Desativa animações/transições e rolagem suave quando solicitado." }
+    ],
+    "breakpoints": [
+      { "name": "tailwind-lg", "value": "64rem", "purpose": "Alterna navegação desktop e composição principal." },
+      { "name": "tailwind-sm", "value": "40rem", "purpose": "Ajustes responsivos de tipografia e espaçamento." }
+    ],
+    "variants": {
+      "main": { "html": "backend/public/html/index.html", "css": "backend/public/css/keenko.css", "source": "backend/site/styles.css", "font": "Inter local", "build": "Tailwind CLI 4.3.3; CSS compilado versionado, sem CDN/runtime build" },
+      "download": { "html": "backend/public/html/download.html", "css": "backend/public/css/keenko.css", "source": "backend/site/styles.css", "font": "Inter local", "build": "Tailwind CLI 4.3.3; principal e download compilados juntos", "status": "Página centralizada creme/sálvia/bege; painel navegador arredondado e sombreado; logo Keenko original; item App Download ativo.", "availability": "App Store e Google Play explicitamente indisponíveis; único download funcional é o APK Android preservado.", "qr": "Gerado para URL HTTP(S) pública corrente ou data-public-url explícita; URL local/inválida apresenta fallback, sem QR fictício." }
+    }
+  },
+  "components": [
+    {
+      "name": "Download CTA",
+      "kind": "button",
+      "refersTo": "primary-action",
+      "description": "Ação principal que leva à página real de download Android.",
+      "html": "<a class=\"rounded-full bg-terracotta\" href=\"../html/download.html\">Baixar o KaorCount</a>",
+      "css": "background: #D9824B; color: #1A1A1A; border-radius: 9999px;"
+    },
+    {
+      "name": "Feature Card",
+      "kind": "card",
+      "refersTo": "feature-card",
+      "description": "Cartão de recurso real do KaorCount: refeições, hidratação ou progresso.",
+      "html": "<article class=\"service-card rounded-3xl bg-white\"><h3>Registro de Refeições</h3></article>",
+      "css": "background: #FFFFFF; color: #1A1A1A; border-radius: 24px;"
+    },
+    {
+      "name": "FAQ Disclosure",
+      "kind": "custom",
+      "description": "Pergunta expansível nativa, acessível por teclado e sem dependência de JavaScript.",
+      "html": "<details><summary>O app substitui um nutricionista?</summary><p>Não; é uma ferramenta de organização e acompanhamento.</p></details>",
+      "css": "details { border-bottom: 1px solid #eee; } summary { cursor: pointer; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Autonomia alimentar com tecnologia acolhedora",
+    "overview": "A Keenko é uma HealthTech brasileira e o KaorCount seu primeiro app. A página principal usa Inter local, creme, oliva e terracota para apresentar recursos de alimentação sem sugerir serviço clínico. A página de download segue como variante independente com Sora e estilos legados.",
+    "keyCharacteristics": [
+      "Página principal responsiva com navegação e CTA para download Android real.",
+      "Conteúdo contextual: empresa, propósito, refeições, hidratação, progresso e dúvidas.",
+      "Inter/Tailwind compilado e compartilhado pelas páginas principal e de download; arquivos CSS/Sora legados preservados, mas não carregados pela página de download atual."
+    ],
+    "rules": [
+      "Não alegar consultas, resultados clínicos, preços, avaliações ou disponibilidade de lojas sem evidência; App Store e Google Play aparecem como indisponíveis.",
+      "Não apresentar a fotografia ilustrativa como retrato da equipe nem os recursos como telas reais do app; não inventar chat ou receitas.",
+      "Não criar QR fictício nem publicar/configurar URL de produção sem confirmação."
+    ],
+    "dos": [
+      "Manter foco de teclado visível, navegação acessível e preferência por movimento reduzido.",
+      "Manter CSS compilado versionado e atualizar pela fonte backend/site/styles.css; gerar QR apenas para URL pública válida.",
+      "Manter os cartões limitados aos recursos reais: metas, refeições e hidratação/progresso."
+    ],
+    "donts": [
+      "Não remover os arquivos legados Sora, logos, ícones e CSS; embora não carregados pela página atual, permanecem preservados.",
+      "Não afirmar resultados de testes ou Lighthouse sem executar as verificações na versão atual."
+    ]
+  }
+}

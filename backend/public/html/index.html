@@ -1,190 +1,118 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keenko</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap');
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#F5F5EF">
+    <title>Keenko — Tecnologia e bem-estar com o KaorCount</title>
+    <meta name="description" content="A Keenko é uma HealthTech brasileira que simplifica o cuidado com a alimentação. Conheça o KaorCount: refeições, hidratação e progresso em um só app.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Keenko">
+    <meta property="og:title" content="Keenko — Tecnologia e bem-estar com o KaorCount">
+    <meta property="og:description" content="Mais autonomia para cuidar da sua alimentação. Conheça a Keenko e baixe o KaorCount para Android.">
+    <link rel="icon" href="../img/logo_keenko.svg" type="image/svg+xml">
+    <link rel="preload" href="../css/fonts/inter-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="../css/keenko.css?v=20261030-underline-direction">
+    <script src="../js/keenko.js?v=20261030-side-motion" defer></script>
 </head>
-<body>
-    
-    <header class="navbar" id="main-header">
-        <div class="logo">
-            <a href="#inicio"><img src="../img/logo_keenko.svg" alt="Logo da Keenko"></a>
+<body class="bg-white font-sans text-ink antialiased">
+    <a class="fixed top-3 left-3 z-50 -translate-y-24 rounded-full bg-olive px-6 py-3 font-semibold text-white focus:translate-y-0" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="site-header sticky top-0 z-40 border-b border-black/5 bg-cream">
+        <div class="mx-auto flex min-h-22 max-w-7xl items-center justify-between gap-6 px-6 lg:px-10">
+            <a class="relative block h-14 w-40 shrink-0 overflow-hidden rounded-sm" href="#inicio" aria-label="Keenko — início">
+                <img class="absolute top-[-19px] left-[-6px] w-[170px] max-w-none" src="../img/logo_keenko.svg" alt="Keenko" width="1920" height="1080">
+            </a>
+            <nav class="hidden items-center gap-4 xl:gap-6 lg:flex" aria-label="Navegação principal">
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#inicio">Início</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#sobre">A Keenko</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#proposito">Propósito</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#app">KaorCount</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#recursos">Recursos</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:text-olive" href="#duvidas">Dúvidas</a>
+            </nav>
+            <a class="hidden min-h-12 shrink-0 items-center justify-center rounded-full bg-olive px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#39491b] lg:inline-flex" href="#sobre">Conheça a Keenko</a>
+            <details class="relative lg:hidden" id="mobile-menu">
+                <summary class="flex min-h-11 list-none items-center gap-2 rounded-full border border-olive/20 px-4 py-2 text-sm font-medium"><span>Menu</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></summary>
+                <nav class="absolute top-14 right-0 w-[min(19rem,calc(100vw-3rem))] rounded-2xl border border-gray-100 bg-white p-3 shadow-lg" aria-label="Navegação móvel">
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#inicio">Início</a>
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#sobre">A Keenko</a>
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#proposito">Propósito</a>
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#app">KaorCount</a>
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#recursos">Recursos</a>
+                    <a class="flex min-h-11 items-center rounded-lg px-4 py-3 text-sm hover:bg-cream" href="#duvidas">Dúvidas</a>
+                    <a class="mt-2 flex min-h-12 items-center justify-center rounded-full bg-olive px-4 py-3 text-sm font-semibold text-white hover:bg-[#39491b]" href="#sobre">Conheça a Keenko</a>
+                </nav>
+            </details>
         </div>
-        
-        <nav class="nav-links">
-            <a href="#keenko">Sobre</a>
-            <a href="#app">App</a>
-            <a href="#recursos">Recursos</a>
-            <a href="#comentarios">Avaliações</a>
-            <a href="#testar" class="btn-baixar">Testar</a>
-        </nav>
     </header>
 
-    <!--FRASE DE EFEITO | INICIO -->
-    <br id="inicio">
-    <section class="frase-efeito">
-        <h1 id="text-efeito">Conectando <strong id="destaque">você</strong> à sua melhor versão</h1>
-        <br><br>
-    </section>
-    
-
-    <!-- Sobre a empresa-->
-
-    <section class="sec-keenko">
-        <h1 id="keenko">A Keenko</h1>
-
-        <br>
-
-        <div class="text" id="keenko-text">
-            <p>
-                Fundada em 27 de fevereiro de 2025, a <strong>Keenko</strong> é uma HealthTech brasileira focada em transformar a relação das pessoas com o bem-estar através da 
-                tecnologia. Nosso objetivo principal é garantir a democratização de uma vida saudável, tornando o cuidado com o corpo acessível, simples e prático 
-                para todos. 
-            </p>
-
-            <div class="imagem">
-                <img src="../img/imgem_empresa.jfif" alt="Colaboradores em uma reunião">
+    <main id="conteudo">
+        <section class="hero-waves bg-cream" id="inicio" aria-labelledby="hero-title">
+            <div class="mx-auto grid max-w-7xl items-center gap-10 px-6 pt-12 pb-16 sm:gap-14 sm:py-16 lg:grid-cols-2 lg:gap-14 lg:px-10 lg:py-20">
+                <div class="max-w-xl">
+                    <h1 class="text-[2.6rem] leading-[1.12] font-bold tracking-[-0.04em] sm:text-5xl xl:text-[3.6rem]" id="hero-title">Mais <span class="hero-emphasis text-olive">autonomia</span> para cuidar da sua <span class="hero-emphasis hero-emphasis-reverse text-olive">alimentação</span>.</h1>
+                    <p class="mt-6 max-w-[43ch] text-base leading-relaxed text-[#54564e] sm:text-lg">Somos a Keenko, uma HealthTech brasileira que conecta tecnologia e bem-estar. Com o KaorCount, acompanhar refeições, hidratação e progresso fica mais simples.</p>
+                    <a class="mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-terracotta px-7 py-4 text-center text-sm font-bold text-ink transition-colors hover:bg-[#ce753e] sm:text-base" href="../html/download.html">Baixar o KaorCount <svg class="shrink-0" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+                    <p class="mt-3 text-xs text-[#54564e]">Para Android · download direto do APK</p>
+                </div>
+                <figure class="mx-auto w-full max-w-xl">
+                    <img class="aspect-square w-full rounded-3xl object-cover object-center sm:rounded-[2rem]" src="../img/keenko-alimentos.jpg" alt="Prato de salada com folhas, abacate, grão-de-bico e legumes coloridos" width="1200" height="800" fetchpriority="high">
+                </figure>
             </div>
-        </div>
+        </section>
 
-        <div class="Keenko-grid">
-            <div class="Keenko-card">
-                <h3>missão</h3>
-                <p>Democratizar o acesso a uma vida saudável, devolvendo às pessoas a autonomia sobre a sua rotina nutricional ao transformar hábitos 
-                    complexos em fluxos simples, práticos e acessíveis.</p>
+        <section class="bg-white px-6 py-16 sm:py-20 lg:px-10" id="recursos" aria-labelledby="services-title">
+            <div class="mx-auto max-w-7xl">
+                <div id="app"><img class="mx-auto mb-5 h-auto w-32" src="../img/logo_KaorCount.svg" alt="KaorCount" width="181" height="90" loading="lazy"><h2 class="text-center text-3xl font-bold tracking-tight sm:text-4xl" id="services-title">Seu cuidado, em um só lugar.</h2><p class="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-[#54564e]">Conheça o primeiro aplicativo da Keenko. O essencial para organizar a rotina nutricional, sem termos difíceis ou burocracia.</p></div>
+                <div class="mt-10 grid gap-6 md:grid-cols-3 sm:mt-12 lg:gap-8">
+                    <article class="service-card rounded-3xl border border-gray-100 bg-white px-7 py-10 text-center shadow-[0_5px_24px_rgba(26,26,26,0.045)]">
+                        <div class="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-cream text-olive"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14c-7-6-15-2-14 7 1 8 6 14 10 14 2 0 3-1 4-1s2 1 4 1c4 0 9-6 10-14 1-9-7-13-14-7Z"/><path d="M20 14V9m0 0c1-5 5-6 10-5-1 5-5 8-10 5Z"/></svg></div>
+                        <h3 class="text-xl leading-snug font-bold">Registro de Refeições</h3>
+                        <p class="mt-4 text-sm leading-relaxed text-[#54564e] sm:text-base">Adicione os alimentos do seu dia e acompanhe calorias e macronutrientes, com um perfil adaptado às suas metas.</p>
+                    </article>
+                    <article class="service-card rounded-3xl border border-gray-100 bg-white px-7 py-10 text-center shadow-[0_5px_24px_rgba(26,26,26,0.045)]">
+                        <div class="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-cream text-olive"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4S8 17 8 25a12 12 0 0 0 24 0C32 17 20 4 20 4Z"/><path d="M14 24a6 6 0 0 0 6 7"/></svg></div>
+                        <h3 class="text-xl leading-snug font-bold">Controle de Hidratação</h3>
+                        <p class="mt-4 text-sm leading-relaxed text-[#54564e] sm:text-base">Registre o consumo de água e conte com lembretes, com sua rotina e suas metas diárias em uma tela intuitiva.</p>
+                    </article>
+                    <article class="service-card rounded-3xl border border-gray-100 bg-white px-7 py-10 text-center shadow-[0_5px_24px_rgba(26,26,26,0.045)]">
+                        <div class="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-cream text-olive"><svg width="38" height="38" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 6v28h28M13 27V17h5v10m6 0V10h5v17"/><path d="m12 12 8-7 7 1 7-4"/></svg></div>
+                        <h3 class="text-xl leading-snug font-bold">Seu Progresso, Visível</h3>
+                        <p class="mt-4 text-sm leading-relaxed text-[#54564e] sm:text-base">Visualize a evolução de peso e nutrientes em gráficos e consulte seu histórico para entender seus hábitos.</p>
+                    </article>
+                </div>
             </div>
+        </section>
 
-            <div class="Keenko-card">
-                <h3>visão</h3>
-                <p>Tornar-se a principal referência nacional no setor de alimentação e bem-estar mediados pela tecnologia</p>
+        <section class="border-t border-gray-100 bg-cream/60 px-6 py-14 lg:px-10" id="sobre" aria-labelledby="about-title">
+            <div class="mx-auto grid max-w-7xl gap-6 md:grid-cols-2 md:gap-16">
+                <h2 class="max-w-md text-3xl leading-tight font-bold tracking-tight" id="about-title">Tecnologia com propósito.<br>Bem-estar para todos.</h2>
+                <div class="max-w-xl space-y-4 text-base leading-relaxed text-[#54564e]"><p>Fundada em <time datetime="2025-02-27">27 de fevereiro de 2025</time>, a Keenko é uma HealthTech brasileira que nasceu para transformar a relação das pessoas com o bem-estar através da tecnologia.</p><p>Nosso objetivo é tornar o cuidado com o corpo acessível, simples e prático. O KaorCount é o primeiro passo dessa jornada: um aplicativo de nutrição pensado para a vida real.</p></div>
             </div>
+        </section>
 
-            <div class="Keenko-card">
-                <h3>valores</h3>
-                <p>Autonomia do usuário, precisão científica, simplicidade (zero burocracia), democratização da saúde e personalização real</p>
-            </div>
+        <section class="px-6 py-14 lg:px-10" id="proposito" aria-labelledby="purpose-title">
+            <div class="mx-auto max-w-7xl"><h2 class="text-3xl font-bold tracking-tight" id="purpose-title">O que nos move.</h2><div class="mt-9 grid gap-9 md:grid-cols-3">
+                <article><h3 class="text-xl font-bold text-olive">Nossa missão</h3><p class="mt-4 text-base leading-relaxed text-[#54564e]">Democratizar o acesso a uma vida saudável, devolvendo às pessoas autonomia sobre sua rotina nutricional com soluções simples, práticas e acessíveis.</p></article>
+                <article><h3 class="text-xl font-bold text-olive">Nossa visão</h3><p class="mt-4 text-base leading-relaxed text-[#54564e]">Tornar-nos uma referência nacional em alimentação e bem-estar mediados pela tecnologia.</p></article>
+                <article><h3 class="text-xl font-bold text-olive">Nossos valores</h3><p class="mt-4 text-base leading-relaxed text-[#54564e]">Autonomia do usuário, precisão científica, simplicidade sem burocracia, democratização da saúde e personalização real.</p></article>
+            </div></div>
+        </section>
 
-        </div>
-    </section>
+        <section class="border-t border-gray-100 px-6 py-14 lg:px-10" id="duvidas" aria-labelledby="faq-title">
+            <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-2 lg:gap-16"><div><h2 class="text-3xl font-bold tracking-tight" id="faq-title">Antes de começar.</h2><p class="mt-4 max-w-md text-base leading-relaxed text-[#54564e]">Mais clareza para conhecer o KaorCount e dar o próximo passo.</p></div><div>
+                <details class="border-b border-gray-100"><summary class="flex min-h-16 list-none items-center justify-between gap-4 py-4 font-semibold">Como posso baixar o aplicativo?<span class="text-xl text-olive" aria-hidden="true">+</span></summary><p class="pb-5 text-sm leading-relaxed text-[#54564e]">Acesse a <a class="font-medium text-olive underline" href="../html/download.html">página de download</a> para baixar o APK Android e consultar as instruções de instalação. Não há instalador para iPhone ou iPad disponível nesta página.</p></details>
+                <details class="border-b border-gray-100"><summary class="flex min-h-16 list-none items-center justify-between gap-4 py-4 font-semibold">Para quem é o KaorCount?<span class="text-xl text-olive" aria-hidden="true">+</span></summary><p class="pb-5 text-sm leading-relaxed text-[#54564e]">Para quem quer organizar a alimentação, acompanhar a hidratação e entender seu progresso, seja buscando emagrecimento, ganho de massa ou mais consciência sobre os próprios hábitos.</p></details>
+                <details class="border-b border-gray-100"><summary class="flex min-h-16 list-none items-center justify-between gap-4 py-4 font-semibold">O app substitui um nutricionista?<span class="text-xl text-olive" aria-hidden="true">+</span></summary><p class="pb-5 text-sm leading-relaxed text-[#54564e]">Não. O KaorCount é uma ferramenta de organização e acompanhamento, não um serviço de consulta. Decisões sobre sua saúde devem ser discutidas com um profissional qualificado.</p></details>
+            </div></div>
+        </section>
 
-    <br>
+    </main>
 
-    <!-- Sobre o app-->
-    <section class="sec-app">
-        <h1 id="app">O nosso APP</h1>
-
-        <br>
-
-        <img id="app-logo" src="../img/logo_KaorCount.svg" alt="Logo app KaorCount">
-
-        <div class="text" id="app-text">
-            <p>
-                Cuidar da alimentação não deveria exigir um conhecimento técnico em nutrição. A maioria dos aplicativos de dieta são complexos, lotados de 
-                termos técnicos e não incentivam você se manter na rotina.
-            </p>
-
-            <p>
-                O KaorCount surge para mudar isso. Ele é primeiro aplicativo móvel da Keenko, focado em oferecer um ambiente intuitivo e simplificado 
-                para contagem de calorias e macronutrientes
-            </p>
-
-            <p>
-                <strong>Entendimento imediato e sem burocracia, é isso que o KaorCount oferece a você!</strong> Quer você busque emagrecimento, ganho de massa, mais saúde 
-                ou apenas a sensação de se sentir bem consigo mesmo.
-            </p>
-        </div>
-
-    <br>
-    </section>
-
-    <!-- Sobre o recursos do app-->
-    <section class="sec-recurso">
-        <h1 id="recursos">Recursos</h1>
-
-        <br>
-
-        <div class="recursos-grid" id="text-recursos-grid">
-
-            <div class="recurso-card">
-                <img src="../img/icone_conta.svg" alt="Ícone Conta">
-                <h3>Conta Personalizada</h3>
-                <p>O app se adapta às suas metas e ao seu perfil</p>
-            </div>
-
-            <div class="recurso-card">
-                <img src="../img/icone_refeicao.svg" alt="Ícone Refeição">
-                <h3>Registro de Refeições</h3>
-                <p>Adicione seus alimentos do cotidiano com poucos cliques</p>
-            </div>
-
-            <div class="recurso-card">
-                <img src="../img/icone_agua.svg" alt="Ícone Hidratação">
-                <h3>Controle de Hidratação</h3>
-                <p>Lembretes e registros para você não se esquecer de beber água</p>
-            </div>
-
-            <div class="recurso-card">
-                <img src="../img/icone_intuitivo.svg" alt="Ícone Intuitivo">
-                <h3>Intuitivo</h3>
-                <p>Toda a sua rotina e metas diárias visíveis em uma única tela</p>
-            </div>
-
-            <div class="recurso-card">
-                <img src="../img/icone_grafico.svg" alt="Ícone Gráficos">
-                <h3>Gráficos de Progresso</h3>
-                <p>Veja sua evolução de peso e nutrientes de forma visual e motivadora</p>
-            </div>
-
-            <div class="recurso-card">
-                <img src="../img/icone_historico.svg" alt="Ícone Histórico">
-                <h3>Histórico</h3>
-                <p>Acesse seus dados passados para entender seus padrões</p>
-            </div>
-
-        </div>
-    </section>
-
-    <br>
-
-    <!-- Reviews de quem testou o app-->
-    <section class="sec-comentarios">
-        <h1 id="comentarios">Avaliações</h1>
-
-        <br>
-
-        <div class="text" id="comentarios-text">
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam blandit sapien sed feugiat luctus. Donec dictum sodales mattis. Nulla ornare, augue non mattis vestibulum, turpis orci tincidunt diam, at ornare arcu tortor quis arcu. Nunc tortor tellus, commodo convallis porttitor a, bibendum vestibulum erat. Morbi in justo at tellus malesuada aliquam. Curabitur id malesuada nunc, tincidunt aliquet odio. Sed porttitor porttitor tristique.</p>
-
-            <p>Donec blandit felis vitae velit pellentesque volutpat. Sed mollis ligula odio. Morbi dignissim enim vel quam porttitor, quis faucibus sem tempor. Vivamus non vehicula sapien. Vivamus sed magna at magna porta bibendum vitae eget mauris. Aliquam sodales massa et turpis eleifend scelerisque. Nulla mi ipsum, auctor id ornare sit amet, elementum id neque. Praesent molestie nunc non augue mattis, non luctus nisi rutrum. Vestibulum diam est, accumsan nec nulla sit amet, egestas mollis justo. Nam nec gravida tellus, id pulvinar diam. Fusce mattis eros et tellus congue porttitor. Etiam pulvinar arcu ac diam volutpat eleifend. Nulla facilisi. Mauris aliquet felis arcu, sit amet hendrerit magna tempus at. Aliquam erat volutpat. Nulla a nibh aliquam, vehicula ex sed, tincidunt felis.</p>
-
-            <p>malesuada justo id nibh ultricies, vel congue ante dictum. Aliquam vel rhoncus nibh. Nunc accumsan nec lacus id rhoncus. Cras feugiat volutpat bibendum. Curabitur eget quam vel enim ornare facilisis. Aliquam sit amet dictum sapien. Maecenas porta pretium orci quis scelerisque. Sed at nisl id risus maximus porta at ut erat. Donec faucibus magna neque, sit amet pretium tellus tempus eu. Duis cursus, ex id convallis auctor, ex diam fermentum eros, a convallis urna nisl et velit. Aenean quis urna a quam fringilla dictum eu ac dui. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-        </div>
-    </section>
-
-    <br>
-
-    <!-- Botão que abre o aplicativo-->
-    <section class="sec-testar">
-        <h1 id="testar">Teste agora</h1>
-
-        <br>
-
-        <div class="text" id="testar-text">
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam blandit sapien sed feugiat luctus. Donec dictum sodales mattis. Nulla ornare, augue non mattis vestibulum, turpis orci tincidunt diam, at ornare arcu tortor quis arcu. Nunc tortor tellus, commodo convallis porttitor a, bibendum vestibulum erat. Morbi in justo at tellus malesuada aliquam. Curabitur id malesuada nunc, tincidunt aliquet odio. Sed porttitor porttitor tristique.</p>
-
-            <p>Donec blandit felis vitae velit pellentesque volutpat. Sed mollis ligula odio. Morbi dignissim enim vel quam porttitor, quis faucibus sem tempor. Vivamus non vehicula sapien. Vivamus sed magna at magna porta bibendum vitae eget mauris. Aliquam sodales massa et turpis eleifend scelerisque. Nulla mi ipsum, auctor id ornare sit amet, elementum id neque. Praesent molestie nunc non augue mattis, non luctus nisi rutrum. Vestibulum diam est, accumsan nec nulla sit amet, egestas mollis justo. Nam nec gravida tellus, id pulvinar diam. Fusce mattis eros et tellus congue porttitor. Etiam pulvinar arcu ac diam volutpat eleifend. Nulla facilisi. Mauris aliquet felis arcu, sit amet hendrerit magna tempus at. Aliquam erat volutpat. Nulla a nibh aliquam, vehicula ex sed, tincidunt felis.</p>
-
-            <p>malesuada justo id nibh ultricies, vel congue ante dictum. Aliquam vel rhoncus nibh. Nunc accumsan nec lacus id rhoncus. Cras feugiat volutpat bibendum. Curabitur eget quam vel enim ornare facilisis. Aliquam sit amet dictum sapien. Maecenas porta pretium orci quis scelerisque. Sed at nisl id risus maximus porta at ut erat. Donec faucibus magna neque, sit amet pretium tellus tempus eu. Duis cursus, ex id convallis auctor, ex diam fermentum eros, a convallis urna nisl et velit. Aenean quis urna a quam fringilla dictum eu ac dui. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-        </div>
-    </section>
-
-    <br>
-
-    <script src="../js/index.js"></script>
+    <footer class="border-t border-gray-100 bg-white px-6 py-7 lg:px-10">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4 text-xs leading-relaxed text-[#54564e] sm:flex-row sm:items-center sm:justify-between"><p>© <span id="current-year">2026</span> Keenko. Tecnologia, saúde e bem-estar.</p><p>O KaorCount não substitui o acompanhamento de um profissional de saúde.</p></div>
+    </footer>
 </body>
 </html>

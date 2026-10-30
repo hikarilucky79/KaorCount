@@ -3,7 +3,8 @@
   "regions": ["gru1"],
   "rewrites": [
     { "source": "/", "destination": "/html/index.html" },
-    { "source": "/index.html", "destination": "/html/index.html" }
+    { "source": "/index.html", "destination": "/html/index.html" },
+    { "source": "/download", "destination": "/html/download.html" }
   ],
   "headers": [
     {

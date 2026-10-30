@@ -88,11 +88,11 @@ app.add_exception_handler(OperationalError, operational_error_handler)
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 INDEX_HTML = PUBLIC_DIR / "html" / "index.html"
 
-# Servir arquivos estáticos (CSS e JS).
+# Servir o site institucional e o instalador Android.
 # Na Vercel o public/ é promovido ao CDN e não acompanha o bundle da função, e
 # um StaticFiles de diretório ausente derruba o import inteiro. Onde os arquivos
 # existem (Docker) o mount acontece; onde não existem, o CDN já atende a rota.
-for _prefixo in ("css", "js"):
+for _prefixo in ("css", "js", "img", "html", "downloads"):
     _pasta = PUBLIC_DIR / _prefixo
     if _pasta.is_dir():
         app.mount(f"/{_prefixo}", StaticFiles(directory=_pasta), name=_prefixo)
@@ -104,6 +104,12 @@ if INDEX_HTML.is_file():
     @app.get("/index.html", include_in_schema=False)
     def root():
         return FileResponse(INDEX_HTML)
+
+DOWNLOAD_HTML = PUBLIC_DIR / "html" / "download.html"
+if DOWNLOAD_HTML.is_file():
+    @app.get("/download", include_in_schema=False)
+    def download_page():
+        return FileResponse(DOWNLOAD_HTML)
 
 @app.get("/health")
 def health():

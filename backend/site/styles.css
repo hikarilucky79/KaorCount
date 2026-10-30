@@ -1,0 +1,58 @@
+@import "tailwindcss" source(none);
+@source "../public/html/index.html";
+@source "../public/html/download.html";
+
+@layer components {
+    .site-header { transition: transform 450ms cubic-bezier(.22, .61, .36, 1); }
+    .site-header.is-hidden:not(:focus-within) { transform: translateY(-100%); }
+
+    .hero-emphasis {
+        background: linear-gradient(#dce4cf, #dce4cf) left 95% / 100% .16em no-repeat;
+        animation: emphasis-reveal 1400ms cubic-bezier(.22, .61, .36, 1) both;
+    }
+    .hero-emphasis-reverse { background-position: right 95%; }
+    @keyframes emphasis-reveal {
+        from { background-size: 0 .16em; }
+        to { background-size: 100% .16em; }
+    }
+
+    .hero-waves {
+        background-image: url("../img/hero-waves.svg");
+        background-position: center bottom;
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+    }
+}
+
+@theme {
+    --font-sans: "Inter", sans-serif;
+    --color-cream: #f5f5ef;
+    --color-olive: #4a5d23;
+    --color-terracotta: #d9824b;
+    --color-ink: #1a1a1a;
+}
+
+@font-face {
+    font-family: Inter;
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("fonts/inter-latin-variable.woff2") format("woff2");
+}
+
+@layer base {
+    html { overflow-x: clip; scroll-behavior: smooth; scrollbar-color: var(--color-olive) var(--color-cream); }
+    body { font-synthesis: none; }
+    ::selection { background: #dfe5d1; color: var(--color-ink); }
+    :focus-visible { outline: 3px solid var(--color-olive); outline-offset: 5px; }
+    [id] { scroll-margin-top: 105px; }
+    summary { cursor: pointer; }
+    summary::-webkit-details-marker { display: none; }
+    a { text-underline-offset: .25em; }
+    h1, h2, h3 { text-wrap: balance; }
+    p { text-wrap: pretty; }
+    @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "title": "Uma nova apresentação para a Keenko",
+  "question": "Qual direção deve guiar o site institucional? A empresa vem primeiro em ambas.",
+  "buildPath": { "value": "code", "toggle": false },
+  "options": [
+    {
+      "id": "garden", "kind": "assigned", "label": "Um caminho para o bem-estar",
+      "thesis": "A clareza da sinalização de um jardim botânico, traduzida em uma apresentação institucional contemporânea.",
+      "palette": ["#173e35", "#e7eedf", "#f8faf6", "#d5e8a2"],
+      "materials": ["campos verdes", "fotografia real", "tipografia Sora"],
+      "viewport": "Uma mensagem ampla à esquerda, a equipe à direita e um percurso direto entre propósito, princípios e produto.",
+      "risk": "Mais sóbria que uma campanha; precisa de contraste de escala para não parecer convencional.",
+      "raised": [{"from":"Azulejos", "raise":"Seções com ritmo e continuidade visual."},{"from":"Molde de costura", "raise":"Alinhamentos rigorosos em todas as larguras."},{"from":"Notação de dança", "raise":"Movimento com ritmo e alternativa estática."},{"from":"Painel de anime", "raise":"Compromisso de cor em seções inteiras, sem estética de alerta."},{"from":"Teletexto", "raise":"Navegação direta e estados inequívocos."},{"from":"Portal de estúdio", "raise":"Uma abertura visual forte sem custo de WebGL."}],
+      "wireframe": {"cols":12,"rows":10,"regions":[{"label":"Keenko · navegação", "x":0,"y":0,"w":12,"h":1},{"label":"Saúde mais próxima. Vida mais sua.","x":0,"y":2,"w":6,"h":5,"accent":true},{"label":"Equipe · fotografia", "x":7,"y":2,"w":5,"h":6},{"label":"Propósito e princípios", "x":0,"y":9,"w":12,"h":1}]}
+    },
+    {
+      "id":"editorial", "kind":"pick", "label":"Tecnologia com propósito", "kicker":"IMPECCABLE’S PICK",
+      "thesis":"Uma apresentação editorial inspirada em publicações de ciência e saúde.",
+      "palette":["#183b45","#ffffff","#dce8eb"], "materials":["branco amplo","fotografia","linhas finas"],
+      "viewport":"Título central amplo, fotografia horizontal e leitura institucional em colunas.",
+      "risk":"Uma estrutura mais familiar e menos particular à Keenko."
+    }
+  ],
+  "reroll": {"registers":["safer","bolder"]}, "canon":true, "steer":true
+}
