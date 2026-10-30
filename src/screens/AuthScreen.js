@@ -305,14 +305,6 @@ export default function AuthScreen({ navigation }) {
                 >
                   <Text style={[styles.txtBtnSecundario, { color: cores.primaria, fontSize: rf(15, 13, 17) }]}>Criar conta grátis</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.guestLink}
-                  onPress={() => setErroMsg('O acesso como convidado ainda não está disponível.')}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.guestLinkText, { color: cores.textoSuave }]}>Entrar como convidado (demo)</Text>
-                </TouchableOpacity>
-                {erroMsg ? <Text style={styles.guestError}>{erroMsg}</Text> : null}
               </View>
             </View>
           </ScrollView>
@@ -759,20 +751,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     gap: 12,
     paddingTop: 4,
-  },
-  guestLink: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  guestLinkText: {
-    fontSize: 15,
-  },
-  guestError: {
-    color: '#B54747',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 4,
   },
   btnPrincipal: {
     backgroundColor: CORES.primaria,

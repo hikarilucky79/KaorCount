@@ -1,7 +1,13 @@
+import OfensivaCelebracao from '../components/OfensivaCelebracao';
+import { concluirCelebracao, marcarCelebracao } from '../util/ofensivaCelebracao';
+import OfensivaBadge from '../components/OfensivaBadge';
+import SugestoesCard from '../components/SugestoesCard';
+import { Botao, Texto } from '../components/RotinaUI';
+import { historicoPeriodo } from '../util/rotina';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Animated, Easing, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { HandMetal, ChevronRight, Utensils, Sun, Moon } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 const SvgCircleWrapper = React.forwardRef(({ collapsable, ...props }, ref) => (
@@ -16,46 +22,21 @@ import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { distribuicaoCalorica } from '../util/nutricao';
 
-function BarraSemanalAnimada({ altura, cor, diaNome, corTexto, delay = 0, larguraBarra = 14, alturaTrilho = 65 }) {
-  const animAltura = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      Animated.timing(animAltura, {
-        toValue: altura,
-        duration: 1500,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [altura, delay]);
-
-  const heightInterpolada = animAltura.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-    extrapolate: 'clamp',
-  });
-
-  return (
-    <View style={styles.colunaDia}>
-      <View style={[styles.trilhoBarra, { height: alturaTrilho }]}>
-        <Animated.View
-          style={{
-            height: heightInterpolada,
-            width: larguraBarra,
-            backgroundColor: cor,
-            borderRadius: 4,
-          }}
-        />
-      </View>
-      <Text style={[styles.labelDiaSemana, { color: corTexto }]}>{diaNome}</Text>
+function BarraHistorico({ altura, cor, diaNome, corTexto, data, calorias, larguraBarra = 14, alturaTrilho = 65 }) {
+  return <View style={styles.colunaDia} accessible accessibilityLabel={`${data.split('-').reverse().join('/')}: ${Math.round(calorias || 0)} calorias`}>
+    <View style={[styles.trilhoBarra, { height: alturaTrilho }]}>
+      <View style={{ height: `${Math.min(Math.max(altura, 0), 100)}%`, width: larguraBarra, backgroundColor: cor, borderRadius: 4 }} />
     </View>
-  );
+    <Text style={[styles.labelDiaSemana, { color: corTexto }]}>{diaNome}</Text>
+  </View>;
 }
 
 export default function HomeScreen({ navigation }) {
   const { usuario } = useAuth();
+  const focado = useIsFocused();
+  const focoRef = useRef(focado);
+  focoRef.current = focado;
+  const [progressoOfensiva, setProgressoOfensiva] = useState(null);
   const { cores, isDark, toggleTema } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
@@ -65,6 +46,11 @@ export default function HomeScreen({ navigation }) {
   const [resumoDia, setResumoDia] = useState(null);
   const [resumoSemana, setResumoSemana] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [erroHistorico, setErroHistorico] = useState('');
+  const [erroResumo, setErroResumo] = useState('');
+  const requisicao = useRef(0);
+  useEffect(() => () => { requisicao.current += 1; }, [usuario?.id_usuario]);
 
   // ↓ Valores derivados do usuário
   const nomeUsuario = usuario?.nome?.split(' ')[0] || 'Usuário';
@@ -152,20 +138,21 @@ export default function HomeScreen({ navigation }) {
     };
   });
 
-  const diasSemana = (resumoSemana?.dias && resumoSemana.dias.length > 0)
-    ? resumoSemana.dias.map(d => {
+  const historico = historicoPeriodo(resumoSemana?.dias, 7);
+  const diasSemana = (historico.dias.length > 0)
+    ? historico.dias.map(d => {
         const partes = d.data.split('-');
         const dataObj = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
         return {
           ...d,
-          diaNome: diasDaSemanaAbrev[dataObj.getDay()] || '—',
+          diaNome: diasDaSemanaAbrev[dataObj.getDay()],
           altura: metaCalorias > 0 ? Math.min((d.calorias / metaCalorias) * 100, 100) : 0,
         };
       })
     : ultimos7DiasPadrao.map(d => ({ ...d, altura: 0 }));
 
   const somaCaloriasSemana = diasSemana.reduce((acc, curr) => acc + (curr.calorias || 0), 0);
-  const mediaSemanal = Math.round(somaCaloriasSemana / 7);
+  const mediaSemanal = historico.media;
 
   // ───────────────────────────────────────────────────────────
   // ↓ Carregar dados da API
@@ -177,6 +164,8 @@ export default function HomeScreen({ navigation }) {
       return;
     }
 
+    const pedido = ++requisicao.current;
+    setCarregandoHistorico(true);
     try {
       if (isRefresh) {
         setAtualizando(true);
@@ -190,47 +179,34 @@ export default function HomeScreen({ navigation }) {
         metaNutriApi.metaAtual(usuario.id_usuario),
       ]);
 
+      if (pedido !== requisicao.current) return;
+      setErroResumo(resDia.status === 'rejected' ? 'Não foi possível atualizar o resumo. Tente novamente.' : '');
+      setErroHistorico(resSemana.status === 'rejected' ? 'Não foi possível carregar o histórico. Tente novamente.' : '');
       if (resDia.status === 'fulfilled') setResumoDia(resDia.value);
       if (resSemana.status === 'fulfilled') setResumoSemana(resSemana.value);
       if (resMeta.status === 'fulfilled') setMetaAtual(resMeta.value);
     } catch (error) {
       console.warn('[HomeScreen] Erro ao carregar dados:', error?.message);
     } finally {
-      setCarregando(false);
-      setAtualizando(false);
+      if (pedido === requisicao.current) { setCarregando(false); setAtualizando(false); setCarregandoHistorico(false); }
     }
   }, [usuario?.id_usuario]);
 
-  // ───────────────────────────────────────────────────────────
-  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
-  // ───────────────────────────────────────────────────────────
-  const animEntrada = useRef(new Animated.Value(0)).current;
+  const aoAceitarSugestao = async (resultado, preparada) => {
+    await carregarDados(true);
+    if (!resultado.itens_criados) return;
+    const progresso = await concluirCelebracao(preparada);
+    if (!progresso || !focoRef.current || usuario?.id_usuario !== preparada.id) return;
+    setProgressoOfensiva(progresso);
+    await marcarCelebracao(preparada.id, preparada.data);
+  };
 
-  useFocusEffect(
-    useCallback(() => {
-      carregarDados();
-      animEntrada.setValue(0);
-      Animated.timing(animEntrada, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }, [carregarDados])
-  );
-
-  const offsetSlide = Math.round(moderateScale(35, 0.3));
-  const fadeHeader = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideHeader = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
-
-  const fadeCard1 = animEntrada.interpolate({ inputRange: [0.1, 0.8], outputRange: [0, 1] });
-  const slideCard1 = animEntrada.interpolate({ inputRange: [0.1, 1], outputRange: [offsetSlide, 0], extrapolate: 'clamp' });
-
-  const fadeCard2 = animEntrada.interpolate({ inputRange: [0.2, 0.9], outputRange: [0, 1] });
-  const slideCard2 = animEntrada.interpolate({ inputRange: [0.2, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
-
-  const fadeCard3 = animEntrada.interpolate({ inputRange: [0.3, 1], outputRange: [0, 1] });
-  const slideCard3 = animEntrada.interpolate({ inputRange: [0.3, 1], outputRange: [offsetSlide, 0], extrapolate: 'clamp' });
+  const carregarDadosRef = useRef(carregarDados);
+  carregarDadosRef.current = carregarDados;
+  useFocusEffect(useCallback(() => {
+    carregarDadosRef.current(false);
+    return () => { requisicao.current += 1; };
+  }, [usuario?.id_usuario]));
 
   const larguraBarraGrafico = Math.max(10, Math.min(Math.round(moderateScale(14, 0.35)), 22));
   const alturaTrilhoGrafico = Math.round(moderateScale(65, 0.3));
@@ -251,7 +227,7 @@ export default function HomeScreen({ navigation }) {
         <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
           
           {/* Header com Saudação */}
-          <Animated.View style={[styles.header, { opacity: fadeHeader, transform: [{ translateX: slideHeader }] }]}>
+          <View style={styles.header}>
             <View>
               <Text style={[styles.textoOla, { color: cores.textoSuave, fontFamily: 'PlusJakartaSansSemiBold', fontSize: rf(18, 16, 20), lineHeight: rf(22, 20, 24), marginBottom: -4 }]}>Olá,</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -259,7 +235,7 @@ export default function HomeScreen({ navigation }) {
                 <HandMetal color={cores.textoEscuro} size={rf(26, 22, 30)} style={{ marginLeft: 8 }} />
               </View>
             </View>
-          </Animated.View>
+          </View>
 
           {/* Loading inicial (apenas quando não há dados em memória) */}
           {carregando && !resumoDia && (
@@ -268,8 +244,10 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
 
+          <OfensivaBadge dias={resumoDia?.streak_dias || 0} />
+          {erroResumo ? <><Texto erro>{erroResumo}</Texto><Botao ocupado={atualizando} onPress={() => carregarDados(true)}>Tentar novamente</Botao></> : null}
           {/* Card do Resumo de Hoje (clicável -> vai para Diário) */}
-          <Animated.View style={{ opacity: fadeCard1, transform: [{ translateX: slideCard1 }] }}>
+          <View>
           <TouchableOpacity 
             style={[styles.cardGeral, { backgroundColor: cores.branco, borderColor: cores.borda }]} 
             activeOpacity={0.85}
@@ -366,10 +344,10 @@ export default function HomeScreen({ navigation }) {
             <Utensils size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={[styles.botaoAcaoRapidaTexto, { fontSize: rf(15, 13, 17) }]}>Registrar no Diário Alimentar</Text>
           </TouchableOpacity>
-          </Animated.View>
+          </View>
 
           {/* Bloco Distribuição de Macros */}
-          <Animated.View style={{ opacity: fadeCard2, transform: [{ translateX: slideCard2 }] }}>
+          <View>
           <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>DISTRIBUIÇÃO DE MACROS</Text>
           <View style={[styles.row, { justifyContent: 'space-between', gap: 8 }]}>
             <View style={[styles.cardMacroItem, { backgroundColor: cores.branco }]}>
@@ -391,18 +369,23 @@ export default function HomeScreen({ navigation }) {
               <Text style={[styles.itemMacroPorcentagem, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>{distGordura}%</Text>
             </View>
           </View>
-          </Animated.View>
+          </View>
 
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>SUGESTÕES PARA HOJE</Text>
+          <SugestoesCard key={usuario?.id_usuario} idUsuario={usuario?.id_usuario} aoAceitar={aoAceitarSugestao} />
           {/* Bloco Histórico Semanal */}
-          <Animated.View style={{ opacity: fadeCard3, transform: [{ translateX: slideCard3 }] }}>
-          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>HISTÓRICO SEMANAL</Text>
+          <View>
+          <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>HISTÓRICO DE CALORIAS</Text>
           <View style={[styles.cardGeral, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+            {carregandoHistorico ? <ActivityIndicator color={cores.primaria} /> : null}
+            {erroHistorico ? <><Texto erro>{erroHistorico}</Texto><Botao onPress={() => carregarDados(true)}>Tentar novamente</Botao></> : null}
+            {!carregandoHistorico && !erroHistorico && !historico.dias.length ? <Texto>Nenhum registro disponível neste período.</Texto> : null}
             <View style={styles.containerGrafico}>
               <Text style={{color: cores.textoSuave, fontStyle: 'italic', fontSize: rf(13, 11, 15)}}> Gráfico Evolutivo (últimos 7 dias) </Text>
               
               <View style={[styles.areaGraficoBarras, { height: alturaTrilhoGrafico + 25 }]}>
                 <View style={styles.linhaGraficoBarras}>
-                  {diasSemana.map((item, index) => {
+                  {(resumoSemana ? diasSemana : []).map((item, index) => {
                     const alturaBarra = item.calorias > 0 
                       ? Math.max(Math.min((item.calorias / metaCalorias) * 100, 100), 10)
                       : 4;
@@ -410,13 +393,14 @@ export default function HomeScreen({ navigation }) {
                     const corBarra = item.calorias > 0 ? cores.primaria : (isDark ? '#2C2C2C' : '#F0E4D4');
 
                     return (
-                      <BarraSemanalAnimada
+                      <BarraHistorico
                         key={item.data || index}
                         altura={alturaBarra}
                         cor={corBarra}
                         diaNome={item.diaNome}
                         corTexto={cores.textoSuave}
-                        delay={index * 110}
+                        data={item.data}
+                        calorias={item.calorias}
                         larguraBarra={larguraBarraGrafico}
                         alturaTrilho={alturaTrilhoGrafico}
                       />
@@ -428,13 +412,14 @@ export default function HomeScreen({ navigation }) {
 
             <View style={[styles.row, { justifyContent: 'space-between', marginTop: 14, borderTopWidth: 1, borderColor: cores.borda, paddingTop: 10 }]}>
               <Text style={[styles.legendaGrafico, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>Meta: {metaCalorias} kcal/dia</Text>
-              <Text style={[styles.legendaGrafico, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>Média: <Text style={{color: cores.primaria, fontWeight:'bold'}}>{mediaSemanal} kcal</Text></Text>
+              <Text style={[styles.legendaGrafico, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>Média: <Text style={{color: cores.primaria, fontWeight:'bold'}}>{carregandoHistorico || !resumoSemana ? '—' : mediaSemanal} kcal</Text></Text>
             </View>
           </View>
-          </Animated.View>
+          </View>
 
         </View>
       </ScrollView>
+      <OfensivaCelebracao progresso={progressoOfensiva} aoFechar={() => setProgressoOfensiva(null)} />
     </SafeAreaView>
   );
 }

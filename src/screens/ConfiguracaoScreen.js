@@ -1,8 +1,12 @@
+import RelatorioCard from '../components/RelatorioCard';
+import AjudaCategorias, { CATEGORIAS_AJUDA } from '../components/AjudaCategorias';
+import LembretesCard from '../components/LembretesCard';
+import PrivacidadeCard from '../components/PrivacidadeCard';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, FileText, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, ChevronLeft, ChevronRight, Moon, X } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
@@ -10,15 +14,17 @@ import ConfirmacaoAcaoModal from '../components/ConfirmacaoAcaoModal';
 import * as perfilNutriApi from '../api/perfilNutriApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { UNIDADES_PADRAO } from '../util/medidas';
-import { carregarUnidades, salvarUnidades } from '../util/unidades';
+import { unidadesDaConta } from '../util/medidas';
 
 export const ITENS_MENU_CONFIGURACAO = [
   { id: 'conta', rota: 'ConfiguracaoConta', grupo: 'CONTA', titulo: 'Conta', descricao: 'E-mail e acesso', Icone: LockKeyhole },
   { id: 'perfil', rota: 'ConfiguracaoPerfil', grupo: 'CONTA', titulo: 'Perfil', descricao: 'Dados pessoais, medidas e atividade', Icone: UserRound },
   { id: 'objetivos', rota: 'ConfiguracaoObjetivos', grupo: 'ROTINA', titulo: 'Meus objetivos', descricao: 'Meta e nível de atividade', Icone: Flag },
   { id: 'diario', aba: 'Diário', grupo: 'ROTINA', titulo: 'Diário & Monitor de água', descricao: 'Refeições e hidratação', Icone: BookMarked },
-  { id: 'lembretes', rota: 'ConfiguracaoLembretes', grupo: 'ROTINA', titulo: 'Lembretes', descricao: 'Notificações e tema', Icone: BellRing },
+  { id: 'lembretes', rota: 'ConfiguracaoLembretes', grupo: 'ROTINA', titulo: 'Lembretes', descricao: 'Água e refeições', Icone: BellRing },
+  { id: 'relatorio', rota: 'ConfiguracaoRelatorio', grupo: 'CONTA', titulo: 'Relatório nutricional', descricao: 'Resumo e exportação em PDF', Icone: FileText },
   { id: 'unidades', rota: 'ConfiguracaoUnidades', grupo: 'PREFERÊNCIAS', titulo: 'Unidades', descricao: 'Peso, altura e água', Icone: Ruler },
+  { id: 'tema', grupo: 'PREFERÊNCIAS', titulo: 'Tema escuro', descricao: 'Altere a aparência do aplicativo', Icone: Moon },
   { id: 'pais', rota: 'ConfiguracaoPais', grupo: 'PREFERÊNCIAS', titulo: 'País da base de alimentos', descricao: 'Catálogo de alimentos', Icone: Database },
   { id: 'ajuda', rota: 'ConfiguracaoAjuda', grupo: 'SUPORTE', titulo: 'Ajuda & Perguntas frequentes', descricao: 'Orientações de uso', Icone: CircleHelp },
   { id: 'sobre', rota: 'ConfiguracaoSobre', grupo: 'SUPORTE', titulo: 'Sobre o KaorCount', descricao: 'Versão do aplicativo', Icone: Info },
@@ -124,12 +130,11 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
 }
 
 export default function ConfiguracaoScreen({ navigation, route }) {
-  const { usuario, logout } = useAuth();
-  const { cores, isDark, toggleTema } = useTheme();
+  const { usuario, logout, salvarPreferencias } = useAuth();
+  const { cores, isDark, toggleTema, salvandoTema } = useTheme();
   const { rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
-  const [pushAtivo, setPushAtivo] = useState(true);
-  const [lembreteAtivo, setLembreteAtivo] = useState(true);
+
   const [nivelAtividade, setNivelAtividade] = useState('moderado');
   const [objetivo, setObjetivo] = useState('manter_peso');
   const [perfilCompleto, setPerfilCompleto] = useState(null);
@@ -138,6 +143,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
   const [confirmacaoSaidaVisivel, setConfirmacaoSaidaVisivel] = useState(false);
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
   const [carregandoUnidades, setCarregandoUnidades] = useState(false);
+  useEffect(() => { setUnidades(unidadesDaConta(usuario?.preferencias)); }, [usuario?.id_usuario, usuario?.preferencias?.unidade_peso, usuario?.preferencias?.unidade_altura, usuario?.preferencias?.unidade_agua]);
   const secaoSelecionada = route?.params?.secao || null;
 
   // ↓ Lista de níveis de atividade
@@ -187,10 +193,6 @@ export default function ConfiguracaoScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       if (secaoSelecionada === 'objetivos') carregarDados();
-      if (secaoSelecionada === 'unidades') {
-        setCarregandoUnidades(true);
-        carregarUnidades().then(setUnidades).finally(() => setCarregandoUnidades(false));
-      }
       animEntrada.setValue(0);
       Animated.timing(animEntrada, {
         toValue: 1,
@@ -202,16 +204,13 @@ export default function ConfiguracaoScreen({ navigation, route }) {
   );
 
   const atualizarUnidade = async (campo, valor) => {
-    const anterior = unidades;
-    const proxima = { ...anterior, [campo]: valor };
-    setUnidades(proxima);
-    try {
-      await salvarUnidades(proxima);
-    } catch {
-      setUnidades(anterior);
+    if (carregandoUnidades) return;
+    setCarregandoUnidades(true);
+    try { await salvarPreferencias({ [`unidade_${campo}`]: valor }); }
+    catch {
       if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível salvar a unidade.');
       else Alert.alert('Erro', 'Não foi possível salvar a unidade.');
-    }
+    } finally { setCarregandoUnidades(false); }
   };
 
   const offsetSlide = Math.round(moderateScale(35, 0.3));
@@ -299,7 +298,8 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     grupo,
     itens: ITENS_MENU_CONFIGURACAO.filter((item) => item.grupo === grupo),
   })).filter(({ itens }) => itens.length > 0);
-  const itemSecao = ITENS_MENU_CONFIGURACAO.find((item) => item.id === secaoSelecionada);
+  const categoriaAjuda = CATEGORIAS_AJUDA.find(c => c.id === route?.params?.categoria);
+  const itemSecao = secaoSelecionada === 'ajuda_categoria' ? { titulo: categoriaAjuda?.titulo || 'Ajuda', descricao: 'Perguntas frequentes' } : ITENS_MENU_CONFIGURACAO.find((item) => item.id === secaoSelecionada);
   const detalhe = Boolean(secaoSelecionada);
   const corTextoMenu = cores.textoEscuro;
 
@@ -320,6 +320,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
       case 'conta':
         return (
           <>
+            <PrivacidadeCard key={usuario?.id_usuario} idUsuario={usuario?.id_usuario} logout={async () => { await logout(); navigation.reset({ index: 0, routes: [{ name: 'Auth' }] }); }} />
             <View style={[styles.detalheBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
               <Text style={[styles.detalheSubtitulo, { color: cores.textoSuave }]}>E-MAIL DA CONTA</Text>
               <Text style={[styles.detalheTexto, { color: corTextoMenu }]}>{usuario?.email || 'Conta KaorCount'}</Text>
@@ -354,33 +355,9 @@ export default function ConfiguracaoScreen({ navigation, route }) {
           </>
         );
       case 'lembretes':
-        return (
-          <View style={[styles.detalheBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-            <Text style={[styles.detalheSubtitulo, { color: cores.textoSuave }]}>NOTIFICAÇÕES</Text>
-            <View style={[styles.switchRow, { borderBottomColor: cores.borda }]}>
-              <View style={styles.switchTextoContainer}>
-                <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Notificações push</Text>
-                <Text style={[styles.switchSubtitulo, { color: cores.textoSuave }]}>Avisos e atualizações do aplicativo</Text>
-              </View>
-              <Switch value={pushAtivo} onValueChange={setPushAtivo} trackColor={{ false: cores.borda, true: cores.primaria }} accessibilityLabel="Notificações push" />
-            </View>
-            <View style={[styles.switchRow, { borderBottomColor: cores.borda }]}>
-              <View style={styles.switchTextoContainer}>
-                <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Lembrete de refeição</Text>
-                <Text style={[styles.switchSubtitulo, { color: cores.textoSuave }]}>Lembre-se de registrar suas refeições</Text>
-              </View>
-              <Switch value={lembreteAtivo} onValueChange={setLembreteAtivo} trackColor={{ false: cores.borda, true: cores.primaria }} accessibilityLabel="Lembrete de refeição" />
-            </View>
-            <Text style={[styles.detalheSubtitulo, { color: cores.textoSuave, marginTop: 22 }]}>APARÊNCIA</Text>
-            <View style={[styles.switchRow, { borderBottomWidth: 0 }]}>
-              <View style={styles.switchTextoContainer}>
-                <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Tema escuro</Text>
-                <Text style={[styles.switchSubtitulo, { color: cores.textoSuave }]}>Altere a aparência do aplicativo</Text>
-              </View>
-              <Switch value={isDark} onValueChange={toggleTema} trackColor={{ false: cores.borda, true: cores.primaria }} accessibilityLabel="Tema escuro" />
-            </View>
-          </View>
-        );
+        return <LembretesCard key={usuario?.id_usuario} idUsuario={usuario?.id_usuario} />;
+      case 'relatorio':
+        return <RelatorioCard key={usuario?.id_usuario} idUsuario={usuario?.id_usuario} abertoInicial />;
       case 'unidades':
         return (
           <>
@@ -431,12 +408,9 @@ export default function ConfiguracaoScreen({ navigation, route }) {
           </View>
         );
       case 'ajuda':
-        return (
-          <View style={[styles.detalheBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
-            <Text style={[styles.switchTitulo, { color: corTextoMenu }]}>Como usar o KaorCount</Text>
-            <Text style={[styles.detalheTextoSuave, { color: cores.textoSuave, marginTop: 8 }]}>Registre refeições e acompanhe calorias, macronutrientes e hidratação na aba Diário. Seus dados podem ser ajustados em Perfil e seus objetivos em Meus objetivos.</Text>
-          </View>
-        );
+        return <AjudaCategorias navigation={navigation} />;
+      case 'ajuda_categoria':
+        return <AjudaCategorias navigation={navigation} categoria={route?.params?.categoria} />;
       case 'sobre':
         return (
           <View style={[styles.detalheBloco, styles.sobreBloco, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
@@ -457,7 +431,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
         <TouchableOpacity
           onPress={voltar}
           accessibilityRole="button"
-          accessibilityLabel={detalhe ? 'Voltar para configurações' : 'Fechar configurações'}
+          accessibilityLabel={secaoSelecionada === 'ajuda_categoria' ? 'Voltar para categorias de ajuda' : detalhe ? 'Voltar para configurações' : 'Fechar configurações'}
           style={styles.menuFechar}
         >
           {detalhe ? <ChevronLeft size={24} color={corTextoMenu} /> : <X size={23} color={corTextoMenu} />}
@@ -483,23 +457,36 @@ export default function ConfiguracaoScreen({ navigation, route }) {
               <View style={[styles.menuGrupoCard, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
                 {itens.map((item, index) => (
                   <React.Fragment key={item.id}>
-                    <TouchableOpacity
-                      style={styles.menuLinha}
-                      onPress={() => selecionarItem(item)}
-                      activeOpacity={0.75}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.titulo}. ${item.descricao}`}
-                      accessibilityHint="Abre esta opção"
-                    >
-                      <View style={[styles.menuIcone, { backgroundColor: cores.mutado }]} importantForAccessibility="no-hide-descendants">
-                        <item.Icone size={20} color={cores.primaria} strokeWidth={2} />
+                    {item.id === 'tema' ? (
+                      <View style={styles.menuLinha}>
+                        <View style={[styles.menuIcone, { backgroundColor: cores.mutado }]} importantForAccessibility="no-hide-descendants">
+                          <item.Icone size={20} color={cores.primaria} strokeWidth={2} />
+                        </View>
+                        <View style={styles.menuTextoContainer}>
+                          <Text style={[styles.menuLinhaTexto, { color: corTextoMenu, fontSize: rf(16, 15, 18) }]}>{item.titulo}</Text>
+                          <Text style={[styles.menuLinhaDescricao, { color: cores.textoSuave, fontSize: rf(13, 12, 14) }]}>{item.descricao}</Text>
+                        </View>
+                        <Switch value={isDark} onValueChange={toggleTema} disabled={salvandoTema} trackColor={{ false: cores.borda, true: cores.primaria }} accessibilityLabel="Tema escuro" />
                       </View>
-                      <View style={styles.menuTextoContainer}>
-                        <Text style={[styles.menuLinhaTexto, { color: corTextoMenu, fontSize: rf(16, 15, 18) }]}>{item.titulo}</Text>
-                        <Text style={[styles.menuLinhaDescricao, { color: cores.textoSuave, fontSize: rf(13, 12, 14) }]}>{item.descricao}</Text>
-                      </View>
-                      <ChevronRight size={19} color={cores.textoSuave} accessible={false} />
-                    </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.menuLinha}
+                        onPress={() => selecionarItem(item)}
+                        activeOpacity={0.75}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.titulo}. ${item.descricao}`}
+                        accessibilityHint="Abre esta opção"
+                      >
+                        <View style={[styles.menuIcone, { backgroundColor: cores.mutado }]} importantForAccessibility="no-hide-descendants">
+                          <item.Icone size={20} color={cores.primaria} strokeWidth={2} />
+                        </View>
+                        <View style={styles.menuTextoContainer}>
+                          <Text style={[styles.menuLinhaTexto, { color: corTextoMenu, fontSize: rf(16, 15, 18) }]}>{item.titulo}</Text>
+                          <Text style={[styles.menuLinhaDescricao, { color: cores.textoSuave, fontSize: rf(13, 12, 14) }]}>{item.descricao}</Text>
+                        </View>
+                        <ChevronRight size={19} color={cores.textoSuave} accessible={false} />
+                      </TouchableOpacity>
+                    )}
                     {index < itens.length - 1 ? <View style={[styles.menuDivisor, { backgroundColor: cores.borda }]} /> : null}
                   </React.Fragment>
                 ))}

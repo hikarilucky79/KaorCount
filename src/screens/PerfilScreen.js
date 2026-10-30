@@ -1,3 +1,4 @@
+import EvolucaoPesoCard from '../components/EvolucaoPesoCard';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -46,7 +47,7 @@ import * as usuarioApi from '../api/usuarioApi';
 import { calcularIdade, calcularPlanoNutricional } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
 import { UNIDADES_PADRAO, alturaDeCm, alturaParaCm, formatarAltura, formatarPeso, formatarValorInput, pesoDeKg, pesoParaKg } from '../util/medidas';
-import { carregarUnidades } from '../util/unidades';
+import { unidadesDaConta } from '../util/medidas';
 
 export default function PerfilScreen({ navigation, route }) {
   const { usuario, atualizarUsuario } = useAuth();
@@ -62,6 +63,10 @@ export default function PerfilScreen({ navigation, route }) {
   const [metaAtual, setMetaAtual] = useState(null);
   const [resumo, setResumo] = useState(null);
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
+  useEffect(() => {
+    setUnidades(unidadesDaConta(usuario?.preferencias));
+    setUnidadesCarregadas(true);
+  }, [usuario?.id_usuario, usuario?.preferencias?.unidade_peso, usuario?.preferencias?.unidade_altura, usuario?.preferencias?.unidade_agua]);
   const [unidadesCarregadas, setUnidadesCarregadas] = useState(false);
   const formularioInicializado = useRef(false);
   const modoEdicao = Boolean(route?.params?.abrirEdicao);
@@ -185,11 +190,6 @@ export default function PerfilScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
-      carregarUnidades().then((preferencias) => {
-        setUnidades(preferencias);
-      }).catch((error) => {
-        console.warn('[Perfil] Não foi possível carregar unidades:', error?.message);
-      }).finally(() => setUnidadesCarregadas(true));
       if (!modoEdicao) {
         animEntrada.setValue(0);
         Animated.timing(animEntrada, {
@@ -437,14 +437,14 @@ export default function PerfilScreen({ navigation, route }) {
 
           {/* ↓ Bloco do Usuário */}
           <View style={[styles.cardPerfilSuperior, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#343638' : cores.marcaEscura, marginTop: -16, marginHorizontal: -16, padding: 16 }}>
               <View style={[styles.avatarLetra, { width: moderateScale(64, 0.3), height: moderateScale(64, 0.3), borderRadius: moderateScale(16, 0.3) }]}>
                 <Text style={[styles.textoLetra, { fontSize: rf(26, 20, 30) }]}>{inicialNome}</Text>
               </View>
               <View style={{ marginLeft: 15, flex: 1 }}>
-                <Text style={[styles.nomePerfil, { color: cores.textoEscuro, fontSize: rf(20, 16, 24) }]}>{nomeCompleto}</Text>
-                <Text style={[styles.emailPerfil, { color: cores.textoSuave, fontSize: rf(13, 11, 15) }]}>{emailUsuario}</Text>
-                <Text style={[styles.subInfoPerfil, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>{idadeTexto}  •  {objetivoTexto}</Text>
+                <Text style={[styles.nomePerfil, { color: '#FFFFFF', fontSize: rf(20, 16, 24) }]}>{nomeCompleto}</Text>
+                <Text style={[styles.emailPerfil, { color: '#FFFFFF', fontSize: rf(13, 11, 15) }]}>{emailUsuario}</Text>
+                <Text style={[styles.subInfoPerfil, { color: '#FFFFFF', fontSize: rf(12, 10, 14) }]}>{idadeTexto}  •  {objetivoTexto}</Text>
               </View>
               
             </View>
@@ -492,42 +492,39 @@ export default function PerfilScreen({ navigation, route }) {
 
           {/* ↓ Seção Estatísticas */}
           <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>ESTATÍSTICAS</Text>
-          <View style={[styles.cardEstatisticaContainer, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-            <View style={styles.rowGrid}>
-              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <BookOpenText color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Dias registrados</Text>
+          <View style={[styles.cardEstatisticaContainer, { backgroundColor: cores.branco, borderColor: cores.borda }]}>
+            <View style={[styles.estatisticaDestaque, { backgroundColor: isDark ? '#343638' : cores.marcaEscura }]}>
+              <View style={styles.estatisticaDestaqueConteudo}>
+                <View style={styles.estatisticaCabecalho}>
+                  <BookOpenText color="#FFFFFF" size={18} />
+                  <Text style={[styles.estatisticaIcone, { color: '#FFFFFF' }]}>DIAS REGISTRADOS</Text>
                 </View>
-                <Text style={[styles.estatisticaNumero, { color: cores.sucesso, fontSize: rf(18, 15, 22) }]}>{diasRegistrados}</Text>
+                <Text style={[styles.estatisticaNumeroDestaque, { color: '#FFFFFF', fontSize: rf(32, 26, 38) }]}>{diasRegistrados}</Text>
               </View>
-              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Flame color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Média calórica</Text>
+              <View style={[styles.estatisticaSeparador, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
+              <View style={styles.estatisticaDestaqueConteudo}>
+                <View style={styles.estatisticaCabecalho}>
+                  <ChartNoAxesCombined color="#FFFFFF" size={18} />
+                  <Text style={[styles.estatisticaIcone, { color: '#FFFFFF' }]}>OBJETIVO</Text>
                 </View>
-                <Text style={[styles.estatisticaNumero, { color: cores.primaria, fontSize: rf(18, 15, 22) }]}>{Math.round(mediaCalorica)} kcal</Text>
+                <Text style={[styles.estatisticaObjetivo, { color: '#FFFFFF', fontSize: rf(18, 15, 21) }]}>{objetivoTexto}</Text>
               </View>
             </View>
-
-            <View style={styles.rowGrid}>
-              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Target color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Meta calórica</Text>
-                </View>
-                <Text style={[styles.estatisticaNumero, { color: '#2D9CDB', fontSize: rf(18, 15, 22) }]}>{metaCalorica > 0 ? `${metaCalorica} kcal` : '—'}</Text>
+            <View style={styles.estatisticaCalorias}>
+              <View style={styles.estatisticaCaloriasItem}>
+                <View style={styles.estatisticaCabecalho}><Flame color={cores.primaria} size={17} /><Text style={[styles.estatisticaRotulo, { color: cores.textoSuave }]}>Média calórica</Text></View>
+                <Text style={[styles.estatisticaNumero, { color: cores.textoEscuro, fontSize: rf(21, 18, 25) }]}>{Math.round(mediaCalorica)} <Text style={[styles.estatisticaUnidade, { color: cores.textoSuave }]}>kcal</Text></Text>
               </View>
-              <View style={[styles.miniCardEstatistica, { backgroundColor: isDark ? '#252525' : '#FDF8F2', borderColor: cores.borda }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ChartNoAxesCombined color={cores.primaria} size={14} style={{ marginRight: 4 }} />
-                  <Text style={[styles.estatisticaIcone, { color: cores.textoSuave, fontSize: rf(11, 10, 13) }]}>Objetivo</Text>
-                </View>
-                <Text style={[styles.estatisticaNumero, { color: cores.primaria, fontSize: rf(15, 12, 18) }]}>{objetivoTexto}</Text>
+              <View style={[styles.estatisticaSeparador, { backgroundColor: cores.borda }]} />
+              <View style={styles.estatisticaCaloriasItem}>
+                <View style={styles.estatisticaCabecalho}><Target color={cores.primaria} size={17} /><Text style={[styles.estatisticaRotulo, { color: cores.textoSuave }]}>Meta calórica</Text></View>
+                <Text style={[styles.estatisticaNumero, { color: cores.textoEscuro, fontSize: rf(21, 18, 25) }]}>{metaCalorica > 0 ? metaCalorica : '—'}{metaCalorica > 0 ? <Text style={[styles.estatisticaUnidade, { color: cores.textoSuave }]}> kcal</Text> : null}</Text>
               </View>
             </View>
           </View>
           </Animated.View>
+        <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>EVOLUÇÃO DE PESO</Text>
+        <EvolucaoPesoCard key={'peso-' + usuario?.id_usuario} idUsuario={usuario?.id_usuario} unidade={unidades.peso} alturaCm={alturaCm} aoRegistrar={setUltimoProgresso} />
         </View>
 
       </ScrollView> : null}
@@ -537,7 +534,7 @@ export default function PerfilScreen({ navigation, route }) {
           <View style={[styles.editorHeader, { borderBottomColor: cores.borda }]}>
             <TouchableOpacity
               onPress={voltarDoEditor}
-              style={[styles.editorVoltar, { backgroundColor: cores.branco }]}
+              style={styles.editorVoltar}
               activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel="Voltar"
@@ -814,6 +811,7 @@ const styles = StyleSheet.create({
     backgroundColor: CORES.branco, 
     borderRadius: 24, 
     padding: 16, 
+    overflow: 'hidden',
     marginBottom: 20 
   },
   avatarLetra: { 
@@ -893,36 +891,19 @@ const styles = StyleSheet.create({
     marginBottom: 12, 
     letterSpacing: 1 
   },
-  cardEstatisticaContainer: { 
-    backgroundColor: CORES.branco, 
-    borderRadius: 24, 
-    padding: 12, 
-    marginBottom: 20 
-  },
-  rowGrid: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginVertical: 4 
-  },
-  miniCardEstatistica: { 
-    width: '48%', 
-    backgroundColor: '#FDF8F2', 
-    padding: 14, 
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F0E4D4'
-  },
-  estatisticaIcone: { 
-    fontSize: 12, 
-    color: CORES.textoSuave, 
-    fontWeight: '500' 
-  },
-  estatisticaNumero: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    marginTop: 6, 
-    color: CORES.textoEscuro 
-  },
+  cardEstatisticaContainer: { borderRadius: 24, borderWidth: 1, overflow: 'hidden', marginBottom: 20 },
+  estatisticaDestaque: { flexDirection: 'row', alignItems: 'stretch', paddingVertical: 18, paddingHorizontal: 16 },
+  estatisticaDestaqueConteudo: { flex: 1, minWidth: 0, paddingHorizontal: 4 },
+  estatisticaCabecalho: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  estatisticaIcone: { flexShrink: 1, fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  estatisticaNumeroDestaque: { fontWeight: '800', marginTop: 8 },
+  estatisticaObjetivo: { fontWeight: '700', marginTop: 12 },
+  estatisticaSeparador: { width: 1, marginHorizontal: 12 },
+  estatisticaCalorias: { flexDirection: 'row', alignItems: 'stretch', paddingVertical: 18, paddingHorizontal: 16 },
+  estatisticaCaloriasItem: { flex: 1, minWidth: 0, paddingHorizontal: 4 },
+  estatisticaRotulo: { flexShrink: 1, fontSize: 12, fontWeight: '600' },
+  estatisticaNumero: { fontWeight: '800', marginTop: 8 },
+  estatisticaUnidade: { fontSize: 12, fontWeight: '600' },
 
   editorScreen: { flex: 1 },
   editorHeader: {

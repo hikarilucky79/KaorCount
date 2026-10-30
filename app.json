@@ -29,7 +29,11 @@
           "resizeMode": "contain",
           "backgroundColor": "#F4E6D6"
         }
-      ]
+      ],
+      "expo-sharing",
+      "expo-font",
+      "expo-status-bar",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

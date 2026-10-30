@@ -1,5 +1,10 @@
+import OfensivaCelebracao from '../components/OfensivaCelebracao';
+import { prepararCelebracao, concluirCelebracao, marcarCelebracao } from '../util/ofensivaCelebracao';
+import CadastroAlimento from '../components/CadastroAlimento';
+import { Botao, Texto } from '../components/RotinaUI';
+import { tipoRefeicao, nomeAlimentoExibicao } from '../util/rotina';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { 
   StyleSheet, 
   Text, 
@@ -25,28 +30,50 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import * as refeicaoApi from '../api/refeicaoApi';
 import * as registroAguaApi from '../api/registroAguaApi';
+import * as lembreteApi from '../api/lembreteApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import * as alimentoApi from '../api/alimentoApi';
 import * as fatsecretApi from '../api/fatsecretApi';
 import { formatarDataAPI } from '../util/data';
 import { UNIDADES_PADRAO, formatarAgua } from '../util/medidas';
-import { carregarUnidades } from '../util/unidades';
+import { unidadesDaConta } from '../util/medidas';
 
 const normalizarTexto = (txt) => 
   (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 export default function DiarioAlimentar({ navigation }) {
   const { usuario } = useAuth();
+  const focado = useIsFocused();
+  const focoRef = useRef(focado);
+  focoRef.current = focado;
+  const [progressoOfensiva, setProgressoOfensiva] = useState(null);
+  const travaSalvarItem = useRef(false);
   const { cores, isDark } = useTheme();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados da Tela
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [refeicoes, setRefeicoes] = useState([]);
+  const [copiando, setCopiando] = useState(false);
+  const [avisoCopia, setAvisoCopia] = useState('');
+  const [erroDiario, setErroDiario] = useState('');
+  const travaCopia = useRef(false);
+  const requisicao = useRef(0);
+  const contexto = useRef('');
+  contexto.current = usuario?.id_usuario + ':' + formatarDataAPI(dataSelecionada);
+  useEffect(() => () => { requisicao.current += 1; }, [usuario?.id_usuario, dataSelecionada]);
+  useEffect(() => () => { contexto.current = ''; }, []);
   const [macros, setMacros] = useState(null);
   const [metaAtual, setMetaAtual] = useState(null);
-  const [agua, setAgua] = useState(0);
+  const [agua, setAgua] = useState(null);
+  const [erroAgua, setErroAgua] = useState(false);
+  const [metaAgua, setMetaAgua] = useState(null);
+  const [erroMetaAgua, setErroMetaAgua] = useState(false);
   const [unidades, setUnidades] = useState({ ...UNIDADES_PADRAO });
+  useEffect(() => {
+    setUnidades(unidadesDaConta(usuario?.preferencias));
+
+  }, [usuario?.id_usuario, usuario?.preferencias?.unidade_peso, usuario?.preferencias?.unidade_altura, usuario?.preferencias?.unidade_agua]);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState(false);
@@ -58,7 +85,7 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Estados do Modal de Adicionar Alimento
   const [modalVisivel, setModalVisivel] = useState(false);
   const [tipoRefeicaoAtual, setTipoRefeicaoAtual] = useState('cafe_manha');
-  const [tabModal, setTabModal] = useState('search'); // 'search' | 'barcode'
+  const [tabModal, setTabModal] = useState('search'); // 'search' | 'manual'
   const [busca, setBusca] = useState('');
   const [alimentosBuscados, setAlimentosBuscados] = useState([]);
   const [buscandoExterna, setBuscandoExterna] = useState(false);
@@ -66,6 +93,16 @@ export default function DiarioAlimentar({ navigation }) {
   const [alimentoSelecionado, setAlimentoSelecionado] = useState(null);
   const [quantidadeG, setQuantidadeG] = useState('100');
   const [salvandoItem, setSalvandoItem] = useState(false);
+  useEffect(() => {
+    setRefeicoes([]);
+    setMacros(null);
+    setAgua(null);
+    setMetaAgua(null);
+    setErroAgua(false);
+    setErroMetaAgua(false);
+    setAvisoCopia('');
+    setCarregando(true);
+  }, [usuario?.id_usuario, dataSelecionada]);
 
   // ↓ Nomes de calendário
   const diasDaSemanaNome = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
@@ -87,7 +124,6 @@ export default function DiarioAlimentar({ navigation }) {
   const metaProteina = metaAtual?.proteina_g || metaAtual?.proteina_meta_g || 140;
   const metaCarboidrato = metaAtual?.carboidrato_g || metaAtual?.carboidrato_meta_g || 180;
   const metaGordura = metaAtual?.gordura_g || metaAtual?.gordura_meta_g || 55;
-  const metaAgua = 2500;
 
   // ↓ Totais de macros (calculados a partir das refeições e itens carregados)
   const calcularTotaisDoDia = () => {
@@ -134,7 +170,7 @@ export default function DiarioAlimentar({ navigation }) {
   const pctProteina = metaProteina > 0 ? Math.min((totais.proteina / metaProteina) * 100, 100) : 0;
   const pctCarboidrato = metaCarboidrato > 0 ? Math.min((totais.carboidrato / metaCarboidrato) * 100, 100) : 0;
   const pctGordura = metaGordura > 0 ? Math.min((totais.gordura / metaGordura) * 100, 100) : 0;
-  const pctAgua = Math.min((agua / metaAgua) * 100, 100);
+  const pctAgua = metaAgua > 0 ? Math.min((agua / metaAgua) * 100, 100) : 0;
 
   // ↓ Animação das barras de progresso (aumentam suavemente a partir do valor atual sem resetar para 0)
   const animBarraProteina = useRef(new Animated.Value(0)).current;
@@ -168,10 +204,10 @@ export default function DiarioAlimentar({ navigation }) {
 
   // ↓ Agrupar refeições por tipo
   const refeicoesPorTipo = {
-    cafe_manha: (refeicoes || []).filter(r => r.tipo_refeicao === 'cafe_manha'),
-    almoco: (refeicoes || []).filter(r => r.tipo_refeicao === 'almoco'),
-    janta: (refeicoes || []).filter(r => r.tipo_refeicao === 'janta'),
-    lanche: (refeicoes || []).filter(r => r.tipo_refeicao === 'lanche'),
+    cafe_manha: (refeicoes || []).filter(r => tipoRefeicao(r.tipo_refeicao) === 'cafe_manha'),
+    almoco: (refeicoes || []).filter(r => tipoRefeicao(r.tipo_refeicao) === 'almoco'),
+    janta: (refeicoes || []).filter(r => tipoRefeicao(r.tipo_refeicao) === 'janta'),
+    lanche: (refeicoes || []).filter(r => tipoRefeicao(r.tipo_refeicao) === 'lanche'),
   };
 
   const tiposConfig = {
@@ -206,6 +242,8 @@ export default function DiarioAlimentar({ navigation }) {
       return;
     }
 
+    const pedido = ++requisicao.current;
+    const chave = contexto.current;
     try {
       if (isRefresh) {
         setAtualizando(true);
@@ -215,107 +253,43 @@ export default function DiarioAlimentar({ navigation }) {
 
       const dataStr = formatarDataAPI(dataSelecionada);
 
-      const [resRefeicoes, resMacros, resMeta, resAgua] = await Promise.allSettled([
+      const [resRefeicoes, resMacros, resMeta, resAgua, resMetaAgua] = await Promise.allSettled([
         refeicaoApi.listarPorDia(usuario.id_usuario, dataStr),
         refeicaoApi.resumoMacrosDia(usuario.id_usuario, dataStr),
         metaNutriApi.metaAtual(usuario.id_usuario),
         registroAguaApi.totalDia(usuario.id_usuario, dataStr),
+        lembreteApi.buscarConfig(usuario.id_usuario),
       ]);
 
+      if (pedido !== requisicao.current || chave !== contexto.current) return;
+      setErroDiario(resRefeicoes.status === 'rejected' ? 'Não foi possível carregar as refeições. Tente novamente.' : '');
       if (resRefeicoes.status === 'fulfilled') setRefeicoes(resRefeicoes.value || []);
       if (resMacros.status === 'fulfilled') setMacros(resMacros.value);
       if (resMeta.status === 'fulfilled') setMetaAtual(resMeta.value);
-      if (resAgua.status === 'fulfilled') setAgua(resAgua.value?.total_ml || 0);
+      setErroAgua(resAgua.status === 'rejected');
+      setAgua(resAgua.status === 'fulfilled' ? resAgua.value?.total_ml || 0 : null);
+      setErroMetaAgua(resMetaAgua.status === 'rejected');
+      setMetaAgua(resMetaAgua.status === 'fulfilled' ? resMetaAgua.value?.agua_meta_diaria_ml : null);
     } catch (error) {
       console.warn('[Diário] Erro ao carregar:', error?.message);
     } finally {
-      setCarregando(false);
-      setAtualizando(false);
+      if (pedido === requisicao.current) { setCarregando(false); setAtualizando(false); }
     }
   }, [usuario?.id_usuario, dataSelecionada]);
 
-  // ───────────────────────────────────────────────────────────
-  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
-  // ───────────────────────────────────────────────────────────
-  const animEntrada = useRef(new Animated.Value(0)).current;
-
-  useFocusEffect(
-    useCallback(() => {
-      carregarDados();
-      carregarUnidades().then(setUnidades);
-      animEntrada.setValue(0);
-      Animated.timing(animEntrada, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }, [carregarDados])
-  );
-
-  const offsetSlide = Math.round(moderateScale(35, 0.3));
-  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
-
-  // ───────────────────────────────────────────────────────────
-  // ↓ Animação Direcional ao Mudar de Dia (< e >)
-  // ───────────────────────────────────────────────────────────
-  const animSlideDia = useRef(new Animated.Value(0)).current;
-  const animFadeDia = useRef(new Animated.Value(1)).current;
-  const [animandoDia, setAnimandoDia] = useState(false);
+  useFocusEffect(useCallback(() => {
+    carregarDados();
+  }, [carregarDados]));
 
   const mudarData = (diasOffset) => {
-    if (animandoDia) return;
-    if (diasOffset > 0 && ehHoje) return;
-
+    if (travaCopia.current || (diasOffset > 0 && ehHoje)) return;
     const novaData = new Date(dataSelecionada);
     novaData.setDate(novaData.getDate() + diasOffset);
-
     const hojeZero = new Date();
     hojeZero.setHours(0, 0, 0, 0);
     const novaDataZero = new Date(novaData);
     novaDataZero.setHours(0, 0, 0, 0);
-
-    if (novaDataZero > hojeZero) return;
-
-    setAnimandoDia(true);
-
-    const offsetDia = Math.round(moderateScale(50, 0.3));
-    const direcaoSaida = diasOffset < 0 ? -offsetDia : offsetDia;
-    const direcaoEntrada = diasOffset < 0 ? offsetDia : -offsetDia;
-
-    Animated.parallel([
-      Animated.timing(animSlideDia, {
-        toValue: direcaoSaida,
-        duration: 160,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(animFadeDia, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setDataSelecionada(novaData);
-
-      animSlideDia.setValue(direcaoEntrada);
-      Animated.parallel([
-        Animated.timing(animSlideDia, {
-          toValue: 0,
-          duration: 250,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(animFadeDia, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setAnimandoDia(false);
-      });
-    });
+    if (novaDataZero <= hojeZero) setDataSelecionada(novaData);
   };
 
   // ───────────────────────────────────────────────────────────
@@ -366,10 +340,12 @@ export default function DiarioAlimentar({ navigation }) {
   // ───────────────────────────────────────────────────────────
   const adicionarAgua = async (quantidade) => {
     if (!usuario?.id_usuario) {
-      setAgua(prev => prev + quantidade);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Entre na sua conta para registrar água.');
+      else Alert.alert('Atenção', 'Entre na sua conta para registrar água.');
       return;
     }
 
+    const chave = contexto.current;
     setAdicionandoAgua(true);
     try {
       await registroAguaApi.criar({
@@ -377,12 +353,13 @@ export default function DiarioAlimentar({ navigation }) {
         quantidade_ml: quantidade,
         data_registro: formatarDataAPI(dataSelecionada),
       });
-      setAgua(prev => prev + quantidade);
+      if (chave === contexto.current) setAgua(prev => prev + quantidade);
     } catch (error) {
-      // Fallback local se offline
-      setAgua(prev => prev + quantidade);
+      if (chave !== contexto.current) return;
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert('Não foi possível registrar água. Tente novamente.');
+      else Alert.alert('Erro', 'Não foi possível registrar água. Tente novamente.');
     } finally {
-      setAdicionandoAgua(false);
+      if (contexto.current) setAdicionandoAgua(false);
     }
   };
 
@@ -390,6 +367,7 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Abrir modal para adicionar alimento
   // ───────────────────────────────────────────────────────────
   const abrirModalAdicionar = (tipo) => {
+    if (travaCopia.current) return;
     setTipoRefeicaoAtual(tipo);
     setAlimentoSelecionado(null);
     setQuantidadeG('100');
@@ -403,6 +381,7 @@ export default function DiarioAlimentar({ navigation }) {
   // ↓ Salvar alimento na refeição
   // ───────────────────────────────────────────────────────────
   const confirmarAdicionarAlimento = async () => {
+    if (travaSalvarItem.current) return;
     if (!alimentoSelecionado) {
       Alert.alert('Atenção', 'Selecione um alimento para adicionar.');
       return;
@@ -424,9 +403,11 @@ export default function DiarioAlimentar({ navigation }) {
       return;
     }
 
+    travaSalvarItem.current = true;
     setSalvandoItem(true);
     try {
       const dataStr = formatarDataAPI(dataSelecionada);
+      const celebracao = await prepararCelebracao(idUsuario, dataStr);
 
       // 1. Garantir que o alimento exista no backend (se for do FatSecret ou Mock)
       let idAlimentoReal = alimentoSelecionado.id_alimento || alimentoSelecionado.id;
@@ -483,6 +464,8 @@ export default function DiarioAlimentar({ navigation }) {
       // Fechar modal e recarregar os dados atualizados
       setModalVisivel(false);
       await carregarDados(true);
+      if (celebracao) await new Promise(resolve => setTimeout(resolve, 400));
+      await exibirOfensiva(celebracao);
     } catch (error) {
       console.error('[Diário] Erro ao adicionar item:', error);
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -491,6 +474,7 @@ export default function DiarioAlimentar({ navigation }) {
         Alert.alert('Erro', error?.message || 'Não foi possível salvar o alimento.');
       }
     } finally {
+      travaSalvarItem.current = false;
       setSalvandoItem(false);
     }
   };
@@ -554,6 +538,54 @@ export default function DiarioAlimentar({ navigation }) {
   // ───────────────────────────────────────────────────────────
   // ↓ Renderizar bloco de refeição com botão + e lista de itens
   // ───────────────────────────────────────────────────────────
+  const exibirOfensiva = async preparada => {
+    const progresso = await concluirCelebracao(preparada);
+    if (!progresso || !focoRef.current || contexto.current !== preparada.id + ':' + preparada.data) return;
+    setProgressoOfensiva(progresso);
+    await marcarCelebracao(preparada.id, preparada.data);
+  };
+
+  const copiarDeOntem = async tipo => {
+    if (travaCopia.current || !usuario?.id_usuario) return;
+    travaCopia.current = true;
+    setCopiando(true);
+    setAvisoCopia('');
+    const chave = contexto.current;
+    let criados = 0;
+    let celebracao = null;
+    try {
+      const anterior = new Date(dataSelecionada);
+      anterior.setDate(anterior.getDate() - 1);
+      const destinoData = formatarDataAPI(dataSelecionada);
+      const [origem, atuais] = await Promise.all([
+        refeicaoApi.listarPorDia(usuario.id_usuario, formatarDataAPI(anterior)),
+        refeicaoApi.listarPorDia(usuario.id_usuario, destinoData),
+      ]);
+      if (chave !== contexto.current) return;
+      const destinos = (atuais || []).filter(r => tipoRefeicao(r.tipo_refeicao) === tipo);
+      if (destinos.some(r => r.itens?.length)) throw new Error('Esta refeição já tem alimentos. Atualize o Diário.');
+      const itens = (origem || []).filter(r => tipoRefeicao(r.tipo_refeicao) === tipo).flatMap(r => r.itens || []);
+      if (!itens.length) throw new Error('Nenhum alimento nessa refeição do dia anterior.');
+      celebracao = await prepararCelebracao(usuario.id_usuario, destinoData, atuais);
+      const destino = destinos[0] || await refeicaoApi.criar({ id_usuario: usuario.id_usuario, tipo_refeicao: tipo, data_refeicao: destinoData });
+      // shortcut: a API grava cada item separadamente; uma falha pode deixar uma cópia parcial.
+      for (const item of itens) {
+        await refeicaoApi.adicionarItem(destino.id_refeicao, { id_refeicao: destino.id_refeicao, id_alimento: item.id_alimento, quantidade_alimento_g: item.quantidade_alimento_g });
+        criados += 1;
+      }
+      if (chave === contexto.current) setAvisoCopia('Refeição copiada.');
+    } catch (e) {
+      if (chave === contexto.current) setAvisoCopia(criados ? `Cópia interrompida: ${criados} alimento(s) registrado(s). Confira o Diário antes de adicionar os demais.` : e.response ? 'Não foi possível copiar. Confira o Diário antes de tentar novamente.' : e.message);
+    } finally {
+      if (chave === contexto.current) {
+        await carregarDados(true);
+        if (criados > 0) await exibirOfensiva(celebracao);
+      }
+      travaCopia.current = false;
+      if (contexto.current) setCopiando(false);
+    }
+  };
+
   const renderBlocoRefeicao = (tipo) => {
     const config = tiposConfig[tipo];
     const lista = refeicoesPorTipo[tipo] || [];
@@ -591,7 +623,7 @@ export default function DiarioAlimentar({ navigation }) {
         
         {todosItens.length > 0 ? (
           todosItens.map((item, idx) => {
-            const alimentoNome = item.alimento?.nome_alimento || item.nome_alimento || 'Alimento';
+            const alimentoNome = nomeAlimentoExibicao(item.alimento?.nome_alimento || item.nome_alimento || 'Alimento', item.alimento?.origem_dados || item.origem_dados);
             const qtdG = item.quantidade_alimento_g || 100;
             const fator = item.alimento ? (qtdG / (item.alimento.porcao_padrao_g || 100)) : 1;
             
@@ -637,9 +669,7 @@ export default function DiarioAlimentar({ navigation }) {
             );
           })
         ) : (
-          <Text style={[styles.textoVazioRefeicao, { color: cores.textoSuave }]}>
-            Nenhum alimento registrado.
-          </Text>
+          <View><Text style={[styles.textoVazioRefeicao, { color: cores.textoSuave }]}>Nenhum alimento registrado.</Text><Botao configuracao ocupado={copiando} disabled={carregando || atualizando || !!erroDiario} onPress={() => copiarDeOntem(tipo)}>Copiar de ontem</Botao></View>
         )}
       </View>
     );
@@ -702,10 +732,12 @@ export default function DiarioAlimentar({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {avisoCopia ? <Texto accessibilityLiveRegion="polite">{avisoCopia}</Texto> : null}
+          {erroDiario ? <><Texto erro>{erroDiario}</Texto><Botao ocupado={atualizando} onPress={() => carregarDados(true)}>Tentar novamente</Botao></> : null}
           {/* Animação de Entrada Geral da Aba Diário (Apenas para o conteúdo abaixo da barra fixa) */}
-          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+          {carregando ? <ActivityIndicator accessibilityLabel="Carregando diário" color={cores.primaria} style={{ marginVertical: 24 }} /> : !erroDiario ? <View>
             {/* ↓ Conteúdo Diário Completo com Animação Direcional ao Mudar de Dia */}
-            <Animated.View style={{ opacity: animFadeDia, transform: [{ translateX: animSlideDia }] }}>
+            <View>
               {/* Resumo Superior Expandido */}
               <View style={[styles.cardResumo, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -739,10 +771,11 @@ export default function DiarioAlimentar({ navigation }) {
                     <Text style={[styles.tituloCardInterno, { marginLeft: 8, color: cores.textoEscuro, fontSize: rf(14, 12, 17) }]}>Hidratação</Text>
                   </View>
                   <Text style={[styles.volAguaText, { color: '#2F80ED', fontSize: rf(16, 14, 19) }]}>
-                    {formatarAgua(agua, unidades.agua)} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {formatarAgua(metaAgua, unidades.agua)}</Text>
+                    {agua == null ? '—' : formatarAgua(agua, unidades.agua)} <Text style={{ fontSize: 13, fontWeight: 'normal', color: cores.textoSuave }}>/ {metaAgua == null ? '—' : formatarAgua(metaAgua, unidades.agua)}</Text>
                   </Text>
                 </View>
                 
+                {erroMetaAgua || erroAgua ? <><Texto erro>Não foi possível carregar o consumo ou a meta de água.</Texto><Botao ocupado={atualizando} onPress={() => carregarDados(true)}>Tentar novamente</Botao></> : null}
                 <View style={[styles.barraFundoAgua, { backgroundColor: isDark ? '#262626' : '#EADCC9' }]}>
                   <Animated.View style={[styles.barraPreenchidaAgua, { width: larguraBarraAgua }]} />
                 </View>
@@ -761,16 +794,16 @@ export default function DiarioAlimentar({ navigation }) {
                       onPress={() => adicionarAgua(qtd)}
                       accessibilityRole="button"
                       accessibilityLabel={`Adicionar ${formatarAgua(qtd, unidades.agua)} de água`}
-                      disabled={adicionandoAgua}
+                      disabled={adicionandoAgua || agua == null}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{formatarAgua(qtd, unidades.agua)}</Text>
+                      {adicionandoAgua ? <ActivityIndicator size="small" color="#2F80ED" /> : <Text style={[styles.txtBtnAgua, { color: isDark ? '#6BA4FF' : '#2F80ED', fontSize: rf(12, 11, 14) }]}>+{formatarAgua(qtd, unidades.agua)}</Text>}
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            </Animated.View>
-          </Animated.View>
+            </View>
+          </View> : null}
         </View>
 
       </ScrollView>
@@ -801,7 +834,7 @@ export default function DiarioAlimentar({ navigation }) {
                     <ChevronLeft size={18} color="#FFFFFF" />
                   </TouchableOpacity>
                   <Text style={styles.headerBrownTitulo} numberOfLines={1}>
-                    {alimentoSelecionado.nome_alimento}
+                    {nomeAlimentoExibicao(alimentoSelecionado.nome_alimento, alimentoSelecionado.origem_dados || alimentoSelecionado.marca)}
                   </Text>
                   <TouchableOpacity 
                     onPress={() => setModalVisivel(false)} 
@@ -856,18 +889,18 @@ export default function DiarioAlimentar({ navigation }) {
             {/* ETAPA 1: Busca, Abas e Seleção de Alimento */}
             {!alimentoSelecionado ? (
               <View style={{ flex: 1, backgroundColor: cores.fundo }}>
-                {/* Abas Superiores (Código de barras | Buscar) */}
+                {/* Abas Superiores (Criar alimento | Buscar) */}
                 <View style={[styles.containerAbasModal, { backgroundColor: cores.branco, borderBottomColor: cores.borda }]}>
                   <TouchableOpacity 
                     style={styles.btnAbaModal}
-                    onPress={() => setTabModal('barcode')}
+                    onPress={() => setTabModal('manual')}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.circuloAbaModal, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: isDark ? '#3A3A3A' : cores.borda }, tabModal === 'barcode' && { backgroundColor: isDark ? '#3D2817' : 'rgba(200, 130, 66, 0.15)', borderColor: cores.primaria }]}>
-                      <Scale size={18} color={tabModal === 'barcode' ? cores.primaria : (isDark ? '#B8A89A' : cores.textoSuave)} />
+                    <View style={[styles.circuloAbaModal, { backgroundColor: isDark ? '#262626' : '#FDF8F2', borderColor: isDark ? '#3A3A3A' : cores.borda }, tabModal === 'manual' && { backgroundColor: isDark ? '#3D2817' : 'rgba(200, 130, 66, 0.15)', borderColor: cores.primaria }]}>
+                      <Scale size={18} color={tabModal === 'manual' ? cores.primaria : (isDark ? '#B8A89A' : cores.textoSuave)} />
                     </View>
-                    <Text style={[styles.txtAbaModal, { color: isDark ? '#B8A89A' : cores.textoSuave }, tabModal === 'barcode' && [styles.txtAbaModalAtiva, { color: cores.primaria }]]}>
-                      Código de{"\n"}barras
+                    <Text style={[styles.txtAbaModal, { color: isDark ? '#B8A89A' : cores.textoSuave }, tabModal === 'manual' && [styles.txtAbaModalAtiva, { color: cores.primaria }]]}>
+                      Criar{"\n"}alimento
                     </Text>
                   </TouchableOpacity>
 
@@ -885,13 +918,8 @@ export default function DiarioAlimentar({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                {tabModal === 'barcode' ? (
-                  <View style={styles.containerEmBreve}>
-                    <View style={[styles.circuloIconeEmBreve, { backgroundColor: isDark ? '#2A1D13' : '#FDF3E7' }]}>
-                      <Scale size={24} color={cores.primaria} />
-                    </View>
-                    <Text style={[styles.txtEmBreve, { color: isDark ? '#B8A89A' : cores.textoSuave }]}>Leitor de código de barras em breve</Text>
-                  </View>
+                {tabModal === 'manual' ? (
+                  <CadastroAlimento aoCriar={setAlimentoSelecionado} />
                 ) : (
                   <>
                     {/* Barra de Pesquisa Redonda */}
@@ -957,7 +985,7 @@ export default function DiarioAlimentar({ navigation }) {
                           >
                             <View style={{ flex: 1, marginRight: 8 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                                <Text style={[styles.itemNomeTexto, { color: cores.textoEscuro }]} numberOfLines={1}>{item.nome_alimento || item.nome}</Text>
+                                <Text style={[styles.itemNomeTexto, { color: cores.textoEscuro }]} numberOfLines={1}>{nomeAlimentoExibicao(item.nome_alimento || item.nome, item.origem_dados || item.marca)}</Text>
                                 {item.marca ? (
                                   <Text style={[styles.badgeMarcaTexto, { color: cores.textoSuave }]} numberOfLines={1}> · {item.marca}</Text>
                                 ) : null}
@@ -984,7 +1012,7 @@ export default function DiarioAlimentar({ navigation }) {
               >
                 {/* Card 1: Informações do Alimento Selecionado */}
                 <View style={[styles.cardAlimentoSelecionado, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
-                  <Text style={[styles.tituloAlimentoSelecionado, { color: cores.textoEscuro }]}>{alimentoSelecionado.nome_alimento}</Text>
+                  <Text style={[styles.tituloAlimentoSelecionado, { color: cores.textoEscuro }]}>{nomeAlimentoExibicao(alimentoSelecionado.nome_alimento, alimentoSelecionado.origem_dados || alimentoSelecionado.marca)}</Text>
                   <Text style={[styles.subAlimentoSelecionado, { color: cores.textoSuave }]}>
                     {alimentoSelecionado.calorias} kcal · por {alimentoSelecionado.porcao_padrao_g || 100}g
                   </Text>
@@ -1064,6 +1092,7 @@ export default function DiarioAlimentar({ navigation }) {
         </View>
       </Modal>
 
+      <OfensivaCelebracao progresso={progressoOfensiva} aoFechar={() => setProgressoOfensiva(null)} />
       <ConfirmacaoAcaoModal
         visivel={confirmacaoRemocaoVisivel}
         cores={cores}

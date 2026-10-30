@@ -19,7 +19,8 @@ const getBaseUrl = () => {
     return urlConfigurada;
   }
   if (Platform.OS === 'web') {
-    return 'http://localhost:8000/api/v1';
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    return `http://${host}:8000/api/v1`;
   }
   const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost || Constants.manifest?.debuggerHost;
   const ip = debuggerHost ? debuggerHost.split(':')[0] : null;

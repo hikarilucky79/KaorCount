@@ -5,17 +5,13 @@
 # Cada passo abaixo foi executado antes de ser commitado; onde um comando
 # só roda no runner (docker run do Caddy) está marcado no comentário.
 #
-# Não há testes automatizados no repositório, então este pipeline é um gate
-# estrutural: pega import quebrado, config inválida e as travas de produção
-# que já existiram e foram removidas sem querer.
+# Executa os testes de comportamento e verifica imports e configuração.
 # ─────────────────────────────────────────────────────────────────────
 name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -40,10 +36,15 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-test.txt
 
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-test.txt
+
+      - name: Testar comportamento da API
+        run: python -m pytest tests/test_api_comportamento.py -q
 
       - name: Compilar todos os módulos
         run: python -m compileall -q app
@@ -154,6 +155,9 @@ jobs:
 
       - name: Instalar dependências
         run: npm ci --no-audit --no-fund
+
+      - name: Testar regras do aplicativo
+        run: node --test tests/rotina.test.cjs
 
       # O mesmo comando do Dockerfile. É o que de fato faz o parse das telas:
       # node --check não entende JSX, e o tsconfig é um stub sem nenhum .ts.

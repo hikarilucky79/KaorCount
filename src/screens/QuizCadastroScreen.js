@@ -229,9 +229,21 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   const quantidade = Math.round((maximo - minimo) / passo) + 1;
   const indiceInicial = Math.max(0, Math.min(quantidade - 1, Math.round((valor - minimo) / passo)));
   const listaRef = useRef(null);
+  const scrollTimeout = useRef(null);
+  const aoMudarRef = useRef(aoMudar);
+  aoMudarRef.current = aoMudar;
   const scrollY = useRef(new Animated.Value(indiceInicial * ITEM_ALTURA)).current;
   const [indicePrevia, setIndicePrevia] = useState(indiceInicial);
   const indiceAtualRef = useRef(indiceInicial);
+  useEffect(() => {
+    if (indiceInicial === indiceAtualRef.current) return;
+    indiceAtualRef.current = indiceInicial;
+    setIndicePrevia(indiceInicial);
+    const offset = indiceInicial * ITEM_ALTURA;
+    scrollY.setValue(offset);
+    listaRef.current?.scrollToOffset({ offset, animated: false });
+  }, [indiceInicial, scrollY]);
+  useEffect(() => () => clearTimeout(scrollTimeout.current), []);
   const valoresRoda = useMemo(() => Array.from({ length: quantidade }, (_, indice) => (
     Number((minimo + indice * passo).toFixed(casas))
   )), [quantidade, minimo, passo, casas]);
@@ -254,13 +266,18 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
       indiceAtualRef.current = indice;
       setIndicePrevia(indice);
     }
-    if (confirmar) aoMudar(valoresRoda[indice]);
+    if (confirmar) aoMudarRef.current(valoresRoda[indice]);
   };
   const eventoScroll = useMemo(() => Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
       useNativeDriver: Platform.OS !== 'web',
-      listener: (evento) => atualizarIndice(evento.nativeEvent.contentOffset.y),
+      listener: (evento) => {
+        const offset = evento.nativeEvent.contentOffset.y;
+        atualizarIndice(offset);
+        clearTimeout(scrollTimeout.current);
+        scrollTimeout.current = setTimeout(() => atualizarIndice(offset, true), 160);
+      },
     },
   ), [scrollY, quantidade, ITEM_ALTURA, valoresRoda]);
 
@@ -304,6 +321,11 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
         style={{ flex: 1 }}
         data={dadosLista}
         initialScrollIndex={indiceInicial}
+        onLayout={() => {
+          const offset = indiceAtualRef.current * ITEM_ALTURA;
+          scrollY.setValue(offset);
+          listaRef.current?.scrollToOffset({ offset, animated: false });
+        }}
         keyExtractor={(indice) => String(indice)}
         getItemLayout={(_, indice) => ({ length: ITEM_ALTURA, offset: indice * ITEM_ALTURA, index: indice })}
         snapToInterval={ITEM_ALTURA}
@@ -314,8 +336,8 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
         scrollEventThrottle={16}
         extraData={indicePrevia}
         onScroll={eventoScroll}
-        onScrollEndDrag={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
-        onMomentumScrollEnd={(evento) => atualizarIndice(evento.nativeEvent.contentOffset.y, true)}
+        onScrollEndDrag={(evento) => { clearTimeout(scrollTimeout.current); atualizarIndice(evento.nativeEvent.contentOffset.y, true); }}
+        onMomentumScrollEnd={(evento) => { clearTimeout(scrollTimeout.current); atualizarIndice(evento.nativeEvent.contentOffset.y, true); }}
         renderItem={({ item: indiceValor }) => {
           if (indiceValor < 0 || indiceValor >= quantidade) {
             return <View style={{ height: ITEM_ALTURA }} />;
@@ -378,6 +400,25 @@ function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', core
   );
 }
 
+function SeletorPeso({ valor, aoMudar, cores }) {
+  const peso = parseNumeroBr(valor);
+  const base = Number.isFinite(peso) ? peso : 60;
+  const inteiro = Math.trunc(base);
+  const decimal = Math.max(0, Math.min(9, Math.round((base - inteiro) * 10)));
+  const mudarInteiro = proximo => aoMudar((proximo + decimal / 10).toFixed(1).replace('.', ','));
+  const mudarDecimal = proximo => aoMudar((inteiro + proximo / 10).toFixed(1).replace('.', ','));
+
+  return (
+    <View style={{ width: '100%' }}>
+      <View style={styles.linhaPesoRoda}>
+        <SeletorRoda valor={inteiro} aoMudar={mudarInteiro} minimo={20} maximo={350} passo={1} cores={cores} estilo={styles.rodaPesoInteira} />
+        <Text style={[styles.separadorPeso, { color: cores.textoEscuro }]}>,</Text>
+        <SeletorRoda valor={decimal} aoMudar={mudarDecimal} minimo={0} maximo={9} passo={1} cores={cores} estilo={styles.rodaPesoDecimal} />
+        <Text style={[styles.unidadePeso, { color: cores.textoSuave }]}>kg</Text>
+      </View>
+    </View>
+  );
+}
 export default function QuizCadastroScreen({ navigation }) {
   // ↓ Dados do usuário já autenticado no cadastro.
   const { usuario, cadastroPendente, registrar } = useAuth();
@@ -403,7 +444,7 @@ export default function QuizCadastroScreen({ navigation }) {
   const [genero, setGenero] = useState('');
   const [dataNascimento, setDataNascimento] = useState('2000'); // ano de nascimento
   const [alturaStr, setAlturaStr] = useState('160');
-  const [pesoStr, setPesoStr] = useState('50,0');
+  const [pesoStr, setPesoStr] = useState('60,0');
   const [nivelAtividade, setNivelAtividade] = useState('');
   const [objetivo, setObjetivo] = useState('');
   // ↓ Ritmo em que a pessoa quer chegar à meta (só p/ perder/ganhar).
@@ -719,10 +760,9 @@ export default function QuizCadastroScreen({ navigation }) {
     <View style={styles.etapaRoda}>
       {renderCabecalhoEtapa(Scale, 'Qual é o seu peso?', 'Um valor aproximado está ótimo.')}
       <View style={styles.seletorEtapaCentralizado}>
-        <SeletorRoda
-          valor={parseNumeroBr(pesoStr) || 50}
-          aoMudar={(valor) => { setPesoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
-          minimo={20} maximo={350} passo={0.1} unidade="kg"
+        <SeletorPeso
+          valor={pesoStr}
+          aoMudar={(valor) => { setPesoStr(valor); setErroEtapa(''); }}
           cores={cores}
         />
       </View>
@@ -834,10 +874,9 @@ export default function QuizCadastroScreen({ navigation }) {
     <View style={styles.etapaRoda}>
       {renderCabecalhoEtapa(Scale, 'Qual é seu peso objetivo?', 'Escolha o peso que quer alcançar.')}
       <View style={styles.seletorEtapaCentralizado}>
-        <SeletorRoda
-          valor={parseNumeroBr(pesoObjetivoStr) || parseNumeroBr(pesoStr) || 50}
-          aoMudar={(valor) => { setPesoObjetivoStr(Number(valor).toFixed(1).replace('.', ',')); setErroEtapa(''); }}
-          minimo={20} maximo={350} passo={0.1} unidade="kg"
+        <SeletorPeso
+          valor={pesoObjetivoStr}
+          aoMudar={(valor) => { setPesoObjetivoStr(valor); setErroEtapa(''); }}
           cores={cores}
         />
       </View>
@@ -1147,6 +1186,11 @@ const styles = StyleSheet.create({
   perguntaEtapa: { textAlign: 'center', lineHeight: 21 },
   dicaEtapa: { fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 17 },
   rodaContainer: { position: 'relative', width: '90%', alignSelf: 'center', overflow: 'hidden', marginTop: 18, marginBottom: 8 },
+  linhaPesoRoda: { width: '90%', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rodaPesoInteira: { width: '45%', alignSelf: 'auto', marginTop: 18, marginBottom: 8 },
+  rodaPesoDecimal: { width: '25%', alignSelf: 'auto', marginTop: 18, marginBottom: 8 },
+  separadorPeso: { fontSize: 24, fontWeight: '700', marginTop: 18 },
+  unidadePeso: { fontSize: 15, fontWeight: '600', marginTop: 18, marginLeft: 4 },
   selecaoRodaFixa: { position: 'absolute', left: 0, right: 0, height: 48, borderRadius: 14, borderWidth: 1, zIndex: 0 },
   seletorEtapaCentralizado: { flex: 1, justifyContent: 'center' },
   rotulosRodasData: { width: '90%', alignSelf: 'center', flexDirection: 'row', justifyContent: 'center', gap: 7, marginTop: 8 },

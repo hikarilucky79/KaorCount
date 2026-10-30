@@ -1,0 +1,5 @@
+minimumReleaseAgeExclude:
+  - '@expo/image-utils@0.12.6'
+  - '@expo/require-utils@58.0.5'
+  - expo-constants@58.0.14
+  - expo-notifications@58.1.7

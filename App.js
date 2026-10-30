@@ -1,11 +1,11 @@
 import 'react-native-gesture-handler';
-import React from 'react';
-import { Text, Image, View, ActivityIndicator } from 'react-native';
-import { Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Text, Image, View, ActivityIndicator, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 
 // ↓ Importando os providers de autenticação e tema
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -82,10 +82,36 @@ function AppTabs() {
 function NavegacaoRaiz() {
   const { carregando, logado } = useAuth();
   const { cores } = useTheme();
+  const permissaoNotificacaoVerificada = useRef(false);
   const [fontesCarregadas] = useFonts({
     PlusJakartaSansSemiBold: require('./assets/fonts/PlusJakartaSans-SemiBold.ttf'),
     PoppinsBlack: require('./assets/fonts/Poppins-Black.ttf'),
   });
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || carregando || !fontesCarregadas || permissaoNotificacaoVerificada.current) return;
+
+    permissaoNotificacaoVerificada.current = true;
+    const solicitarPermissaoNotificacao = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'KaorCount',
+            importance: Notifications.AndroidImportance.DEFAULT,
+          });
+        }
+
+        const permissaoAtual = await Notifications.getPermissionsAsync();
+        if (permissaoAtual.status === 'undetermined') {
+          await Notifications.requestPermissionsAsync();
+        }
+      } catch (erro) {
+        console.warn('Não foi possível solicitar a permissão de notificações.', erro);
+      }
+    };
+
+    solicitarPermissaoNotificacao();
+  }, [carregando, fontesCarregadas]);
 
   // Aguarda a leitura da sessão antes de montar a navegação para evitar
   // mostrar a tela de login por um instante a cada abertura do app.
@@ -111,6 +137,7 @@ function NavegacaoRaiz() {
         <Stack.Screen name="QuizCadastro" component={QuizCadastroScreen} />
         <Stack.Screen name="AppTabs" component={AppTabs} />
         <Stack.Screen name="Configuracao" component={ConfiguracaoScreen} />
+        <Stack.Screen name="ConfiguracaoAjudaCategoria" component={ConfiguracaoScreen} />
         {ITENS_MENU_CONFIGURACAO.filter(({ rota }) => rota).map(({ id, rota }) => (
           <Stack.Screen
             key={rota}
@@ -126,10 +153,10 @@ function NavegacaoRaiz() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider>
         <NavegacaoRaiz />
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

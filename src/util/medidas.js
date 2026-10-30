@@ -21,3 +21,5 @@ export const formatarAgua = (ml, unidade = 'ml') => {
 };
 
 export const formatarValorInput = (valor) => String(Number(Number(valor).toFixed(1)));
+
+export const unidadesDaConta = preferencias => normalizarUnidades({ peso: preferencias?.unidade_peso, altura: preferencias?.unidade_altura, agua: preferencias?.unidade_agua });
