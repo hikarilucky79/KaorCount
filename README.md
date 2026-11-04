@@ -69,6 +69,9 @@ acessíveis.
 > [`backend/public/`](./backend/public/). No ambiente local, a API o serve em `/`;
 > no Docker de produção ele fica em `/site/`, e na Vercel em `/`.
 
+A distribuição Android também inclui o [APK](./backend/public/downloads/KaorCount-android.apk)
+e a [página de download e instalação](./backend/public/html/download.html).
+
 ---
 
 ## Funcionalidades
@@ -87,6 +90,7 @@ acessíveis.
 | **Histórico de progresso** | Peso e altura ao longo do tempo, com filtros por período |
 | **Sugestões** | Refeições geradas a partir da meta, distribuídas em 25/35/10/30% entre as refeições |
 | **Lembretes** | Configuração de intervalos de água e horários das refeições |
+| **Distribuição Android** | APK e instruções de instalação disponíveis em `backend/public/` |
 | **Relatórios** | Exportação do progresso em PDF ou JSON |
 
 ---
