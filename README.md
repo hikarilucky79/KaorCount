@@ -75,6 +75,7 @@ acessíveis.
 |---|---|
 | **Autenticação** | Cadastro, login e JWT (HS256) emitidos pelo próprio backend |
 | **Perfil nutricional** | Data de nascimento, gênero, objetivo (perder/manter/ganhar) e nível de atividade |
+| **Onboarding** | Quiz de cadastro e pesquisa inicial associados ao perfil do usuário |
 | **Metas nutricionais** | Calorias e macros por período, com TMB calculada pela fórmula de Mifflin-St Jeor |
 | **Refeições** | Registro por tipo (café, almoço, lanche, jantar) com itens e quantidades em gramas |
 | **Base de alimentos** | Tabela local, busca integrada ao FatSecret e consulta à Tabela TACO (UNICAMP) |
@@ -94,10 +95,10 @@ acessíveis.
 
 | Tecnologia | Versão | Uso |
 |---|---|---|
-| Expo | `~54.0.37` | Plataforma e build do app |
-| React Native | `0.81.5` | Runtime do app mobile |
-| React | `19.1.0` | Biblioteca base |
-| React Native Web | `^0.21.2` | Build web (usado no Docker) |
+| Expo | `^58.0.20` | Plataforma e build do app |
+| React Native | `^0.88.0` | Runtime do app mobile |
+| React | `^19.3.0` | Biblioteca base |
+| React Native Web | `^0.21.4` | Build web (usado no Docker) |
 | React Navigation | `*` | Navegação stack + bottom tabs |
 | React Native Paper | `4.9.2` | Componentes de UI |
 | lucide-react-native | `*` | Ícones SVG |
@@ -196,7 +197,7 @@ KaorCount/
 │   ├── constants/             # Paleta de cores
 │   ├── contexts/              # AuthContext e ThemeContext
 │   ├── hooks/                 # useAuth, useTheme, useResponsive
-│   ├── screens/               # Auth, Home, DiarioAlimentar, Perfil, Configuracao
+│   ├── screens/               # Auth, Home, QuizCadastro, DiarioAlimentar, Perfil e Configuracao
 │   └── util/                  # Helpers de responsividade e validações
 ├── assets/                    # Ícones e imagens do app
 ├── backend/
@@ -546,6 +547,13 @@ curl http://localhost:8000/api/v1/auth/me \
 | POST | `/auth/registrar` | Cadastra um novo usuário |
 | POST | `/auth/login` | Autentica e retorna o JWT |
 | GET | `/auth/me` | Retorna o usuário autenticado |
+
+### Pesquisa inicial e quiz
+
+| Método | Rota | Descrição |
+|---|---|---|
+| PUT | `/pesquisa-inicial/{id_usuario}` | Cria ou atualiza as respostas da pesquisa inicial |
+| PUT | `/quiz/{id_usuario}` | Salva as respostas do quiz de cadastro (requer o cabeçalho `Idempotency-Key`) |
 
 ### Usuários (`/usuarios`)
 
