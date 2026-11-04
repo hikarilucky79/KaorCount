@@ -41,7 +41,8 @@ manutenção da rotina.
 
 O **KaorCount** nasce para mudar isso. O app centraliza em um só lugar:
 
-- cadastro e perfil nutricional;
+- cadastro guiado por um quiz nutricional;
+- perfil nutricional e metas iniciais calculadas automaticamente;
 - registro de refeições com busca de alimentos;
 - cálculo automático de calorias e macronutrientes;
 - metas nutricionais ajustáveis por período;
@@ -64,8 +65,9 @@ acessíveis.
 - **Valores** — autonomia do usuário, precisão científica, simplicidade,
   democratização da saúde e personalização real.
 
-> O site institucional da Keenko também faz parte deste repositório e é servido pela
-> própria API em `/` — veja [`backend/public/`](./backend/public/).
+> O site institucional da Keenko também faz parte deste repositório e está em
+> [`backend/public/`](./backend/public/). No ambiente local, a API o serve em `/`;
+> no Docker de produção ele fica em `/site/`, e na Vercel em `/`.
 
 ---
 
@@ -75,7 +77,7 @@ acessíveis.
 |---|---|
 | **Autenticação** | Cadastro, login e JWT (HS256) emitidos pelo próprio backend |
 | **Perfil nutricional** | Data de nascimento, gênero, objetivo (perder/manter/ganhar) e nível de atividade |
-| **Onboarding** | Quiz de cadastro e pesquisa inicial associados ao perfil do usuário |
+| **Onboarding nutricional** | Quiz em etapas reúne medidas, objetivo, atividade e preferências para criar o perfil e a primeira meta |
 | **Metas nutricionais** | Calorias e macros por período, com TMB calculada pela fórmula de Mifflin-St Jeor |
 | **Refeições** | Registro por tipo (café, almoço, lanche, jantar) com itens e quantidades em gramas |
 | **Base de alimentos** | Tabela local, busca integrada ao FatSecret e consulta à Tabela TACO (UNICAMP) |
@@ -102,6 +104,8 @@ acessíveis.
 | React Navigation | `*` | Navegação stack + bottom tabs |
 | React Native Paper | `4.9.2` | Componentes de UI |
 | lucide-react-native | `*` | Ícones SVG |
+| Expo Crypto | `~58.0.7` | Chaves para operações idempotentes |
+| Expo Notifications | `~58.1.7` | Notificações locais no app mobile |
 | Axios | `^1.20.0` | Cliente HTTP com interceptors |
 | AsyncStorage | `^2.2.0` | Persistência de sessão no dispositivo |
 
@@ -125,8 +129,10 @@ acessíveis.
 
 | Tecnologia | Uso |
 |---|---|
-| Docker + Compose | Orquestração dos 3 serviços (MySQL, API, web) |
+| Docker + Compose | Orquestração de MySQL, API e app web |
 | Nginx | Servidor de assets estáticos e proxy reverso para a API |
+| Caddy | HTTPS automático e proxy reverso na composição de produção |
+| GitHub Actions | CI e publicação manual por SSH |
 
 ---
 
@@ -155,7 +161,7 @@ Requisição HTTP
 - **Tratamento global de exceções** em `core/exceptions.py` — respostas de erro padronizadas.
 - **Segurança** em `core/security.py` — hash bcrypt, JWT e `get_usuario_atual`.
 
-### Diagrama do ambiente Docker
+### Diagrama da stack de desenvolvimento (Docker)
 
 ```
                     ┌─────────────────────────────┐
@@ -191,27 +197,29 @@ KaorCount/
 ├── app.json                   # Configuração do Expo
 ├── metro.config.js            # Config do Metro + shim de gesture-handler no web
 ├── src/
-│   ├── api/                   # Clientes HTTP por domínio (auth, refeicao, metaNutri, ...)
+│   ├── api/                   # Clientes HTTP (auth, refeições, quiz, pesquisa e idempotência)
 │   ├── auth/                  # Leitura do token no AsyncStorage
 │   ├── components/            # Componentes reutilizáveis
 │   ├── constants/             # Paleta de cores
 │   ├── contexts/              # AuthContext e ThemeContext
 │   ├── hooks/                 # useAuth, useTheme, useResponsive
-│   ├── screens/               # Auth, Home, QuizCadastro, DiarioAlimentar, Perfil e Configuracao
-│   └── util/                  # Helpers de responsividade e validações
+│   ├── screens/               # Auth, QuizCadastro, Home, Diário, Perfil e Configuração
+│   └── util/                  # Nutrição, rotina, datas, medidas e validações
 ├── assets/                    # Ícones e imagens do app
 ├── backend/
 │   ├── app/
-│   │   ├── core/              # config, database, security, exceptions
+│   │   ├── core/              # config, database, segurança, erros, rate limit e idempotência
 │   │   ├── models/            # Entidades SQLAlchemy
 │   │   ├── schemas/           # DTOs Pydantic
 │   │   ├── repositories/      # Camada de acesso a dados
 │   │   ├── services/          # Lógica de negócio
-│   │   ├── api/               # Routers
+│   │   ├── api/               # Routers REST, incluindo quiz e pesquisa inicial
 │   │   └── main.py            # Entry point, CORS, routers e handlers
 │   ├── banco_de_dados/        # Script SQL legado (ver observação em Banco de dados)
-│   ├── public/                # Site institucional da Keenko (HTML/CSS/JS)
+│   ├── public/                # Site institucional e página de download Android
 │   ├── requirements.txt
+│   ├── requirements-test.txt  # Dependências dos testes do backend
+│   ├── tests/                 # Testes da API e de transações
 │   ├── .env.example
 │   └── Dockerfile
 ├── docker/
@@ -223,6 +231,8 @@ KaorCount/
 ├── Dockerfile                 # Build do bundle web (multi-stage)
 ├── package.json
 ├── package-lock.json          # Versões travadas (versionado de propósito)
+├── tests/rotina.test.cjs       # Testes das regras de rotina do app
+├── src/api/tests/idempotencia.test.cjs # Testes das requisições idempotentes
 ├── .dockerignore
 ├── run.sh                     # Launcher (Linux/macOS/WSL)
 └── run.bat                    # Launcher (Windows)
@@ -299,14 +309,21 @@ O script detecta automaticamente se o Docker Compose v2 (`docker compose`) ou o 
 ### Comandos úteis
 
 ```bash
-./run.sh status    # estado dos containers
-./run.sh logs      # acompanha os logs
-./run.sh down      # derruba (mantém os dados)
-./run.sh reset     # derruba e APAGA o banco
-./run.sh build     # apenas reconstrói as imagens
+# Desenvolvimento: comandos da stack local
+docker compose ps
+docker compose logs -f
+docker compose down
+./run.sh build     # reconstrói as imagens de desenvolvimento
+
+# Produção: usa a configuração .env.prod
+./run.sh status
+./run.sh logs
+./run.sh down      # derruba a stack e mantém os dados
+./run.sh reset     # apaga o banco após confirmação
 ```
 
-O mesmo vale para `run.bat` no Windows.
+`./run.sh status`, `logs`, `down` e `reset` usam a composição de produção e o arquivo
+`.env.prod`. Para Windows, `run.bat` oferece os mesmos comandos.
 
 ### Sobre o app mobile no Docker
 
@@ -357,7 +374,7 @@ mas **não** use em produção.
 
 ### 2. App mobile / web
 
-**Pré-requisitos:** Node.js 20+.
+**Pré-requisitos:** Node.js 22+.
 
 ```bash
 npm ci        # instala exatamente as versões do package-lock.json
@@ -447,6 +464,18 @@ explicativa.
 | `ENVIRONMENT` | `development` | `production` ativa as travas de segurança |
 | `CORS_ORIGINS` | vazio | Domínios permitidos no CORS (obrigatório em produção) |
 
+### Limites de requisições
+
+Os limites abaixo são configuráveis por variável de ambiente e usam contadores no banco:
+
+| Controle | Variáveis | Padrão |
+|---|---|---|
+| Login por IP | `LIMITE_LOGINS_POR_IP` / `LIMITE_JANELA_LOGIN_SEGUNDOS` | 10 por 60 s |
+| Cadastro por IP | `LIMITE_REGISTROS_POR_IP` / `LIMITE_JANELA_REGISTRO_SEGUNDOS` | 3 por 3.600 s |
+| Cadastros globais | `LIMITE_CADASTROS_POR_DIA` | 50 por dia (`0` desativa este teto) |
+| Busca FatSecret por usuário | `LIMITE_FATSECRET_POR_USUARIO` / `LIMITE_JANELA_FATSECRET_SEGUNDOS` | 30 por 60 s |
+| Geração de sugestões por usuário | `LIMITE_SUGESTOES_POR_USUARIO` / `LIMITE_JANELA_SUGESTAO_SEGUNDOS` | 5 por 3.600 s |
+
 ### App (Expo)
 
 | Variável | Padrão | Descrição |
@@ -476,26 +505,17 @@ Endpoints disponíveis:
 As senhas nunca saem do banco: são armazenadas apenas como hash bcrypt,
 e o `SECRET_KEY` que assina o token é uma variável de ambiente.
 
-> ⚠️ **Migração obrigatória no banco.** O Auth0 foi removido do código, mas
-> as colunas `auth0_sub` e `auth0_email_verified` podem continuar existindo
-> em bancos já criados. Como `auth0_email_verified` é `NOT NULL` sem valor
-> padrão, o `INSERT` de novos usuários passa a falhar e o cadastro passa a
-> responder **409**. Rode **uma vez** o script
-> [`backend/banco_de_dados/migracao_remover_auth0.sql`](backend/banco_de_dados/migracao_remover_auth0.sql)
-> em todo banco que já tenha a tabela `usuario` (MySQL de produção e o
-> SQLite local). Bancos novos, criados a partir do `banco.sql` já
-> atualizado, não precisam do script.
-
-> ⚠️ **Migração obrigatória (Auth0 removido).** Quem já tinha o banco criado
-> precisa remover as colunas `auth0_sub` e `auth0_email_verified` da tabela
-> `usuario`. Sem isso o cadastro falha com `409`, porque
-> `auth0_email_verified` é `NOT NULL` e o código não a preenche mais.
+> **Bancos antigos com colunas do Auth0:** versões anteriores podem ter deixado
+> `auth0_sub` e `auth0_email_verified` na tabela `usuario`. `Base.metadata.create_all()`
+> cria tabelas ausentes, mas não remove colunas antigas; aplique a migração uma vez nesses
+> bancos antes de cadastrar novas contas:
 >
 > ```bash
 > mysql -u USER -p NOME_DO_BANCO < backend/banco_de_dados/migracao_remover_auth0.sql
 > ```
 >
-> Bases novas já nascem corretas a partir de `banco.sql`.
+> Bancos novos criados com os models atuais não precisam dessa migração. O script também
+> documenta a alternativa para SQLite.
 
 ---
 
@@ -508,8 +528,9 @@ e o `SECRET_KEY` que assina o token é uma variável de ambiente.
 | OpenAPI JSON | http://localhost:8000/openapi.json |
 | Health check | http://localhost:8000/health |
 
-Todos os endpoints ficam sob o prefixo `/api/v1`. Exceto `auth/registrar` e
-`auth/login`, todos exigem o header:
+As rotas de negócio ficam sob o prefixo `/api/v1`; o health check permanece em
+`/health`. Exceto `auth/registrar`, `auth/registrar-com-quiz` e `auth/login`, as rotas
+de negócio exigem o header:
 
 ```
 Authorization: Bearer <token>
@@ -518,7 +539,8 @@ Authorization: Bearer <token>
 ### Autenticação
 
 A dependência `get_usuario_atual` decodifica o token, carrega o usuário e bloqueia
-contas inativas (`status_conta != "ativo"` → `403`).
+contas inativas (`status_conta != "ativo"` → `403`). Em produção, a API desativa
+Swagger, ReDoc e OpenAPI público.
 
 ```bash
 # 1. Cadastrar
@@ -536,6 +558,14 @@ curl http://localhost:8000/api/v1/auth/me \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
+### Repetição segura de operações
+
+O app envia `Idempotency-Key` nas operações de escrita (`POST`, `PUT`, `PATCH` e
+`DELETE`) e reutiliza a mesma chave quando repete uma ação após uma falha temporária.
+A API guarda a resposta junto à transação: uma repetição com a mesma chave e os mesmos
+dados recebe a resposta original; a mesma chave com dados diferentes retorna `409`.
+Os endpoints `/auth/registrar-com-quiz` e `/quiz/{id_usuario}` exigem esse header.
+
 ---
 
 ## Endpoints
@@ -545,15 +575,19 @@ curl http://localhost:8000/api/v1/auth/me \
 | Método | Rota | Descrição |
 |---|---|---|
 | POST | `/auth/registrar` | Cadastra um novo usuário |
+| POST | `/auth/registrar-com-quiz` | Cadastra o usuário e salva o quiz inicial; exige `Idempotency-Key` |
 | POST | `/auth/login` | Autentica e retorna o JWT |
 | GET | `/auth/me` | Retorna o usuário autenticado |
 
-### Pesquisa inicial e quiz
+### Quiz e pesquisa inicial (`/quiz` e `/pesquisa-inicial`)
 
 | Método | Rota | Descrição |
 |---|---|---|
-| PUT | `/pesquisa-inicial/{id_usuario}` | Cria ou atualiza as respostas da pesquisa inicial |
-| PUT | `/quiz/{id_usuario}` | Salva as respostas do quiz de cadastro (requer o cabeçalho `Idempotency-Key`) |
+| PUT | `/quiz/{id_usuario}` | Salva perfil, medidas iniciais, pesquisa e primeira meta em uma transação; exige `Idempotency-Key` |
+| PUT | `/pesquisa-inicial/{id_usuario}` | Cria ou atualiza origem do app, experiência com contagem de calorias e peso desejado |
+
+O endpoint do quiz exige autenticação e permite atualizar o perfil do próprio usuário. O endpoint
+`/auth/registrar-com-quiz` combina a criação da conta com as respostas iniciais.
 
 ### Usuários (`/usuarios`)
 
@@ -716,6 +750,10 @@ aplicação. Principais entidades:
 | `item_refeicao` | Itens de uma refeição (quantidade em gramas) | N:N refeição ↔ alimento |
 | `sugestao_refeicao` | Sugestões geradas para o usuário | 1:N com usuário |
 | `lembrete_config` | Configuração de lembretes | 1:1 com usuário |
+| `pesquisa_inicial` | Respostas do quiz/pesquisa inicial | 1:1 com usuário |
+| `preferencia_usuario` | Tema, unidades e preferências do app | 1:1 com usuário |
+| `limite_requisicao` | Contadores persistidos para limites de uso | — |
+| `operacao_idempotente` | Chaves e respostas de operações repetíveis | — |
 
 Todas as chaves estrangeiras usam `ON DELETE CASCADE`.
 
@@ -928,8 +966,7 @@ npx eas-cli login
 npx eas-cli build --profile preview
 ```
 
-O plano gratuito da Expo dá builds de prioridade baixa, suficientes para um projeto
-de faculdade. Para o app apontar para a API publicada, defina antes:
+Antes do build, configure o projeto no EAS e defina a URL da API publicada:
 
 ```env
 EXPO_PUBLIC_API_URL=https://seudominio.com.br/api/v1
@@ -954,17 +991,19 @@ Dois workflows em `.github/workflows/`.
 
 ### `ci.yml` — verificação
 
-Roda em todo push e em toda PR para `main`, em três jobs independentes:
+Roda em cada push, pull request e também pode ser iniciada manualmente. Os três jobs
+validam a API, a infraestrutura Docker e o bundle web:
 
 | Job | O que confere |
 |---|---|
-| **API (FastAPI)** | compila os módulos, **importa `app.main`** (um import quebrado passa pelo `compileall` e só apareceria no deploy), e confirma que a produção continua recusando `SECRET_KEY` padrão ou curta e que `/alimentos` continua sem `PUT`/`DELETE` |
-| **Compose + Caddy** | `docker compose config` dos dois arquivos, `CADDY_DOMAIN` chegando de fato ao container, MySQL sem porta publicada no host, e `caddy validate` no Caddyfile |
-| **App (Expo web)** | `npm ci` + `npx expo export --platform web` — o mesmo build do Dockerfile, e o único passo que faz o parse das telas (o `tsconfig.json` é um stub sem nenhum `.ts`) |
+| **API (FastAPI)** | Testes com `pytest` e `unittest`, compilação dos módulos, import da aplicação, validação da chave em produção e confirmação de que `/alimentos` só permite inclusão |
+| **Compose + Caddy** | Configuração dos composes de desenvolvimento e produção, entrega de `CADDY_DOMAIN`, isolamento da porta do MySQL e validação do Caddyfile |
+| **App (Expo web)** | Testes de regras de rotina e idempotência das requisições, instalação via `npm ci` e exportação do bundle web com Expo |
 
-O repositório ainda não tem testes automatizados, então a CI é um gate
-**estrutural**, não de comportamento. E ela nunca vê as senhas reais: a validação
-do compose de produção usa o `.env.prod.example` versionado.
+A CI usa o template `.env.prod.example` para validar o compose e não acessa as senhas
+reais de produção. Os testes verificam comportamento da API e do app, além da
+configuração e do build.
+
 
 ### `deploy.yml` — publicação
 
@@ -1001,9 +1040,8 @@ ficam de fora.
    (Settings → Environment Variables). `DATABASE_URL`, `SECRET_KEY`,
    `CORS_ORIGINS` e `ENVIRONMENT=production` são obrigatórios — a API recusa
    subir sem eles.
-3. `backend/vercel.json` já traz o resto: região `gru1` (São Paulo), 1024 MB /
-   30 s de `maxDuration` (o PDF de relatório é o que mais demora) e os
-   cabeçalhos de segurança que hoje só o Caddy aplica.
+3. `backend/vercel.json` define a região `gru1` (São Paulo), os redirecionamentos de
+   `/` e `/index.html`, a rota `/download` e os cabeçalhos de segurança.
 
 Não precisa criar `api/index.py` nem `asgi.py`: o Vercel detecta FastAPI e procura
 a instância `app` em `app/main.py`, que é exatamente onde ela já está.
@@ -1014,11 +1052,10 @@ recusa a cair para SQLite e falha no import; e mesmo em desenvolvimento o SQLite
 não teria onde persistir, porque o disco da function é somente leitura fora de
 `/tmp` e efêmero a cada invocação.
 
-Dois efeitos colaterais, ambos bons: na Vercel o `backend/public/` é servido na
-raiz, então `/img/logo_KaorCount.svg` passa a existir (conserta as imagens que hoje
-quebram porque a API monta só `/css` e `/js`), e a landing page vira arquivo
-estático de CDN — o `vercel.json` reescreve `/` e `/index.html` para
-`/html/index.html` em vez de depender do `FileResponse` dentro da function.
+Na Vercel, `backend/public/` é servido como conteúdo estático. O `vercel.json`
+redireciona `/` e `/index.html` para `/html/index.html` e encaminha `/download`
+para a página correspondente, deixando o site institucional e seus assets
+acessíveis junto à API.
 
 ---
 
@@ -1039,6 +1076,7 @@ Respostas de erro padronizadas:
 | 404 | Recurso não encontrado |
 | 409 | Violação de integridade (duplicidade, etc.) |
 | 422 | Erro de validação de payload (com lista de erros por campo) |
+| 429 | Limite de requisições atingido; veja o header `Retry-After` |
 | 503 | Erro de conexão com o banco de dados |
 
 ---
@@ -1047,7 +1085,7 @@ Respostas de erro padronizadas:
 
 | RF | Descrição | Onde está |
 |---|---|---|
-| RF01 | Cadastro e autenticação com perfil | `/auth`, `/usuarios`, `/perfil-nutri` |
+| RF01 | Cadastro guiado, autenticação e perfil | `/auth`, `/quiz`, `/pesquisa-inicial`, `/perfil-nutri` |
 | RF02 | Registro de refeições com busca de alimentos | `/refeicoes`, `/alimentos`, `/fatsecret` |
 | RF03 | Cálculo automático de macros e calorias | `NutricaoService`, `/refeicoes/.../macros` |
 | RF04 | Definição de metas nutricionais | `/metas-nutri` |
