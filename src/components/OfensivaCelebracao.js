@@ -27,14 +27,14 @@ export default function OfensivaCelebracao({ progresso, aoFechar }) {
         troca = setTimeout(() => setDias(progresso.atual), 550);
         animacao = Animated.parallel([
           Animated.sequence([
-            Animated.timing(escala, { toValue: 0.82, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-            Animated.timing(escala, { toValue: 1.22, duration: 400, easing: Easing.out(Easing.back(1.8)), useNativeDriver: false }),
-            Animated.spring(escala, { toValue: 1, friction: 5, tension: 100, useNativeDriver: false }),
+            Animated.timing(escala, { toValue: 0.94, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(escala, { toValue: 1.08, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+            Animated.timing(escala, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
           ]),
           Animated.sequence([
-            Animated.delay(350),
-            Animated.timing(brilho, { toValue: 1, duration: 300, useNativeDriver: false }),
-            Animated.timing(brilho, { toValue: 0, duration: 700, useNativeDriver: false }),
+            Animated.delay(160),
+            Animated.timing(brilho, { toValue: 1, duration: 300, useNativeDriver: true }),
+            Animated.timing(brilho, { toValue: 0, duration: 480, useNativeDriver: true }),
           ]),
         ]);
         animacao.start();

@@ -9,8 +9,6 @@ import {
   ActivityIndicator,
   TextInput,
   RefreshControl,
-  Animated,
-  Easing
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -185,29 +183,9 @@ export default function PerfilScreen({ navigation, route }) {
     }
   }, [usuario]);
 
-  // ───────────────────────────────────────────────────────────
-  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
-  // ───────────────────────────────────────────────────────────
-  const animEntrada = useRef(new Animated.Value(0)).current;
-
   useFocusEffect(
-    useCallback(() => {
-      carregarDados();
-      if (!modoEdicao) {
-        animEntrada.setValue(0);
-        Animated.timing(animEntrada, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      }
-    }, [carregarDados, modoEdicao])
+    useCallback(() => { carregarDados(); }, [carregarDados, modoEdicao])
   );
-
-  const offsetSlide = Math.round(moderateScale(35, 0.3));
-  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [-offsetSlide, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Formatação de máscara simples para data DD/MM/AAAA
@@ -425,7 +403,7 @@ export default function PerfilScreen({ navigation, route }) {
       >
         <View style={[styles.responsivoWrapper, getContainer(maxContentWidth)]}>
           {/* ↓ Cabeçalho do Perfil */}
-          <Animated.View style={{ opacity: fadeConteudo, transform: [{ translateX: slideConteudo }] }}>
+          <View>
           <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center', marginHorizontal: -20, marginTop: -20, marginBottom: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, minHeight: 92, backgroundColor: cores.fundo }]}>
             <Text style={[styles.tituloSecaoTop, { color: cores.textoEscuro, fontFamily: 'PoppinsBlack', fontSize: rf(46, 36, 58), fontWeight: '900', letterSpacing: 1.5 }]}>Perfil</Text>
             <TouchableOpacity
@@ -533,7 +511,7 @@ export default function PerfilScreen({ navigation, route }) {
               </View>
             </View>
           </View>
-          </Animated.View>
+          </View>
         <Text style={[styles.secaoTitulo, { color: cores.textoSuave, fontSize: rf(12, 10, 14) }]}>EVOLUÇÃO DE PESO</Text>
         <EvolucaoPesoCard key={'peso-' + usuario?.id_usuario} idUsuario={usuario?.id_usuario} unidade={unidades.peso} alturaCm={alturaCm} aoRegistrar={setUltimoProgresso} />
         </View>

@@ -12,6 +12,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import useTheme from './src/hooks/useTheme';
 import useAuth from './src/hooks/useAuth';
+import useReduceMotion from './src/hooks/useReduceMotion';
 
 // ↓ Importando as telas (screens)
 import AuthScreen from './src/screens/AuthScreen';
@@ -80,6 +81,7 @@ function AppTabs() {
 }
 
 function NavegacaoRaiz() {
+  const reduzirMovimento = useReduceMotion();
   const { carregando, logado } = useAuth();
   const { cores } = useTheme();
   const permissaoNotificacaoVerificada = useRef(false);
@@ -129,6 +131,7 @@ function NavegacaoRaiz() {
         initialRouteName={logado ? 'AppTabs' : 'Auth'}
         screenOptions={{
           headerShown: false,
+          animationEnabled: !reduzirMovimento,
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
           cardStyle: { flex: 1, minHeight: 0 },
         }}

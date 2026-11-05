@@ -29,6 +29,7 @@ import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import useReduceMotion from '../hooks/useReduceMotion';
 import * as refeicaoApi from '../api/refeicaoApi';
 import * as registroAguaApi from '../api/registroAguaApi';
 import * as lembreteApi from '../api/lembreteApi';
@@ -50,6 +51,7 @@ export default function DiarioAlimentar({ navigation }) {
   const [progressoOfensiva, setProgressoOfensiva] = useState(null);
   const travaSalvarItem = useRef(false);
   const { cores, isDark } = useTheme();
+  const reduzirMovimento = useReduceMotion();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados da Tela
@@ -182,24 +184,28 @@ export default function DiarioAlimentar({ navigation }) {
   const animBarraGordura = useRef(new Animated.Value(0)).current;
   const animBarraAgua = useRef(new Animated.Value(0)).current;
 
-  // Animação dos macros (2 segundos)
+  // Animação dos macros
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
-      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
-      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: 1500, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
-    ]).start();
-  }, [pctProteina, pctCarboidrato, pctGordura]);
+    const animation = Animated.parallel([
+      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: reduzirMovimento ? 0 : 420, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: reduzirMovimento ? 0 : 420, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: reduzirMovimento ? 0 : 420, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [pctProteina, pctCarboidrato, pctGordura, reduzirMovimento]);
 
-  // Animação da água (2 segundos): apenas aumenta/ajusta suavemente sem voltar ao início
+  // Animação da água: apenas aumenta/ajusta suavemente sem voltar ao início
   useEffect(() => {
-    Animated.timing(animBarraAgua, {
+    const animation = Animated.timing(animBarraAgua, {
       toValue: pctAgua,
-      duration: 1500,
+      duration: reduzirMovimento ? 0 : 420,
       easing: Easing.bezier(0.16, 1, 0.3, 1),
       useNativeDriver: false,
-    }).start();
-  }, [pctAgua]);
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [pctAgua, reduzirMovimento]);
 
   const larguraBarraProteina = animBarraProteina.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
   const larguraBarraCarboidrato = animBarraCarboidrato.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });

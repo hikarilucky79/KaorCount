@@ -8,7 +8,7 @@
 // o resultado personalizado do plano nutricional.
 // As respostas são salvas atomicamente pelo endpoint dedicado do quiz.
 // ───────────────────────────────────────────────────────────────
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, ScrollView, FlatList,
   ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform,
@@ -19,13 +19,15 @@ import { Picker } from '@react-native-picker/picker';
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
   Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
-  AlertCircle, Flame, Gauge, Target, Utensils, Salad, Search,
+  ArrowLeft, AlertCircle, Flame, Gauge, Target, Utensils, Salad, Search,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import useReduceMotion from '../hooks/useReduceMotion';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
+import { pesoDeKg, pesoParaKg } from '../util/medidas';
 import * as quizApi from '../api/quizApi';
 import { chaveDaOperacao } from '../api/idempotencia';
 
@@ -87,18 +89,24 @@ const SombraBotao = Platform.select({
 // ───────────────────────────────────────────────────────────────
 
 // ↓ Número que sobe de 0 até o valor final.
-function NumeroAnimado({ valor, estilo }) {
+function NumeroAnimado({ valor, estilo, reduzirMovimento }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [exibido, setExibido] = useState(0);
 
   useEffect(() => {
+    if (reduzirMovimento) {
+      anim.stopAnimation();
+      anim.setValue(valor);
+      setExibido(Math.round(valor));
+      return;
+    }
     const listener = anim.addListener(({ value }) => setExibido(Math.round(value)));
-    anim.setValue(0);
-    Animated.timing(anim, {
-      toValue: valor, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-    }).start();
-    return () => anim.removeListener(listener);
-  }, [valor, anim]);
+    const animation = Animated.timing(anim, {
+      toValue: valor, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    });
+    animation.start();
+    return () => { animation.stop(); anim.removeListener(listener); };
+  }, [valor, anim, reduzirMovimento]);
 
   return <Text style={estilo}>{exibido}</Text>;
 }
@@ -123,14 +131,18 @@ function caminhoArcoRosquinha(inicio, fim, raioExterno, raioInterno, centro = 15
 }
 
 // ↓ Cartão de opção com seleção animada (acento, borda e check).
-function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores, tom, rf }) {
+function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores, tom, rf, reduzirMovimento }) {
   const pop = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(pop, {
-      toValue: selecionado ? 1 : 0, useNativeDriver: true, friction: 6, tension: 140,
-    }).start();
-  }, [selecionado, pop]);
+    const destino = selecionado ? 1 : 0;
+    if (reduzirMovimento) { pop.setValue(destino); return; }
+    const animation = Animated.timing(pop, {
+      toValue: destino, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [selecionado, pop, reduzirMovimento]);
 
   return (
     <TouchableOpacity
@@ -416,6 +428,69 @@ function SeletorPeso({ valor, aoMudar, cores }) {
     </View>
   );
 }
+
+function SeletorPesoMeta({ valor, aoMudar, unidade, cores }) {
+  const [largura, setLargura] = useState(0);
+  const toqueInicial = useRef(null);
+  const minimo = unidade === 'lb' ? 44 : 20;
+  const maximo = unidade === 'lb' ? 772 : 350;
+  const pesoKg = parseNumeroBr(valor);
+  const atual = Math.max(minimo, Math.min(maximo, Math.round(pesoDeKg(Number.isFinite(pesoKg) ? pesoKg : 60, unidade))));
+  const progresso = (atual - minimo) / (maximo - minimo);
+
+  const aplicarValor = (proximo) => {
+    const limitado = Math.max(minimo, Math.min(maximo, proximo));
+    const kg = Math.max(20, Math.min(350, pesoParaKg(limitado, unidade)));
+    aoMudar(kg.toFixed(1).replace('.', ','));
+  };
+
+  const atualizarPeloToque = (evento) => {
+    if (!largura) return;
+    const posicao = Math.max(0, Math.min(1, evento.nativeEvent.locationX / largura));
+    aplicarValor(minimo + Math.round(posicao * (maximo - minimo)));
+  };
+
+  return (
+    <View
+      style={styles.sliderPesoMeta}
+      onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
+      onTouchStart={(evento) => { toqueInicial.current = { x: evento.nativeEvent.pageX, y: evento.nativeEvent.pageY }; }}
+      onTouchEnd={(evento) => {
+        const inicio = toqueInicial.current;
+        toqueInicial.current = null;
+        if (inicio && Math.abs(evento.nativeEvent.pageX - inicio.x) < 8 && Math.abs(evento.nativeEvent.pageY - inicio.y) < 8) atualizarPeloToque(evento);
+      }}
+      onMoveShouldSetResponder={(_, gesto) => Math.abs(gesto.dx) > Math.abs(gesto.dy)}
+      onResponderGrant={atualizarPeloToque}
+      onResponderMove={atualizarPeloToque}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel="Peso objetivo"
+      accessibilityValue={{ min: minimo, max: maximo, now: atual, text: `${atual} ${unidade}` }}
+      accessibilityActions={[{ name: 'increment', label: 'Aumentar' }, { name: 'decrement', label: 'Diminuir' }]}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === 'increment') aplicarValor(atual + 1);
+        if (nativeEvent.actionName === 'decrement') aplicarValor(atual - 1);
+      }}
+      onKeyDown={Platform.OS === 'web' ? (evento) => {
+        if (evento.key === 'ArrowRight' || evento.key === 'ArrowUp') { evento.preventDefault(); aplicarValor(atual + 1); }
+        if (evento.key === 'ArrowLeft' || evento.key === 'ArrowDown') { evento.preventDefault(); aplicarValor(atual - 1); }
+      } : undefined}
+    >
+      <View pointerEvents="none" style={styles.trilhoPesoMeta}>
+        <View style={[styles.trilhoPesoMetaBase, { backgroundColor: cores.mutado }]} />
+        <View style={[styles.trilhoPesoMetaPreenchido, { width: `${progresso * 100}%`, backgroundColor: cores.primaria }]} />
+        <View
+          style={[
+            styles.trilhoPesoMetaMarcador,
+            { left: `${progresso * 100}%`, backgroundColor: cores.marcaEscura, borderColor: cores.primaria },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
 export default function QuizCadastroScreen({ navigation }) {
   // ↓ Dados do usuário já autenticado no cadastro.
   const { usuario, cadastroPendente, registrar } = useAuth();
@@ -428,6 +503,7 @@ export default function QuizCadastroScreen({ navigation }) {
     : { suave: '#FDF3E7', cartaoSel: '#FFF9F3', trilho: 'rgba(133,70,30,0.22)', aviso: '#FFF8E7', avisoBorda: '#F0C36D', erro: '#FFF5F5' };
 
   // O quiz começa diretamente na primeira pergunta.
+  const reduzirMovimento = useReduceMotion();
   const [etapaAtual, setEtapaAtual] = useState(1);
   const [erroEtapa, setErroEtapa] = useState('');
   const [erroGeral, setErroGeral] = useState('');
@@ -451,26 +527,50 @@ export default function QuizCadastroScreen({ navigation }) {
   const [origemApp, setOrigemApp] = useState('');
   const [jaContouCalorias, setJaContouCalorias] = useState(null);
   const [pesoObjetivoStr, setPesoObjetivoStr] = useState(pesoStr);
+  const [unidadePesoObjetivo, setUnidadePesoObjetivo] = useState('kg');
 
   // ↓ Animação de transição suave entre etapas.
   const animEtapa = useRef(new Animated.Value(1)).current;
+  const deslocamentoEtapa = useRef(new Animated.Value(0)).current;
   const animProgresso = useRef(new Animated.Value(1 / TOTAL_ETAPAS)).current;
-  const animFim = useRef(new Animated.Value(0)).current;
+  const animFim = useRef(new Animated.Value(1)).current;
   const refScroll = useRef(null);
-  // ↓ Sentido do slide: avança para a esquerda, volta para a direita.
-  const [direcao, setDirecao] = useState(1);
+  const transicaoRef = useRef(false);
+  const entradaPendente = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!entradaPendente.current) return;
+    entradaPendente.current = false;
+    transicaoRef.current = true;
+    refScroll.current?.scrollTo({ x: 0, y: 0, animated: false });
+    if (reduzirMovimento) {
+      animEtapa.setValue(1);
+      deslocamentoEtapa.setValue(0);
+      transicaoRef.current = false;
+      return;
+    }
+    const entrada = Animated.parallel([
+      Animated.timing(animEtapa, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(deslocamentoEtapa, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]);
+    entrada.start(({ finished }) => { if (finished) transicaoRef.current = false; });
+    return () => { entrada.stop(); transicaoRef.current = false; };
+  }, [etapaAtual, animEtapa, deslocamentoEtapa, reduzirMovimento]);
+
+  useEffect(() => () => { animEtapa.stopAnimation(); deslocamentoEtapa.stopAnimation(); }, [animEtapa, deslocamentoEtapa]);
 
   const nomeResultado = usuario?.nome || cadastroPendente?.nome;
   const primeiroNome = nomeResultado ? nomeResultado.split(' ')[0] : '';
 
   useEffect(() => {
-    Animated.timing(animProgresso, {
-      toValue: etapaAtual / TOTAL_ETAPAS,
-      duration: 360,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [etapaAtual, animProgresso]);
+    if (reduzirMovimento) { animProgresso.setValue(etapaAtual / TOTAL_ETAPAS); return; }
+    const animation = Animated.timing(animProgresso, {
+      toValue: etapaAtual / TOTAL_ETAPAS, duration: 240,
+      easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [etapaAtual, animProgresso, reduzirMovimento]);
 
   // ───────────────────────────────────────────────────────────
   // ↓ Helpers de máscara/parsing
@@ -545,33 +645,31 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Navegação entre as etapas (com transição animada)
   // ───────────────────────────────────────────────────────────
   const transicionarEtapa = (novaEtapa, sentido = 1) => {
+    if (transicaoRef.current) return;
     setErroEtapa('');
     setErroGeral('');
-    setDirecao(sentido);
-    animEtapa.stopAnimation();
-    // ↓ Esvazia a etapa atual primeiro; o conteúdo só troca quando ela some,
-    //   senão o slide de saída animaria a etapa que acabou de chegar.
-    Animated.timing(animEtapa, {
-      toValue: 0, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true,
-    }).start(() => {
+    transicaoRef.current = true;
+    if (reduzirMovimento) {
+      entradaPendente.current = true;
       setEtapaAtual(novaEtapa);
-      // ↓ A etapa nova começa do topo, sem herdar o scroll da anterior.
-      refScroll.current?.scrollTo({ x: 0, y: 0, animated: false });
-      Animated.timing(animEtapa, {
-        toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true,
-      }).start();
+      return;
+    }
+    Animated.parallel([
+      Animated.timing(animEtapa, { toValue: 0, duration: 110, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(deslocamentoEtapa, { toValue: -sentido * 12, duration: 110, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+    ]).start(({ finished }) => {
+      if (!finished) { transicaoRef.current = false; return; }
+      deslocamentoEtapa.setValue(sentido * 16);
+      entradaPendente.current = true;
+      setEtapaAtual(novaEtapa);
     });
   };
 
   const avancar = () => {
+    if (transicaoRef.current) return;
     const erro = validarEtapa();
     if (erro) {
       setErroEtapa(erro);
-      animEtapa.stopAnimation();
-      Animated.sequence([
-        Animated.timing(animEtapa, { toValue: 0.55, duration: 70, useNativeDriver: true }),
-        Animated.timing(animEtapa, { toValue: 1, duration: 220, useNativeDriver: true }),
-      ]).start();
       return;
     }
     if (etapaAtual < TOTAL_ETAPAS) {
@@ -585,7 +683,7 @@ export default function QuizCadastroScreen({ navigation }) {
   };
 
   const voltar = () => {
-    if (enviando) return;
+    if (enviando || transicaoRef.current) return;
     if (etapaAtual > 1) {
       const etapaAnterior = etapaAtual === 9 && objetivo === 'manter_peso' ? 7 : etapaAtual - 1;
       transicionarEtapa(etapaAnterior, -1);
@@ -657,15 +755,18 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
-  const handleFinalizar = () => salvarTudo();
+  const handleFinalizar = () => { if (!transicaoRef.current) salvarTudo(); };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!concluido) return;
+    if (reduzirMovimento) { animFim.setValue(1); return; }
     animFim.setValue(0);
-    Animated.timing(animFim, {
-      toValue: 1, duration: 640, easing: Easing.out(Easing.cubic), useNativeDriver: true,
-    }).start();
-  }, [concluido, animFim]);
+    const animation = Animated.timing(animFim, {
+      toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [concluido, animFim, reduzirMovimento]);
 
   // ───────────────────────────────────────────────────────────
   // ↓ Helpers de renderização
@@ -760,6 +861,7 @@ export default function QuizCadastroScreen({ navigation }) {
           aoSelecionar={() => { setNivelAtividade(opt.id); setErroEtapa(''); }}
           cores={cores}
           tom={tom}
+          reduzirMovimento={reduzirMovimento}
           rf={rf}
         />
       ))}
@@ -780,6 +882,7 @@ export default function QuizCadastroScreen({ navigation }) {
           aoSelecionar={() => { setObjetivo(opt.id); setErroEtapa(''); }}
           cores={cores}
           tom={tom}
+          reduzirMovimento={reduzirMovimento}
           rf={rf}
         />
       ))}
@@ -800,6 +903,7 @@ export default function QuizCadastroScreen({ navigation }) {
           aoSelecionar={() => { setRitmo(opt.id); setErroEtapa(''); }}
           cores={cores}
           tom={tom}
+          reduzirMovimento={reduzirMovimento}
           rf={rf}
         />
       ))}
@@ -847,18 +951,59 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
-  const renderPesoObjetivo = () => (
-    <View style={styles.etapaRoda}>
-      {renderCabecalhoEtapa(Scale, 'Qual é seu peso objetivo?', 'Escolha o peso que quer alcançar.')}
-      <View style={styles.seletorEtapaCentralizado}>
-        <SeletorPeso
+  const renderPesoObjetivo = () => {
+    const pesoKg = parseNumeroBr(pesoObjetivoStr) || 60;
+    const valorExibido = Math.round(pesoDeKg(pesoKg, unidadePesoObjetivo));
+
+    return (
+      <View style={[styles.etapaRoda, styles.etapaPesoObjetivo]}>
+        <Text style={[styles.tituloPesoObjetivo, { color: cores.textoEscuro, fontSize: rf(34, 28, 40), lineHeight: rf(40, 34, 46) }]}>
+          Vamos escolher a meta que você vai bater!
+        </Text>
+
+        <Text
+          style={[styles.valorPesoObjetivo, { color: cores.textoEscuro, fontSize: rf(68, 56, 78), lineHeight: rf(76, 64, 88) }]}
+          accessibilityLabel={`${valorExibido} ${unidadePesoObjetivo}`}
+        >
+          {valorExibido}
+        </Text>
+
+        <SeletorPesoMeta
           valor={pesoObjetivoStr}
           aoMudar={(valor) => { setPesoObjetivoStr(valor); setErroEtapa(''); }}
+          unidade={unidadePesoObjetivo}
           cores={cores}
         />
+
+        <View style={styles.unidadesPesoObjetivo}>
+          {['kg', 'lb'].map((unidade) => {
+            const selecionada = unidadePesoObjetivo === unidade;
+            return (
+              <TouchableOpacity
+                key={unidade}
+                style={[
+                  styles.botaoUnidadePesoObjetivo,
+                  {
+                    backgroundColor: selecionada ? cores.marcaEscura : cores.branco,
+                    borderColor: selecionada ? cores.primaria : cores.borda,
+                  },
+                ]}
+                onPress={() => setUnidadePesoObjetivo(unidade)}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityLabel={unidade === 'kg' ? 'Quilogramas' : 'Libras'}
+                accessibilityState={{ selected: selecionada }}
+              >
+                <Text style={[styles.textoUnidadePesoObjetivo, { color: selecionada ? '#FFFFFF' : cores.textoEscuro }]}>
+                  {unidade}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // ↓ Tela de conclusão — aparece depois que as respostas são salvas.
   const renderConclusao = () => {
@@ -919,6 +1064,7 @@ export default function QuizCadastroScreen({ navigation }) {
               </Svg>
               <View style={[styles.centroGrafico, { backgroundColor: cores.branco }, SombraCartao]}>
                 <NumeroAnimado
+                  reduzirMovimento={reduzirMovimento}
                   valor={plano?.calorias_diarias || 0}
                   estilo={[styles.kcalConclusao, { color: cores.textoEscuro }]}
                 />
@@ -1010,10 +1156,6 @@ export default function QuizCadastroScreen({ navigation }) {
   const vaiFinalizar = ehUltimaEtapa;
   // ↓ "Manter peso" pula a etapa do ritmo: o marcador correspondente fica
   //   esmaecido em vez de encolher a fileira no meio do fluxo.
-  const deslize = animEtapa.interpolate({
-    inputRange: [0, 1],
-    outputRange: [direcao >= 0 ? 26 : -26, 0],
-  });
 
   return (
     <SafeAreaView style={[styles.containerTela, { backgroundColor: cores.fundo }]}>
@@ -1030,9 +1172,11 @@ export default function QuizCadastroScreen({ navigation }) {
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar etapa"
-                style={styles.btnVoltarCircular}
+                style={[styles.btnVoltarCircular, etapaAtual === 5 && styles.btnVoltarPesoObjetivo]}
               >
-                <ChevronLeft size={18} color={cores.textoEscuro} />
+                {etapaAtual === 5
+                  ? <ArrowLeft size={24} color={cores.textoEscuro} />
+                  : <ChevronLeft size={18} color={cores.textoEscuro} />}
               </TouchableOpacity>
             ) : (
               <View style={styles.btnVoltarPlaceholder} />
@@ -1040,8 +1184,8 @@ export default function QuizCadastroScreen({ navigation }) {
 
             <View style={styles.progressoContainer}>
               {etapaAtual > 0 ? (
-                <View style={[styles.progressoTrilho, { backgroundColor: tom.trilho }]}>
-                  <Animated.View style={[styles.progressoPreenchimento, { backgroundColor: cores.primaria, width: animProgresso.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+                <View style={[styles.progressoTrilho, etapaAtual === 5 && styles.progressoPesoObjetivo, { backgroundColor: tom.trilho }]}>
+                  <Animated.View style={[styles.progressoPreenchimento, etapaAtual === 5 && styles.progressoPesoObjetivo, { backgroundColor: cores.primaria, width: animProgresso.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
                 </View>
               ) : null}
             </View>
@@ -1051,7 +1195,7 @@ export default function QuizCadastroScreen({ navigation }) {
 
           {/* ↓ Legenda em linha própria: dentro do header ela empurrava a
               barra de progresso para cima do centro dos ícones. */}
-          {etapaAtual > 0 && (
+          {etapaAtual > 0 && etapaAtual !== 5 && (
             <Text style={[styles.progressoTexto, { color: cores.textoSuave }]}>
               Etapa {etapaAtual} de {TOTAL_ETAPAS}
             </Text>
@@ -1065,10 +1209,7 @@ export default function QuizCadastroScreen({ navigation }) {
               //   (min-height: auto) e o rodapé sai da tela.
               minHeight: 0,
               opacity: animEtapa,
-              transform: [
-                { translateX: deslize },
-                { scale: animEtapa.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] }) },
-              ],
+              transform: [{ translateX: deslocamentoEtapa }],
             }}
           >
             <ScrollView
@@ -1108,7 +1249,7 @@ export default function QuizCadastroScreen({ navigation }) {
               ) : (
                 <>
                   <Text style={[styles.txtBtnPrincipal, { fontSize: rf(17, 16, 18) }]}>
-                    {vaiFinalizar ? 'Gerar meu plano' : 'Seguinte'}
+                    {vaiFinalizar ? 'Gerar meu plano' : etapaAtual === 5 ? 'Próximo' : 'Seguinte'}
                   </Text>
                 </>
               )}
@@ -1142,15 +1283,24 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'transparent', borderWidth: 0,
   },
+  btnVoltarPesoObjetivo: { width: 44, height: 44, borderRadius: 22 },
   btnVoltarPlaceholder: { width: 36, height: 36 },
   progressoContainer: { flex: 1, alignItems: 'center' },
   progressoTrilho: { width: '70%', maxWidth: 180, height: 4, borderRadius: 2, overflow: 'hidden' },
+  progressoPesoObjetivo: { width: '100%', maxWidth: 360, height: 16, borderRadius: 8 },
   progressoPreenchimento: { height: '100%', borderRadius: 2 },
   progressoTexto: { fontSize: 11, fontWeight: '600', marginTop: 10, textAlign: 'center' },
 
   scrollConteudo: { paddingBottom: 24, paddingTop: 14 },
   scrollConteudoRodas: { flexGrow: 1 },
   etapaRoda: { flex: 1 },
+  etapaPesoObjetivo: {
+    minHeight: 380,
+    alignItems: 'stretch',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 4,
+    paddingVertical: 22,
+  },
 
   // Etapas
   headerEtapa: { alignItems: 'center', marginBottom: 20, marginTop: 4 },
@@ -1160,6 +1310,16 @@ const styles = StyleSheet.create({
     marginBottom: 12, borderWidth: 1, borderColor: 'transparent',
   },
   tituloEtapa: { fontWeight: '800', textAlign: 'center', marginBottom: 6, letterSpacing: -0.3 },
+  tituloPesoObjetivo: { width: '100%', maxWidth: 440, alignSelf: 'center', textAlign: 'center', fontWeight: '900', letterSpacing: -0.7 },
+  valorPesoObjetivo: { textAlign: 'center', fontWeight: '900', letterSpacing: -2 },
+  sliderPesoMeta: { width: '90%', maxWidth: 420, height: 48, alignSelf: 'center', justifyContent: 'center' },
+  trilhoPesoMeta: { width: '100%', height: 6, position: 'relative', justifyContent: 'center' },
+  trilhoPesoMetaBase: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3 },
+  trilhoPesoMetaPreenchido: { position: 'absolute', left: 0, height: 6, borderRadius: 3 },
+  trilhoPesoMetaMarcador: { position: 'absolute', width: 20, height: 20, marginLeft: -10, borderRadius: 10, borderWidth: 3 },
+  unidadesPesoObjetivo: { width: '76%', maxWidth: 320, alignSelf: 'center', flexDirection: 'row', gap: 18 },
+  botaoUnidadePesoObjetivo: { flex: 1, minHeight: 60, borderRadius: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  textoUnidadePesoObjetivo: { fontSize: 21, fontWeight: '800' },
   perguntaEtapa: { textAlign: 'center', lineHeight: 21 },
   dicaEtapa: { fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 17 },
   rodaContainer: { position: 'relative', width: '90%', alignSelf: 'center', overflow: 'hidden', marginTop: 18, marginBottom: 8 },

@@ -18,6 +18,7 @@ import { CORES } from '../constants/Cores';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import useReduceMotion from '../hooks/useReduceMotion';
 import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { distribuicaoCalorica } from '../util/nutricao';
@@ -38,6 +39,7 @@ export default function HomeScreen({ navigation }) {
   focoRef.current = focado;
   const [progressoOfensiva, setProgressoOfensiva] = useState(null);
   const { cores, isDark, toggleTema } = useTheme();
+  const reduzirMovimento = useReduceMotion();
   const { width, height, isLandscape, isSmallScreen, isTablet, isDesktop, rf, moderateScale, getContainer, maxContentWidth } = useResponsive();
 
   // ↓ Estados para dados vindos da API
@@ -79,12 +81,14 @@ export default function HomeScreen({ navigation }) {
   const animBarraGordura = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-    ]).start();
-  }, [pctProteina, pctCarboidrato, pctGordura]);
+    const animation = Animated.parallel([
+      Animated.timing(animBarraProteina, { toValue: pctProteina, duration: reduzirMovimento ? 0 : 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animBarraCarboidrato, { toValue: pctCarboidrato, duration: reduzirMovimento ? 0 : 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animBarraGordura, { toValue: pctGordura, duration: reduzirMovimento ? 0 : 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [pctProteina, pctCarboidrato, pctGordura, reduzirMovimento]);
 
   const larguraBarraProteina = animBarraProteina.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
   const larguraBarraCarboidrato = animBarraCarboidrato.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
@@ -100,13 +104,15 @@ export default function HomeScreen({ navigation }) {
   const animProgressoCalorias = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(animProgressoCalorias, {
+    const animation = Animated.timing(animProgressoCalorias, {
       toValue: progressoCalorias,
-      duration: 1500,
+      duration: reduzirMovimento ? 0 : 420,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    }).start();
-  }, [progressoCalorias]);
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progressoCalorias, reduzirMovimento]);
 
   const offsetAnelAnimado = animProgressoCalorias.interpolate({
     inputRange: [0, 1],

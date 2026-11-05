@@ -30,10 +30,12 @@ import {
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
+import useReduceMotion from '../hooks/useReduceMotion';
 
 export default function AuthScreen({ navigation }) {
   const { login, iniciarCadastro } = useAuth();
   const { cores, isDark } = useTheme();
+  const reduzirMovimento = useReduceMotion();
   const { height, isLandscape, rf, getContainer, maxAuthWidth } = useResponsive();
 
   const BANNER_WELCOME_ALTURA = isLandscape ? Math.min(160, height * 0.3) : Math.min(235, Math.max(195, height * 0.24));
@@ -79,15 +81,21 @@ export default function AuthScreen({ navigation }) {
   const transicionarPara = (novoModo) => {
     if (animando) return;
     setErroMsg('');
+    if (reduzirMovimento) {
+      if (novoModo === 'app') navigation.replace('AppTabs');
+      else setModo(novoModo);
+      return;
+    }
     setAnimando(true);
 
-    // 1. O banner marrom existente expande para baixo mantendo as bordas curvas com transição suave (1s)
+    // 1. O banner marrom existente expande para baixo mantendo as bordas curvas com transição suave
     Animated.timing(animCortina, {
       toValue: 1,
-      duration: 1000,
+      duration: 220,
       easing: Easing.bezier(0.22, 1, 0.36, 1),
       useNativeDriver: false,
-    }).start(() => {
+    }).start(({ finished }) => {
+      if (!finished) { setAnimando(false); return; }
       // 2. Quando a tela está 100% coberta pelo banner, troca o estado
       if (novoModo === 'app') {
         navigation.replace('AppTabs');
@@ -96,10 +104,10 @@ export default function AuthScreen({ navigation }) {
 
       setModo(novoModo);
 
-      // 3. O banner recolhe suavemente revelando o novo conteúdo (1s)
+      // 3. O banner recolhe suavemente revelando o novo conteúdo
       Animated.timing(animCortina, {
         toValue: 0,
-        duration: 1000,
+        duration: 220,
         easing: Easing.bezier(0.22, 1, 0.36, 1),
         useNativeDriver: false,
       }).start(() => {

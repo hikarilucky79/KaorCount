@@ -2,8 +2,8 @@ import RelatorioCard from '../components/RelatorioCard';
 import AjudaCategorias, { CATEGORIAS_AJUDA } from '../components/AjudaCategorias';
 import LembretesCard from '../components/LembretesCard';
 import PrivacidadeCard from '../components/PrivacidadeCard';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { DoorOpen, Check, Flame, Scale, Dumbbell, Info, FileText, LockKeyhole, UserRound, Flag, BookMarked, BellRing, Ruler, Database, CircleHelp, ChevronLeft, ChevronRight, Moon, X } from 'lucide-react-native';
@@ -31,17 +31,7 @@ export const ITENS_MENU_CONFIGURACAO = [
 ];
 
 function BotaoObjetivoAnimado({ obj, ativo, cores, onPress, rf, moderateScale }) {
-  const animScale = useRef(new Animated.Value(ativo ? 1.05 : 1)).current;
   const IconeComp = obj.icone;
-
-  useEffect(() => {
-    Animated.spring(animScale, {
-      toValue: ativo ? 1.05 : 1,
-      friction: 5,
-      tension: 140,
-      useNativeDriver: true,
-    }).start();
-  }, [ativo]);
 
   return (
     <TouchableOpacity
@@ -49,23 +39,16 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, onPress, rf, moderateScale })
       accessibilityRole="button"
       accessibilityLabel={obj.nome}
       accessibilityState={{ selected: ativo }}
-      onPress={() => {
-        Animated.sequence([
-          Animated.timing(animScale, { toValue: 0.93, duration: 75, useNativeDriver: true }),
-          Animated.spring(animScale, { toValue: 1.05, friction: 4, tension: 160, useNativeDriver: true }),
-        ]).start();
-        onPress();
-      }}
+      onPress={onPress}
       style={{ flex: 1, marginHorizontal: 2 }}
     >
-      <Animated.View
+      <View
         style={[
           styles.cardObjetivo,
           {
             backgroundColor: ativo ? cores.mutado : cores.branco,
             borderColor: ativo ? cores.primaria : cores.borda,
             borderWidth: ativo ? 1.5 : 1,
-            transform: [{ scale: animScale }],
           },
         ]}
       >
@@ -73,22 +56,12 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, onPress, rf, moderateScale })
         <Text style={[styles.txtObjetivo, { color: cores.textoSuave, fontSize: rf ? rf(12, 10, 14) : 12 }, ativo && [styles.txtObjetivoAtivo, { color: cores.primaria }]]}>
           {obj.nome}
         </Text>
-      </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
-  const animScale = useRef(new Animated.Value(ativo ? 1.02 : 1)).current;
-
-  useEffect(() => {
-    Animated.spring(animScale, {
-      toValue: ativo ? 1.02 : 1,
-      friction: 5,
-      tension: 140,
-      useNativeDriver: true,
-    }).start();
-  }, [ativo]);
 
   return (
     <TouchableOpacity
@@ -96,16 +69,10 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
       accessibilityRole="button"
       accessibilityLabel={`${nivel.nome}: ${nivel.descricao}`}
       accessibilityState={{ selected: ativo }}
-      onPress={() => {
-        Animated.sequence([
-          Animated.timing(animScale, { toValue: 0.96, duration: 75, useNativeDriver: true }),
-          Animated.spring(animScale, { toValue: 1.02, friction: 4, tension: 160, useNativeDriver: true }),
-        ]).start();
-        onPress();
-      }}
+      onPress={onPress}
       style={{ marginBottom: 10 }}
     >
-      <Animated.View
+      <View
         style={[
           styles.boxAtividadeInativa,
           {
@@ -113,7 +80,6 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
             borderColor: ativo ? cores.primaria : cores.borda,
             borderWidth: ativo ? 1.5 : 1,
             marginBottom: 0,
-            transform: [{ scale: animScale }],
           },
         ]}
       >
@@ -124,7 +90,7 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
           {ativo ? <Check size={18} color={cores.primaria} /> : null}
         </View>
         <Text style={[styles.txtAtividadeSub, { color: cores.textoSuave, fontSize: rf ? rf(11, 10, 13) : 11 }]}>{nivel.descricao}</Text>
-      </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -185,21 +151,9 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }
   }, [usuario]);
 
-  // ───────────────────────────────────────────────────────────
-  // ↓ Animação de Entrada Lateral Fluida ao focar na aba (900ms Suave)
-  // ───────────────────────────────────────────────────────────
-  const animEntrada = useRef(new Animated.Value(0)).current;
-
   useFocusEffect(
     useCallback(() => {
       if (secaoSelecionada === 'objetivos') carregarDados();
-      animEntrada.setValue(0);
-      Animated.timing(animEntrada, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
     }, [carregarDados, secaoSelecionada])
   );
 
@@ -212,10 +166,6 @@ export default function ConfiguracaoScreen({ navigation, route }) {
       else Alert.alert('Erro', 'Não foi possível salvar a unidade.');
     } finally { setCarregandoUnidades(false); }
   };
-
-  const offsetSlide = Math.round(moderateScale(35, 0.3));
-  const fadeConteudo = animEntrada.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1] });
-  const slideConteudo = animEntrada.interpolate({ inputRange: [0, 1], outputRange: [offsetSlide, 0], extrapolate: 'clamp' });
 
   // ───────────────────────────────────────────────────────────
   // ↓ Atualizar nível de atividade via API
