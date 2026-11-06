@@ -483,6 +483,18 @@ Sem SMTP configurado, o ambiente de desenvolvimento imprime o código no log da 
 
 A senha precisa ter pelo menos 8 caracteres, com letra maiúscula, minúscula, número e símbolo, não pode ser uma senha comum nem conter o nome ou o e-mail. A regra é validada no backend (`backend/app/core/senha.py`) e espelhada no app (`src/util/senha.js`). O login não aplica a regra, então contas antigas continuam entrando.
 
+### Aviso de nova versão do app (Android)
+
+Ao abrir, o app Android consulta `GET /app/versao` e compara com a `version` do `app.json`. Se a instalada for anterior, mostra uma tela com o botão **Atualizar agora**, que abre o download do APK. Falha de rede ou resposta inválida não bloqueiam o app.
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `APP_VERSAO_ATUAL` | `1.0.0` | Última versão publicada. Suba ao liberar um APK novo |
+| `APP_VERSAO_MINIMA` | `1.0.0` | Abaixo dela a tela não pode ser dispensada ("Agora não" some) |
+| `APP_URL_DOWNLOAD` | `/downloads/KaorCount-android.apk` | Link do APK; caminho relativo é resolvido contra o endereço da API |
+
+Para lançar uma versão: suba `version` (e `android.versionCode`) no `app.json`, gere o APK, substitua o arquivo em `backend/public/downloads/` e atualize `APP_VERSAO_ATUAL` no servidor.
+
 ### Limites de requisições
 
 Os limites abaixo são configuráveis por variável de ambiente e usam contadores no banco:
