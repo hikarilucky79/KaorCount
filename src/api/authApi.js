@@ -8,11 +8,29 @@ import { configIdempotente } from './idempotencia';
 /**
  * Registrar um novo usuário.
  * POST /auth/registrar
- * @param {{ nome: string, email: string, senha: string }} dados
+ * @param {{ nome: string, email: string, senha: string, token_verificacao?: string }} dados
  */
 export const registrar = async (dados) => {
   const response = await api.post('/auth/registrar', dados);
   return response.data;
+};
+
+/**
+ * Envia um código de 6 dígitos para o e-mail informado.
+ * POST /auth/email/enviar-codigo
+ */
+export const enviarCodigoEmail = async (email) => {
+  await api.post('/auth/email/enviar-codigo', { email: email.trim() });
+};
+
+/**
+ * Confirma o código recebido por e-mail.
+ * POST /auth/email/confirmar
+ * @returns {string} token_verificacao, exigido no cadastro da conta.
+ */
+export const confirmarCodigoEmail = async (email, codigo) => {
+  const response = await api.post('/auth/email/confirmar', { email: email.trim(), codigo });
+  return response.data.token_verificacao;
 };
 
 export const registrarComQuiz = async (cadastro, quiz, chave) => {

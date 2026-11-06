@@ -25,8 +25,12 @@ import {
   ArrowRight, 
   Eye, 
   EyeOff, 
-  AlertCircle
+  AlertCircle,
+  Check,
+  Circle
 } from 'lucide-react-native';
+import * as authApi from '../api/authApi';
+import { REQUISITOS_SENHA, validarSenha, EMAIL_VALIDO } from '../util/senha';
 import useAuth from '../hooks/useAuth';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
@@ -141,12 +145,13 @@ export default function AuthScreen({ navigation }) {
       setErroMsg('Por favor, informe seu nome completo.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+    if (!EMAIL_VALIDO.test(email.trim())) {
       setErroMsg('Por favor, informe um e-mail válido.');
       return;
     }
-    if (senha.length < 6) {
-      setErroMsg('A senha deve ter no mínimo 6 caracteres.');
+    const problemaSenha = validarSenha(senha, { email: email.trim(), nome });
+    if (problemaSenha) {
+      setErroMsg(problemaSenha);
       return;
     }
     if (senha !== confirmarSenha) {
@@ -154,9 +159,19 @@ export default function AuthScreen({ navigation }) {
       return;
     }
 
-    // Mantém as credenciais só em memória até a última etapa do quiz.
-    iniciarCadastro({ nome: nome.trim(), email: email.trim(), senha });
-    navigation.navigate('QuizCadastro');
+    // O e-mail precisa ser confirmado com um código antes de seguir para o quiz.
+    setCarregandoReq(true);
+    try {
+      await authApi.enviarCodigoEmail(email.trim());
+      // Mantém as credenciais só em memória até a última etapa do quiz.
+      iniciarCadastro({ nome: nome.trim(), email: email.trim(), senha });
+      navigation.navigate('VerificarEmail');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.message || 'Não foi possível enviar o código para o seu e-mail.';
+      setErroMsg(typeof msg === 'string' ? msg : 'Não foi possível enviar o código para o seu e-mail.');
+    } finally {
+      setCarregandoReq(false);
+    }
   };
 
   // ───────────────────────────────────────────────────────────
@@ -459,7 +474,7 @@ export default function AuthScreen({ navigation }) {
                     <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
                     <TextInput 
                       style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
-                      placeholder="Senha (mín. 6 caracteres)"
+                      placeholder="Senha (mín. 8 caracteres)"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       value={senha}
                       onChangeText={(t) => { setSenha(t); setErroMsg(''); }}
@@ -474,6 +489,22 @@ export default function AuthScreen({ navigation }) {
                       )}
                     </TouchableOpacity>
                   </View>
+
+                  {/* Requisitos da senha: aparecem ao digitar e vão sendo marcados */}
+                  {senha.length > 0 ? (
+                    <View style={styles.requisitosSenha} accessibilityLiveRegion="polite">
+                      {REQUISITOS_SENHA.map(({ id, rotulo, atende }) => {
+                        const ok = atende(senha);
+                        const cor = ok ? '#2E9E5B' : (isDark ? '#8A7E74' : '#9C8E81');
+                        return (
+                          <View key={id} style={styles.requisitoSenha} accessibilityLabel={`${rotulo}: ${ok ? 'atendido' : 'pendente'}`}>
+                            {ok ? <Check size={14} color={cor} /> : <Circle size={14} color={cor} />}
+                            <Text style={[styles.requisitoSenhaTexto, { color: cor, fontSize: rf(12, 11, 14) }]}>{rotulo}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
 
                   {/* Input Confirmar Senha */}
                   <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
@@ -776,6 +807,20 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: CORES.textoEscuro,
+  },
+  requisitosSenha: {
+    marginTop: -4,
+    marginBottom: 12,
+    paddingHorizontal: 6,
+    gap: 4,
+  },
+  requisitoSenha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requisitoSenhaTexto: {
+    fontWeight: '500',
   },
   rodapeLink: {
     flexDirection: 'row',
