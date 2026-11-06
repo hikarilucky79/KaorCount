@@ -467,6 +467,21 @@ explicativa.
 | `FATSECRET_CLIENT_SECRET` | vazio | Credencial da API FatSecret |
 | `ENVIRONMENT` | `development` | `production` ativa as travas de segurança |
 | `CORS_ORIGINS` | vazio | Domínios permitidos no CORS (obrigatório em produção) |
+| `EXIGIR_VERIFICACAO_EMAIL` | `true` | O cadastro só é aceito depois que o e-mail é confirmado com um código. Desligue só em testes locais |
+| `SMTP_HOST` / `SMTP_PORT` | vazio / `587` | Servidor SMTP que envia o código (587 usa STARTTLS, 465 usa SSL) |
+| `SMTP_USER` / `SMTP_PASSWORD` | vazio | Credenciais do SMTP |
+| `SMTP_FROM` | vazio | Remetente exibido. Em provedores sem domínio próprio (ex.: Brevo, SendGrid) precisa ser um e-mail já verificado no provedor |
+
+### Cadastro: e-mail verificado e senha forte
+
+O cadastro tem dois passos antes do quiz:
+
+1. `POST /auth/email/enviar-codigo` envia um código de 6 dígitos (vale 10 min, até 5 tentativas, reenvio a cada 60 s, no máximo 5 códigos por e-mail por hora).
+2. `POST /auth/email/confirmar` troca o código por um `token_verificacao` (válido por 2 h), que o app envia junto do cadastro em `/auth/registrar` e `/auth/registrar-com-quiz`.
+
+Sem SMTP configurado, o ambiente de desenvolvimento imprime o código no log da API; em produção o envio falha com 503.
+
+A senha precisa ter pelo menos 8 caracteres, com letra maiúscula, minúscula, número e símbolo, não pode ser uma senha comum nem conter o nome ou o e-mail. A regra é validada no backend (`backend/app/core/senha.py`) e espelhada no app (`src/util/senha.js`). O login não aplica a regra, então contas antigas continuam entrando.
 
 ### Limites de requisições
 
@@ -477,6 +492,8 @@ Os limites abaixo são configuráveis por variável de ambiente e usam contadore
 | Login por IP | `LIMITE_LOGINS_POR_IP` / `LIMITE_JANELA_LOGIN_SEGUNDOS` | 10 por 60 s |
 | Cadastro por IP | `LIMITE_REGISTROS_POR_IP` / `LIMITE_JANELA_REGISTRO_SEGUNDOS` | 3 por 3.600 s |
 | Cadastros globais | `LIMITE_CADASTROS_POR_DIA` | 50 por dia (`0` desativa este teto) |
+| Códigos de e-mail por IP | `LIMITE_CODIGOS_POR_IP` / `LIMITE_JANELA_CODIGO_SEGUNDOS` | 8 por 3.600 s |
+| Confirmações de código por IP | `LIMITE_CONFIRMACOES_POR_IP` / `LIMITE_JANELA_CONFIRMACAO_SEGUNDOS` | 30 por 3.600 s |
 | Busca FatSecret por usuário | `LIMITE_FATSECRET_POR_USUARIO` / `LIMITE_JANELA_FATSECRET_SEGUNDOS` | 30 por 60 s |
 | Geração de sugestões por usuário | `LIMITE_SUGESTOES_POR_USUARIO` / `LIMITE_JANELA_SUGESTAO_SEGUNDOS` | 5 por 3.600 s |
 
