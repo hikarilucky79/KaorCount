@@ -8,17 +8,17 @@
 // o resultado personalizado do plano nutricional.
 // As respostas são salvas atomicamente pelo endpoint dedicado do quiz.
 // ───────────────────────────────────────────────────────────────
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, ScrollView, FlatList,
+  StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput,
   ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { Picker } from '@react-native-picker/picker';
+
 import {
   User, Calendar, Ruler, Scale, Armchair, Footprints, Zap, Bike,
-  Dumbbell, TrendingDown, Minus, TrendingUp, ChevronLeft, Check,
+  Dumbbell, TrendingDown, Minus, TrendingUp, Check,
   ArrowLeft, AlertCircle, Flame, Gauge, Target, Utensils, Salad, Search,
 } from 'lucide-react-native';
 import useAuth from '../hooks/useAuth';
@@ -27,7 +27,7 @@ import useResponsive from '../hooks/useResponsive';
 import useReduceMotion from '../hooks/useReduceMotion';
 import { calcularPlanoNutricional, parseNumeroBr } from '../util/nutricao';
 import { dataDeHoje } from '../util/data';
-import { pesoDeKg, pesoParaKg } from '../util/medidas';
+import { pesoDeKg, pesoParaKg, alturaDeCm, alturaParaCm } from '../util/medidas';
 import * as quizApi from '../api/quizApi';
 import { chaveDaOperacao } from '../api/idempotencia';
 
@@ -102,7 +102,7 @@ function NumeroAnimado({ valor, estilo, reduzirMovimento }) {
     }
     const listener = anim.addListener(({ value }) => setExibido(Math.round(value)));
     const animation = Animated.timing(anim, {
-      toValue: valor, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+      toValue: valor, duration: 1100, easing: Easing.out(Easing.cubic), useNativeDriver: false,
     });
     animation.start();
     return () => { animation.stop(); anim.removeListener(listener); };
@@ -138,7 +138,7 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
     const destino = selecionado ? 1 : 0;
     if (reduzirMovimento) { pop.setValue(destino); return; }
     const animation = Animated.timing(pop, {
-      toValue: destino, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      toValue: destino, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
@@ -228,265 +228,68 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
   );
 }
 
-// ↓ Campo numérico/data com anel de foco e sufixo de unidade.
-// Seletor vertical no estilo de roda, usado nas medidas do corpo.
-function SeletorRoda({ valor, aoMudar, minimo, maximo, passo, unidade = '', cores, estilo, formatarValor }) {
-  const ITEM_ALTURA = 40;
-  const QUANTIDADE_LINHAS = 5;
-  const ALTURA_LISTA = ITEM_ALTURA * QUANTIDADE_LINHAS;
-  const casas = passo < 1 ? 1 : 0;
-  const quantidade = Math.round((maximo - minimo) / passo) + 1;
-  const indiceInicial = Math.max(0, Math.min(quantidade - 1, Math.round((valor - minimo) / passo)));
-  const listaRef = useRef(null);
-  const scrollTimeout = useRef(null);
-  const aoMudarRef = useRef(aoMudar);
-  aoMudarRef.current = aoMudar;
-  const scrollY = useRef(new Animated.Value(indiceInicial * ITEM_ALTURA)).current;
-  const [indicePrevia, setIndicePrevia] = useState(indiceInicial);
-  const indiceAtualRef = useRef(indiceInicial);
-  useEffect(() => {
-    if (indiceInicial === indiceAtualRef.current) return;
-    indiceAtualRef.current = indiceInicial;
-    setIndicePrevia(indiceInicial);
-    const offset = indiceInicial * ITEM_ALTURA;
-    scrollY.setValue(offset);
-    listaRef.current?.scrollToOffset({ offset, animated: false });
-  }, [indiceInicial, scrollY]);
-  useEffect(() => () => clearTimeout(scrollTimeout.current), []);
-  const valoresRoda = useMemo(() => Array.from({ length: quantidade }, (_, indice) => (
-    Number((minimo + indice * passo).toFixed(casas))
-  )), [quantidade, minimo, passo, casas]);
-  // Duas linhas vazias em cada ponta deixam o valor selecionado no centro da janela.
-  const dadosLista = useMemo(() => Array.from({ length: quantidade + 4 }, (_, indice) => indice - 2), [quantidade]);
-  const itensPicker = useMemo(() => {
-    if (Platform.OS !== 'ios') return [];
-    return valoresRoda.map((item) => {
-      const label = formatarValor
-        ? formatarValor(item)
-        : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
-      return <Picker.Item key={String(item)} label={label} value={item} />;
-    });
-  }, [valoresRoda, passo, formatarValor]);
+// ↓ Tela numérica padrão do quiz: campo de input sem bordas e, logo abaixo,
+//   uma barra estática (decorativa, não interativa).
+function EntradaNumerica({
+  valor, aoMudar, minimo, maximo, casas = 0, rotulo, mensagemInvalido, cores, rf, children,
+}) {
+  const [texto, setTexto] = useState(null);
 
-  const indiceNoCentro = (offsetY) => Math.max(0, Math.min(quantidade - 1, Math.round(offsetY / ITEM_ALTURA)));
-  const atualizarIndice = (offsetY, confirmar = false) => {
-    const indice = indiceNoCentro(offsetY);
-    if (indice !== indiceAtualRef.current) {
-      indiceAtualRef.current = indice;
-      setIndicePrevia(indice);
-    }
-    if (confirmar) aoMudarRef.current(valoresRoda[indice]);
-  };
-  const eventoScroll = useMemo(() => Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    {
-      useNativeDriver: Platform.OS !== 'web',
-      listener: (evento) => {
-        const offset = evento.nativeEvent.contentOffset.y;
-        atualizarIndice(offset);
-        clearTimeout(scrollTimeout.current);
-        scrollTimeout.current = setTimeout(() => atualizarIndice(offset, true), 160);
-      },
-    },
-  ), [scrollY, quantidade, ITEM_ALTURA, valoresRoda]);
+  const limitar = (n) => Math.max(minimo, Math.min(maximo, n));
+  const arredondar = (n) => Number(n.toFixed(casas));
+  const atual = limitar(Number.isFinite(valor) ? valor : minimo);
+  const formatar = (n) => n.toFixed(casas).replace('.', ',');
 
-  // O Picker nativo do iOS é o equivalente ao .wheel do SwiftUI.
-  // No Android/web, a lista virtualizada mantém o comportamento de roda sem mover um bloco fixo de cinco números.
-  if (Platform.OS === 'ios') {
-    const valorSelecionado = Number(Number(valor).toFixed(casas));
-
-    return (
-      <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]}>
-        <Picker
-          selectedValue={valorSelecionado}
-          onValueChange={(item) => {
-            if (item !== undefined && item !== null) aoMudar(Number(item));
-          }}
-          itemStyle={{ color: cores.textoEscuro, fontSize: 22 }}
-          style={{ width: '100%', height: ALTURA_LISTA }}
-        >
-          {itensPicker}
-        </Picker>
-        {unidade ? (
-          <View pointerEvents="none" style={styles.unidadePickerFixa}>
-            <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
-          </View>
-        ) : null}
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.rodaContainer, { height: ALTURA_LISTA }, estilo]}>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.selecaoRodaFixa,
-          { top: ITEM_ALTURA * 2, height: ITEM_ALTURA, backgroundColor: cores.mutado, borderColor: cores.borda },
-        ]}
-      />
-      <Animated.FlatList
-        ref={listaRef}
-        style={{ flex: 1 }}
-        data={dadosLista}
-        initialScrollIndex={indiceInicial}
-        onLayout={() => {
-          const offset = indiceAtualRef.current * ITEM_ALTURA;
-          scrollY.setValue(offset);
-          listaRef.current?.scrollToOffset({ offset, animated: false });
-        }}
-        keyExtractor={(indice) => String(indice)}
-        getItemLayout={(_, indice) => ({ length: ITEM_ALTURA, offset: indice * ITEM_ALTURA, index: indice })}
-        snapToInterval={ITEM_ALTURA}
-        snapToAlignment="start"
-        decelerationRate="normal"
-        showsVerticalScrollIndicator={false}
-        overScrollMode="never"
-        scrollEventThrottle={16}
-        extraData={indicePrevia}
-        onScroll={eventoScroll}
-        onScrollEndDrag={(evento) => { clearTimeout(scrollTimeout.current); atualizarIndice(evento.nativeEvent.contentOffset.y, true); }}
-        onMomentumScrollEnd={(evento) => { clearTimeout(scrollTimeout.current); atualizarIndice(evento.nativeEvent.contentOffset.y, true); }}
-        renderItem={({ item: indiceValor }) => {
-          if (indiceValor < 0 || indiceValor >= quantidade) {
-            return <View style={{ height: ITEM_ALTURA }} />;
-          }
-          const item = valoresRoda[indiceValor];
-          const deslocamento = Animated.subtract(indiceValor, Animated.divide(scrollY, ITEM_ALTURA));
-          const rotacao = deslocamento.interpolate({
-            inputRange: [-3, -2, -1, 0, 1, 2, 3],
-            outputRange: ['66deg', '44deg', '22deg', '0deg', '-22deg', '-44deg', '-66deg'],
-            extrapolate: 'clamp',
-          });
-          const escala = deslocamento.interpolate({
-            inputRange: [-3, -2, -1, 0, 1, 2, 3],
-            outputRange: [0.78, 0.82, 0.91, 1, 0.91, 0.82, 0.78],
-            extrapolate: 'clamp',
-          });
-          const opacidade = deslocamento.interpolate({
-            inputRange: [-3, -2, -1, 0, 1, 2, 3],
-            outputRange: [0.06, 0.15, 0.42, 1, 0.42, 0.15, 0.06],
-            extrapolate: 'clamp',
-          });
-          const selecionada = indiceValor === indicePrevia;
-          const distancia = Math.abs(indiceValor - indicePrevia);
-          const texto = formatarValor
-            ? formatarValor(item)
-            : passo < 1 ? item.toFixed(1).replace('.', ',') : String(item);
-          return (
-            <Animated.View style={[
-              styles.itemRoda,
-              {
-                height: ITEM_ALTURA,
-                transform: [
-                  { perspective: 350 },
-                  { rotateX: rotacao },
-                  { scale: escala },
-                ],
-              },
-            ]}>
-              <Animated.Text style={[
-                styles.textoRoda,
-                {
-                  color: selecionada ? cores.textoEscuro : cores.textoSuave,
-                  opacity: opacidade,
-                  fontWeight: selecionada ? '800' : '500',
-                  fontSize: selecionada ? 27 : Math.max(17, 24 - distancia * 3),
-                },
-              ]}>
-                {texto}
-              </Animated.Text>
-            </Animated.View>
-          );
-        }}
-      />
-      {unidade ? (
-        <View pointerEvents="none" style={[styles.unidadeRodaFixa, { top: ITEM_ALTURA * 2, height: ITEM_ALTURA }]}>
-          <Text style={{ color: cores.textoSuave, fontSize: 15, fontWeight: '600' }}>{unidade}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function SeletorPeso({ valor, aoMudar, cores }) {
-  const peso = parseNumeroBr(valor);
-  const base = Number.isFinite(peso) ? peso : 60;
-  const inteiro = Math.trunc(base);
-  const decimal = Math.max(0, Math.min(9, Math.round((base - inteiro) * 10)));
-  const mudarInteiro = proximo => aoMudar((proximo + decimal / 10).toFixed(1).replace('.', ','));
-  const mudarDecimal = proximo => aoMudar((inteiro + proximo / 10).toFixed(1).replace('.', ','));
-
-  return (
-    <View style={{ width: '100%' }}>
-      <View style={styles.linhaPesoRoda}>
-        <SeletorRoda valor={inteiro} aoMudar={mudarInteiro} minimo={20} maximo={350} passo={1} cores={cores} estilo={styles.rodaPesoInteira} />
-        <Text style={[styles.separadorPeso, { color: cores.textoEscuro }]}>,</Text>
-        <SeletorRoda valor={decimal} aoMudar={mudarDecimal} minimo={0} maximo={9} passo={1} cores={cores} estilo={styles.rodaPesoDecimal} />
-        <Text style={[styles.unidadePeso, { color: cores.textoSuave }]}>kg</Text>
-      </View>
-    </View>
-  );
-}
-
-function SeletorPesoMeta({ valor, aoMudar, unidade, cores }) {
-  const [largura, setLargura] = useState(0);
-  const toqueInicial = useRef(null);
-  const minimo = unidade === 'lb' ? 44 : 20;
-  const maximo = unidade === 'lb' ? 772 : 350;
-  const pesoKg = parseNumeroBr(valor);
-  const atual = Math.max(minimo, Math.min(maximo, Math.round(pesoDeKg(Number.isFinite(pesoKg) ? pesoKg : 60, unidade))));
-  const progresso = (atual - minimo) / (maximo - minimo);
-
-  const aplicarValor = (proximo) => {
-    const limitado = Math.max(minimo, Math.min(maximo, proximo));
-    const kg = Math.max(20, Math.min(350, pesoParaKg(limitado, unidade)));
-    aoMudar(kg.toFixed(1).replace('.', ','));
+  const aoDigitar = (entrada) => {
+    const limpo = entrada.replace(casas > 0 ? /[^0-9,.]/g : /[^0-9]/g, '').replace('.', ',');
+    setTexto(limpo);
+    const numero = parseNumeroBr(limpo);
+    if (Number.isFinite(numero) && numero >= minimo && numero <= maximo) aoMudar(arredondar(numero));
   };
 
-  const atualizarPeloToque = (evento) => {
-    if (!largura) return;
-    const posicao = Math.max(0, Math.min(1, evento.nativeEvent.locationX / largura));
-    aplicarValor(minimo + Math.round(posicao * (maximo - minimo)));
+  const aoSair = () => {
+    const numero = parseNumeroBr(texto);
+    if (Number.isFinite(numero)) aoMudar(limitar(arredondar(numero)));
+    setTexto(null);
   };
 
+  const tamanho = rf(68, 56, 78);
+
+  // ↓ Avisa assim que o valor digitado já está claramente fora do intervalo.
+  const digitado = texto !== null ? parseNumeroBr(texto) : NaN;
+  const invalido = Number.isFinite(digitado)
+    && (digitado > maximo || (digitado < minimo && texto.replace(/\D/g, '').length >= String(Math.trunc(maximo)).length));
+
   return (
-    <View
-      style={styles.sliderPesoMeta}
-      onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
-      onTouchStart={(evento) => { toqueInicial.current = { x: evento.nativeEvent.pageX, y: evento.nativeEvent.pageY }; }}
-      onTouchEnd={(evento) => {
-        const inicio = toqueInicial.current;
-        toqueInicial.current = null;
-        if (inicio && Math.abs(evento.nativeEvent.pageX - inicio.x) < 8 && Math.abs(evento.nativeEvent.pageY - inicio.y) < 8) atualizarPeloToque(evento);
-      }}
-      onMoveShouldSetResponder={(_, gesto) => Math.abs(gesto.dx) > Math.abs(gesto.dy)}
-      onResponderGrant={atualizarPeloToque}
-      onResponderMove={atualizarPeloToque}
-      accessible
-      accessibilityRole="adjustable"
-      accessibilityLabel="Peso objetivo"
-      accessibilityValue={{ min: minimo, max: maximo, now: atual, text: `${atual} ${unidade}` }}
-      accessibilityActions={[{ name: 'increment', label: 'Aumentar' }, { name: 'decrement', label: 'Diminuir' }]}
-      onAccessibilityAction={({ nativeEvent }) => {
-        if (nativeEvent.actionName === 'increment') aplicarValor(atual + 1);
-        if (nativeEvent.actionName === 'decrement') aplicarValor(atual - 1);
-      }}
-      onKeyDown={Platform.OS === 'web' ? (evento) => {
-        if (evento.key === 'ArrowRight' || evento.key === 'ArrowUp') { evento.preventDefault(); aplicarValor(atual + 1); }
-        if (evento.key === 'ArrowLeft' || evento.key === 'ArrowDown') { evento.preventDefault(); aplicarValor(atual - 1); }
-      } : undefined}
-    >
-      <View pointerEvents="none" style={styles.trilhoPesoMeta}>
-        <View style={[styles.trilhoPesoMetaBase, { backgroundColor: cores.mutado }]} />
-        <View style={[styles.trilhoPesoMetaPreenchido, { width: `${progresso * 100}%`, backgroundColor: cores.primaria }]} />
-        <View
+    <View style={styles.etapaNumerica}>
+      <View style={styles.blocoNumero}>
+        <TextInput
+          value={texto !== null ? texto : formatar(atual)}
+          onChangeText={aoDigitar}
+          onBlur={aoSair}
+          onFocus={() => setTexto(formatar(atual))}
+          keyboardType={casas > 0 ? 'decimal-pad' : 'number-pad'}
+          selectTextOnFocus
+          maxLength={casas > 0 ? String(maximo).length + casas + 1 : String(maximo).length}
+          accessibilityLabel={rotulo}
+          underlineColorAndroid="transparent"
           style={[
-            styles.trilhoPesoMetaMarcador,
-            { left: `${progresso * 100}%`, backgroundColor: cores.marcaEscura, borderColor: cores.primaria },
+            styles.inputNumerico,
+            { color: cores.textoEscuro, fontSize: tamanho, lineHeight: tamanho * 1.15 },
+            Platform.OS === 'web' ? { outlineStyle: 'none', borderWidth: 0, backgroundColor: 'transparent' } : null,
           ]}
         />
+        {invalido && mensagemInvalido ? (
+          <Text style={[styles.erroNumerico, { color: cores.erro }]} accessibilityLiveRegion="polite">{mensagemInvalido}</Text>
+        ) : null}
+        <View pointerEvents="none" style={styles.barraNumerica}>
+          <View style={styles.trilhoPesoMeta}>
+            <View style={[styles.trilhoPesoMetaPreenchido, { width: '100%', backgroundColor: cores.primaria }]} />
+          </View>
+        </View>
       </View>
+
+      {children}
     </View>
   );
 }
@@ -527,7 +330,9 @@ export default function QuizCadastroScreen({ navigation }) {
   const [origemApp, setOrigemApp] = useState('');
   const [jaContouCalorias, setJaContouCalorias] = useState(null);
   const [pesoObjetivoStr, setPesoObjetivoStr] = useState(pesoStr);
+  // ↓ Unidades de exibição (versão americana: lb e in). Os valores seguem salvos em kg/cm.
   const [unidadePesoObjetivo, setUnidadePesoObjetivo] = useState('kg');
+  const [unidadeAltura, setUnidadeAltura] = useState('cm');
 
   // ↓ Animação de transição suave entre etapas.
   const animEtapa = useRef(new Animated.Value(1)).current;
@@ -550,8 +355,8 @@ export default function QuizCadastroScreen({ navigation }) {
       return;
     }
     const entrada = Animated.parallel([
-      Animated.timing(animEtapa, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(deslocamentoEtapa, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(animEtapa, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(deslocamentoEtapa, { toValue: 0, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]);
     entrada.start(({ finished }) => { if (finished) transicaoRef.current = false; });
     return () => { entrada.stop(); transicaoRef.current = false; };
@@ -565,7 +370,7 @@ export default function QuizCadastroScreen({ navigation }) {
   useEffect(() => {
     if (reduzirMovimento) { animProgresso.setValue(etapaAtual / TOTAL_ETAPAS); return; }
     const animation = Animated.timing(animProgresso, {
-      toValue: etapaAtual / TOTAL_ETAPAS, duration: 240,
+      toValue: etapaAtual / TOTAL_ETAPAS, duration: 650,
       easing: Easing.out(Easing.cubic), useNativeDriver: false,
     });
     animation.start();
@@ -655,11 +460,11 @@ export default function QuizCadastroScreen({ navigation }) {
       return;
     }
     Animated.parallel([
-      Animated.timing(animEtapa, { toValue: 0, duration: 110, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      Animated.timing(deslocamentoEtapa, { toValue: -sentido * 12, duration: 110, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(animEtapa, { toValue: 0, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(deslocamentoEtapa, { toValue: -sentido * 24, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(({ finished }) => {
       if (!finished) { transicaoRef.current = false; return; }
-      deslocamentoEtapa.setValue(sentido * 16);
+      deslocamentoEtapa.setValue(sentido * 32);
       entradaPendente.current = true;
       setEtapaAtual(novaEtapa);
     });
@@ -762,7 +567,7 @@ export default function QuizCadastroScreen({ navigation }) {
     if (reduzirMovimento) { animFim.setValue(1); return; }
     animFim.setValue(0);
     const animation = Animated.timing(animFim, {
-      toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
@@ -775,8 +580,10 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Cabeçalho de cada etapa: ícone em círculo + título + pergunta.
   const renderCabecalhoEtapa = (_IconeEtapa, titulo, pergunta) => (
     <View style={styles.headerEtapa}>
-      <Text style={[styles.tituloEtapa, { color: cores.textoEscuro, fontSize: rf(21, 19, 26) }]}>{titulo}</Text>
-      <Text style={[styles.perguntaEtapa, { color: cores.textoSuave, fontSize: rf(14, 13, 16) }]}>{pergunta}</Text>
+      <Text style={[styles.tituloPesoObjetivo, { color: cores.textoEscuro, fontSize: rf(34, 28, 40), lineHeight: rf(40, 34, 46) }]}>{titulo}</Text>
+      {pergunta ? (
+        <Text style={[styles.perguntaEtapa, { color: cores.textoSuave, fontSize: rf(14, 13, 16), marginTop: 10 }]}>{pergunta}</Text>
+      ) : null}
     </View>
   );
 
@@ -799,6 +606,38 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // ↓ Botões de unidade (kg/lb, cm/in) usados nas telas numéricas.
+  const renderUnidades = (opcoes, atual, aoSelecionar) => (
+    <View style={styles.unidadesPesoObjetivo}>
+      {opcoes.map(({ id, rotulo }) => {
+        const selecionada = atual === id;
+        return (
+          <TouchableOpacity
+            key={id}
+            style={[
+              styles.botaoUnidadePesoObjetivo,
+              {
+                backgroundColor: selecionada ? cores.marcaEscura : cores.branco,
+                borderColor: selecionada ? cores.primaria : cores.borda,
+              },
+            ]}
+            onPress={() => aoSelecionar(id)}
+            activeOpacity={0.85}
+            accessibilityRole="radio"
+            accessibilityLabel={rotulo}
+            accessibilityState={{ selected: selecionada }}
+          >
+            <Text style={[styles.textoUnidadePesoObjetivo, { color: selecionada ? '#FFFFFF' : cores.textoEscuro }]}>
+              {id}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+  const UNIDADES_PESO = [{ id: 'kg', rotulo: 'Quilogramas' }, { id: 'lb', rotulo: 'Libras' }];
+  const UNIDADES_ALTURA = [{ id: 'cm', rotulo: 'Centímetros' }, { id: 'in', rotulo: 'Polegadas' }];
+
   // ↓ Etapa 2 — Ano de nascimento.
   const renderNascimento = () => {
     const ano = Number(dataNascimento) || 2000;
@@ -807,45 +646,67 @@ export default function QuizCadastroScreen({ navigation }) {
     return (
       <View style={styles.etapaRoda}>
         {renderCabecalhoEtapa(Calendar, 'Em que ano você nasceu?', 'Só precisamos saber o ano.')}
-        <View style={styles.seletorEtapaCentralizado}>
-          <SeletorRoda
-            valor={ano} aoMudar={atualizarAnoNascimento}
-            minimo={1900} maximo={anoAtual} passo={1}
-            cores={cores}
-          />
-        </View>
+        <EntradaNumerica
+          valor={ano} aoMudar={atualizarAnoNascimento}
+          minimo={1900} maximo={anoAtual} rotulo="Ano de nascimento"
+          mensagemInvalido={`Informe um ano entre 1900 e ${anoAtual}.`}
+          cores={cores} rf={rf}
+        />
       </View>
     );
   };
 
   // ↓ Etapa 3 — Altura.
-  const renderAltura = () => (
-    <View style={styles.etapaRoda}>
-      {renderCabecalhoEtapa(Ruler, 'Qual é a sua altura?', 'Um valor aproximado está ótimo.')}
-      <View style={styles.seletorEtapaCentralizado}>
-        <SeletorRoda
-          valor={parseNumeroBr(alturaStr) || 160}
-          aoMudar={(valor) => { setAlturaStr(String(valor)); setErroEtapa(''); }}
-          minimo={100} maximo={260} passo={1} unidade="cm"
-          cores={cores}
-        />
+  const renderAltura = () => {
+    const emIn = unidadeAltura === 'in';
+    const alturaCm = parseNumeroBr(alturaStr) || 160;
+    return (
+      <View style={styles.etapaRoda}>
+        {renderCabecalhoEtapa(Ruler, 'Qual é a sua altura?', 'Um valor aproximado está ótimo.')}
+        <EntradaNumerica
+          valor={emIn ? Math.round(alturaDeCm(alturaCm, 'in')) : Math.round(alturaCm)}
+          aoMudar={(valor) => {
+            setAlturaStr(emIn ? alturaParaCm(valor, 'in').toFixed(1) : String(valor));
+            setErroEtapa('');
+          }}
+          minimo={emIn ? 40 : 100}
+          maximo={emIn ? 102 : 260}
+          rotulo={`Altura em ${emIn ? 'polegadas' : 'centímetros'}`}
+          mensagemInvalido={emIn ? 'Informe uma altura entre 40 e 102 in.' : 'Informe uma altura entre 100 e 260 cm.'}
+          cores={cores} rf={rf}
+        >
+          {renderUnidades(UNIDADES_ALTURA, unidadeAltura, setUnidadeAltura)}
+        </EntradaNumerica>
       </View>
-    </View>
-  );
+    );
+  };
 
   // ↓ Etapa 4 — Peso atual.
-  const renderPeso = () => (
-    <View style={styles.etapaRoda}>
-      {renderCabecalhoEtapa(Scale, 'Qual é o seu peso?', 'Um valor aproximado está ótimo.')}
-      <View style={styles.seletorEtapaCentralizado}>
-        <SeletorPeso
-          valor={pesoStr}
-          aoMudar={(valor) => { setPesoStr(valor); setErroEtapa(''); }}
-          cores={cores}
-        />
+  const renderPeso = () => {
+    const emLb = unidadePesoObjetivo === 'lb';
+    const pesoKg = parseNumeroBr(pesoStr) || 60;
+    return (
+      <View style={styles.etapaRoda}>
+        {renderCabecalhoEtapa(Scale, 'Qual é o seu peso?', 'Um valor aproximado está ótimo.')}
+        <EntradaNumerica
+          valor={Number(pesoDeKg(pesoKg, unidadePesoObjetivo).toFixed(1))}
+          aoMudar={(valor) => {
+            const kg = Math.max(20, Math.min(350, pesoParaKg(valor, unidadePesoObjetivo)));
+            setPesoStr(kg.toFixed(3).replace('.', ','));
+            setErroEtapa('');
+          }}
+          minimo={emLb ? 44.1 : 20}
+          maximo={emLb ? 771.6 : 350}
+          casas={1}
+          rotulo={`Peso em ${emLb ? 'libras' : 'quilogramas'}`}
+          mensagemInvalido={emLb ? 'Informe um peso entre 44,1 e 771,6 lb.' : 'Informe um peso entre 20 e 350 kg.'}
+          cores={cores} rf={rf}
+        >
+          {renderUnidades(UNIDADES_PESO, unidadePesoObjetivo, setUnidadePesoObjetivo)}
+        </EntradaNumerica>
       </View>
-    </View>
-  );
+    );
+  };
 
   // ↓ Etapa 7 — Nível de atividade física.
   const renderAtividade = () => (
@@ -953,54 +814,27 @@ export default function QuizCadastroScreen({ navigation }) {
 
   const renderPesoObjetivo = () => {
     const pesoKg = parseNumeroBr(pesoObjetivoStr) || 60;
+    const emLb = unidadePesoObjetivo === 'lb';
     const valorExibido = Math.round(pesoDeKg(pesoKg, unidadePesoObjetivo));
 
     return (
-      <View style={[styles.etapaRoda, styles.etapaPesoObjetivo]}>
-        <Text style={[styles.tituloPesoObjetivo, { color: cores.textoEscuro, fontSize: rf(34, 28, 40), lineHeight: rf(40, 34, 46) }]}>
-          Vamos escolher a meta que você vai bater!
-        </Text>
-
-        <Text
-          style={[styles.valorPesoObjetivo, { color: cores.textoEscuro, fontSize: rf(68, 56, 78), lineHeight: rf(76, 64, 88) }]}
-          accessibilityLabel={`${valorExibido} ${unidadePesoObjetivo}`}
+      <View style={styles.etapaRoda}>
+        {renderCabecalhoEtapa(Target, 'Vamos escolher a meta que você vai bater!', '')}
+        <EntradaNumerica
+          valor={valorExibido}
+          aoMudar={(valor) => {
+            const kg = Math.max(20, Math.min(350, pesoParaKg(valor, unidadePesoObjetivo)));
+            setPesoObjetivoStr(kg.toFixed(2).replace('.', ','));
+            setErroEtapa('');
+          }}
+          minimo={emLb ? 44 : 20}
+          maximo={emLb ? 772 : 350}
+          rotulo={`Peso objetivo em ${emLb ? 'libras' : 'quilogramas'}`}
+          mensagemInvalido={emLb ? 'Informe um peso entre 44 e 772 lb.' : 'Informe um peso entre 20 e 350 kg.'}
+          cores={cores} rf={rf}
         >
-          {valorExibido}
-        </Text>
-
-        <SeletorPesoMeta
-          valor={pesoObjetivoStr}
-          aoMudar={(valor) => { setPesoObjetivoStr(valor); setErroEtapa(''); }}
-          unidade={unidadePesoObjetivo}
-          cores={cores}
-        />
-
-        <View style={styles.unidadesPesoObjetivo}>
-          {['kg', 'lb'].map((unidade) => {
-            const selecionada = unidadePesoObjetivo === unidade;
-            return (
-              <TouchableOpacity
-                key={unidade}
-                style={[
-                  styles.botaoUnidadePesoObjetivo,
-                  {
-                    backgroundColor: selecionada ? cores.marcaEscura : cores.branco,
-                    borderColor: selecionada ? cores.primaria : cores.borda,
-                  },
-                ]}
-                onPress={() => setUnidadePesoObjetivo(unidade)}
-                activeOpacity={0.85}
-                accessibilityRole="radio"
-                accessibilityLabel={unidade === 'kg' ? 'Quilogramas' : 'Libras'}
-                accessibilityState={{ selected: selecionada }}
-              >
-                <Text style={[styles.textoUnidadePesoObjetivo, { color: selecionada ? '#FFFFFF' : cores.textoEscuro }]}>
-                  {unidade}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          {renderUnidades(UNIDADES_PESO, unidadePesoObjetivo, setUnidadePesoObjetivo)}
+        </EntradaNumerica>
       </View>
     );
   };
@@ -1172,11 +1006,9 @@ export default function QuizCadastroScreen({ navigation }) {
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar etapa"
-                style={[styles.btnVoltarCircular, etapaAtual === 5 && styles.btnVoltarPesoObjetivo]}
+                style={[styles.btnVoltarCircular, styles.btnVoltarPesoObjetivo]}
               >
-                {etapaAtual === 5
-                  ? <ArrowLeft size={24} color={cores.textoEscuro} />
-                  : <ChevronLeft size={18} color={cores.textoEscuro} />}
+                <ArrowLeft size={24} color={cores.textoEscuro} />
               </TouchableOpacity>
             ) : (
               <View style={styles.btnVoltarPlaceholder} />
@@ -1184,8 +1016,8 @@ export default function QuizCadastroScreen({ navigation }) {
 
             <View style={styles.progressoContainer}>
               {etapaAtual > 0 ? (
-                <View style={[styles.progressoTrilho, etapaAtual === 5 && styles.progressoPesoObjetivo, { backgroundColor: tom.trilho }]}>
-                  <Animated.View style={[styles.progressoPreenchimento, etapaAtual === 5 && styles.progressoPesoObjetivo, { backgroundColor: cores.primaria, width: animProgresso.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+                <View style={[styles.progressoTrilho, styles.progressoPesoObjetivo, { backgroundColor: tom.trilho }]}>
+                  <Animated.View style={[styles.progressoPreenchimento, styles.progressoPesoObjetivo, { backgroundColor: cores.primaria, width: animProgresso.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
                 </View>
               ) : null}
             </View>
@@ -1195,11 +1027,7 @@ export default function QuizCadastroScreen({ navigation }) {
 
           {/* ↓ Legenda em linha própria: dentro do header ela empurrava a
               barra de progresso para cima do centro dos ícones. */}
-          {etapaAtual > 0 && etapaAtual !== 5 && (
-            <Text style={[styles.progressoTexto, { color: cores.textoSuave }]}>
-              Etapa {etapaAtual} de {TOTAL_ETAPAS}
-            </Text>
-          )}
+
 
           {/* ↓ Conteúdo da etapa com transição animada */}
           <Animated.View
@@ -1249,7 +1077,7 @@ export default function QuizCadastroScreen({ navigation }) {
               ) : (
                 <>
                   <Text style={[styles.txtBtnPrincipal, { fontSize: rf(17, 16, 18) }]}>
-                    {vaiFinalizar ? 'Gerar meu plano' : etapaAtual === 5 ? 'Próximo' : 'Seguinte'}
+                    {vaiFinalizar ? 'Gerar meu plano' : 'Próximo'}
                   </Text>
                 </>
               )}
@@ -1293,7 +1121,12 @@ const styles = StyleSheet.create({
 
   scrollConteudo: { paddingBottom: 24, paddingTop: 14 },
   scrollConteudoRodas: { flexGrow: 1 },
-  etapaRoda: { flex: 1 },
+  etapaRoda: { flex: 1, minHeight: 380, paddingHorizontal: 4, paddingVertical: 22 },
+  etapaNumerica: { flex: 1, alignItems: 'stretch', justifyContent: 'center', gap: 28 },
+  blocoNumero: { alignItems: 'center' },
+  inputNumerico: { minWidth: 160, textAlign: 'center', fontWeight: '900', letterSpacing: -2, padding: 0, borderWidth: 0, backgroundColor: 'transparent' },
+  erroNumerico: { fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 4 },
+  barraNumerica: { width: '90%', maxWidth: 420, height: 32, alignSelf: 'center', justifyContent: 'center', marginTop: 6 },
   etapaPesoObjetivo: {
     minHeight: 380,
     alignItems: 'stretch',
