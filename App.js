@@ -13,6 +13,7 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 import useTheme from './src/hooks/useTheme';
 import useAuth from './src/hooks/useAuth';
 import useReduceMotion from './src/hooks/useReduceMotion';
+import useAtualizacaoApp from './src/hooks/useAtualizacaoApp';
 
 // ↓ Importando as telas (screens)
 import AuthScreen from './src/screens/AuthScreen';
@@ -22,6 +23,7 @@ import PerfilScreen from './src/screens/PerfilScreen';
 import ConfiguracaoScreen, { ITENS_MENU_CONFIGURACAO } from './src/screens/ConfiguracaoScreen';
 import QuizCadastroScreen from './src/screens/QuizCadastroScreen';
 import VerificarEmailScreen from './src/screens/VerificarEmailScreen';
+import AtualizacaoScreen from './src/screens/AtualizacaoScreen';
 
 // ↓ Importando a biblioteca dos ícones em SVG
 import { Home, Book, User } from 'lucide-react-native';
@@ -86,6 +88,7 @@ function NavegacaoRaiz() {
   const { carregando, logado } = useAuth();
   const { cores } = useTheme();
   const permissaoNotificacaoVerificada = useRef(false);
+  const { verificando: verificandoVersao, atualizacao, dispensar: dispensarAtualizacao } = useAtualizacaoApp();
   const [fontesCarregadas] = useFonts({
     PlusJakartaSansSemiBold: require('./assets/fonts/PlusJakartaSans-SemiBold.ttf'),
     PoppinsBlack: require('./assets/fonts/Poppins-Black.ttf'),
@@ -118,12 +121,17 @@ function NavegacaoRaiz() {
 
   // Aguarda a leitura da sessão antes de montar a navegação para evitar
   // mostrar a tela de login por um instante a cada abertura do app.
-  if (carregando || !fontesCarregadas) {
+  if (carregando || !fontesCarregadas || verificandoVersao) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: cores.fundo }}>
         <ActivityIndicator size="large" color={cores.primaria} />
       </View>
     );
+  }
+
+  // Versão desatualizada: a tela de atualização ocupa o lugar da navegação.
+  if (atualizacao) {
+    return <AtualizacaoScreen atualizacao={atualizacao} aoDispensar={dispensarAtualizacao} />;
   }
 
   return (
