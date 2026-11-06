@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     # deixa só o por IP, útil em teste de carga controlado.
     LIMITE_CADASTROS_POR_DIA: int = 50
 
+    # ── Atualização do app ────────────────────────────────────────────────
+    # O app compara a própria versão (app.json) com estas ao abrir. Ao publicar um
+    # APK novo, suba APP_VERSAO_ATUAL; APP_VERSAO_MINIMA só sobe quando versões
+    # antigas não puderem mais usar a API (aí a tela de atualização deixa de ser
+    # dispensável). URL relativa é resolvida pelo app contra o endereço da API.
+    APP_VERSAO_ATUAL: str = "1.0.0"
+    APP_VERSAO_MINIMA: str = "1.0.0"
+    APP_URL_DOWNLOAD: str = "/downloads/KaorCount-android.apk"
+
     # ── Verificação de e-mail ───────────────────────────────────────────
     # O cadastro só é aceito com um token emitido depois que a pessoa digitou o
     # código enviado ao e-mail. Desligar só em teste/desenvolvimento local.

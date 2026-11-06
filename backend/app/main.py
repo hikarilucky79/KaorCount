@@ -24,7 +24,7 @@ from app.core.exceptions import (
     data_error_handler,
     operational_error_handler,
 )
-from app.api import auth_router, email_verificacao_router, usuario_router, alimento_router, perfil_nutri_router
+from app.api import auth_router, email_verificacao_router, versao_router, usuario_router, alimento_router, perfil_nutri_router
 from app.api import meta_nutri_router, registro_agua_router, refeicao_router
 from app.api import historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router
 from app.api import dashboard_router
@@ -73,7 +73,7 @@ app.add_middleware(
 )
 
 for router in [
-    auth_router, email_verificacao_router, usuario_router, alimento_router, perfil_nutri_router,
+    auth_router, email_verificacao_router, versao_router, usuario_router, alimento_router, perfil_nutri_router,
     meta_nutri_router, registro_agua_router, refeicao_router,
     historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router,
     dashboard_router, relatorio_router, pesquisa_inicial_router, quiz_router,

@@ -1,5 +1,6 @@
 from app.api.auth_router import router as auth_router
 from app.api.email_verificacao_router import router as email_verificacao_router
+from app.api.versao_router import router as versao_router
 from app.api.usuario_router import router as usuario_router
 from app.api.alimento_router import router as alimento_router
 from app.api.perfil_nutri_router import router as perfil_nutri_router
