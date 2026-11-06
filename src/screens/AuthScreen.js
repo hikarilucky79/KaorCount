@@ -63,17 +63,6 @@ export default function AuthScreen({ navigation }) {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [mostrarSenhaCad, setMostrarSenhaCad] = useState(false);
 
-  const renderGoogleButton = (label) => (
-    <TouchableOpacity
-      style={[styles.googleButton, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-      onPress={() => setErroMsg('A autenticação com Google ainda não está configurada.')}
-      activeOpacity={0.8}
-      accessibilityRole="button"
-    >
-      <Text style={styles.googleMark}>G</Text>
-      <Text style={[styles.googleButtonText, { color: cores.textoEscuro }]}>{label}</Text>
-    </TouchableOpacity>
-  );
 
   // ───────────────────────────────────────────────────────────
   // ↓ Transição usando o próprio Banner existente
@@ -91,8 +80,8 @@ export default function AuthScreen({ navigation }) {
     // 1. O banner marrom existente expande para baixo mantendo as bordas curvas com transição suave
     Animated.timing(animCortina, {
       toValue: 1,
-      duration: 220,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
+      duration: 800,
+      easing: Easing.inOut(Easing.cubic),
       useNativeDriver: false,
     }).start(({ finished }) => {
       if (!finished) { setAnimando(false); return; }
@@ -107,8 +96,8 @@ export default function AuthScreen({ navigation }) {
       // 3. O banner recolhe suavemente revelando o novo conteúdo
       Animated.timing(animCortina, {
         toValue: 0,
-        duration: 220,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
+        duration: 800,
+        easing: Easing.inOut(Easing.cubic),
         useNativeDriver: false,
       }).start(() => {
         setAnimando(false);
@@ -331,12 +320,6 @@ export default function AuthScreen({ navigation }) {
           >
             <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
               <View style={styles.corpoFormCentro}>
-                {renderGoogleButton('Entrar com Google')}
-                <View style={styles.divisorAuth}>
-                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
-                  <Text style={[styles.textoDivisor, { color: cores.textoSuave }]}>ou entre com e-mail</Text>
-                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
-                </View>
 
                 <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                   {erroMsg ? (
@@ -408,13 +391,6 @@ export default function AuthScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.demoButton, { backgroundColor: cores.branco, borderColor: cores.borda }]}
-                  onPress={() => setErroMsg('O acesso com conta de demonstração ainda não está disponível.')}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.demoButtonText, { color: cores.textoSuave }]}>Entrar com conta de demonstração</Text>
-                </TouchableOpacity>
 
                 <View style={styles.rodapeLink}>
                   <Text style={[styles.txtRodapeLink, { color: cores.textoSuave, fontSize: rf(15, 13, 17) }]}>Não tem conta? </Text>
@@ -441,12 +417,6 @@ export default function AuthScreen({ navigation }) {
           >
             <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
               <View style={styles.corpoFormCentro}>
-                {renderGoogleButton('Cadastrar com Google')}
-                <View style={styles.divisorAuth}>
-                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
-                  <Text style={[styles.textoDivisor, { color: cores.textoSuave }]}>ou cadastre com e-mail</Text>
-                  <View style={[styles.linhaDivisor, { backgroundColor: cores.borda }]} />
-                </View>
 
                 <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
                   {erroMsg ? (
@@ -666,38 +636,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  googleButton: {
-    minHeight: 58,
-    borderRadius: 19,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-  },
-  googleMark: {
-    color: '#4285F4',
-    fontSize: 25,
-    fontWeight: '800',
-  },
-  googleButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  divisorAuth: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 18,
-  },
-  linhaDivisor: {
-    height: 1,
-    flex: 1,
-  },
-  textoDivisor: {
-    fontSize: 14,
-  },
+
 
   // Corpo Welcome (Centralizado no espaço vertical)
   corpoWelcome: {
@@ -832,18 +771,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
     marginBottom: 10,
   },
-  demoButton: {
-    minHeight: 56,
-    marginTop: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  demoButtonText: {
-    fontSize: 15,
-  },
+
   inputText: {
     flex: 1,
     fontSize: 14,
