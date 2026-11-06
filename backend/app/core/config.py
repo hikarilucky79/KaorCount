@@ -47,6 +47,30 @@ class Settings(BaseSettings):
     # deixa só o por IP, útil em teste de carga controlado.
     LIMITE_CADASTROS_POR_DIA: int = 50
 
+    # ── Verificação de e-mail ───────────────────────────────────────────
+    # O cadastro só é aceito com um token emitido depois que a pessoa digitou o
+    # código enviado ao e-mail. Desligar só em teste/desenvolvimento local.
+    EXIGIR_VERIFICACAO_EMAIL: bool = True
+    CODIGO_EMAIL_VALIDADE_MINUTOS: int = 10
+    CODIGO_EMAIL_MAX_TENTATIVAS: int = 5
+    CODIGO_EMAIL_REENVIO_SEGUNDOS: int = 60
+    # Folga para a pessoa terminar o quiz antes de o cadastro ser enviado.
+    TOKEN_EMAIL_VALIDADE_MINUTOS: int = 120
+    LIMITE_CODIGOS_POR_IP: int = 8
+    LIMITE_JANELA_CODIGO_SEGUNDOS: int = 3600
+    LIMITE_CONFIRMACOES_POR_IP: int = 30
+    LIMITE_JANELA_CONFIRMACAO_SEGUNDOS: int = 3600
+
+    # Servidor SMTP (Brevo, SendGrid, Gmail com senha de app etc.). SMTP_FROM é o
+    # remetente exibido; em provedores sem domínio próprio ele precisa ser um
+    # endereço já verificado no provedor. Vazio = não envia (só log em dev).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_NOME_REMETENTE: str = "KaorCount"
+
     # Busca no FatSecret gasta a cota da NOSSA chave, não a do usuário.
     LIMITE_FATSECRET_POR_USUARIO: int = 30
     LIMITE_JANELA_FATSECRET_SEGUNDOS: int = 60

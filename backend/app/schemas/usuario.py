@@ -2,13 +2,38 @@ from datetime import datetime
 from uuid import UUID
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
+
+from app.core.senha import validar_forca_senha
 
 
 class UsuarioCreate(BaseModel):
     nome: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    senha: str = Field(..., min_length=6, max_length=100)
+    senha: str = Field(..., min_length=8, max_length=100)
+    # Emitido por POST /auth/email/confirmar depois que o código enviado ao
+    # e-mail é digitado. Obrigatório quando EXIGIR_VERIFICACAO_EMAIL está ligado.
+    token_verificacao: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _senha_forte(self) -> "UsuarioCreate":
+        problema = validar_forca_senha(self.senha, self.email, self.nome)
+        if problema:
+            raise ValueError(problema)
+        return self
+
+
+class EmailCodigoRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailConfirmarRequest(BaseModel):
+    email: EmailStr
+    codigo: str = Field(..., pattern=r"^\d{6}$")
+
+
+class EmailVerificadoResponse(BaseModel):
+    token_verificacao: str
 
 
 class PreferenciasUpdate(BaseModel):

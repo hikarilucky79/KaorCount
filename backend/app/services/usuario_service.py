@@ -1,7 +1,7 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_senha
+from app.core.security import hash_senha, exigir_email_verificado
 from app.models.usuario import Usuario
 from app.models.preferencia_usuario import PreferenciaUsuario
 from app.repositories.usuario_repo import UsuarioRepository
@@ -17,6 +17,7 @@ class UsuarioService(BaseService):
         super().__init__(UsuarioRepository(db))
 
     def criar(self, dados: UsuarioCreate) -> Usuario:
+        exigir_email_verificado(dados.email, dados.token_verificacao)
         if self.repo.get_by_email(dados.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já cadastrado")
         return self.repo.create({

@@ -9,6 +9,8 @@ import pytest
 _banco_importacao = TemporaryDirectory(prefix="kaorcount-test-")
 os.environ["DATABASE_URL"] = "sqlite:///" + (Path(_banco_importacao.name) / "import.db").as_posix()
 os.environ["ENVIRONMENT"] = "test"
+# A verificação de e-mail tem testes próprios em test_verificacao_email.py.
+os.environ["EXIGIR_VERIFICACAO_EMAIL"] = "false"
 os.environ["SECRET_KEY"] = "chave-apenas-para-testes-kaorcount-123456"
 
 from fastapi.testclient import TestClient

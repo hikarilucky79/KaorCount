@@ -33,6 +33,8 @@ from app.migrations.idempotencia import aplicar
 
 settings.LIMITE_REGISTROS_POR_IP = 1000
 settings.LIMITE_CADASTROS_POR_DIA = 1000
+# A verificação de e-mail tem testes próprios em test_verificacao_email.py.
+settings.EXIGIR_VERIFICACAO_EMAIL = False
 
 QUIZ = dict(
     data_nascimento="1998-01-01", genero="masculino",
@@ -189,7 +191,7 @@ class IdempotenciaHTTPTest(unittest.TestCase):
         self.assertEqual(r.status_code,201,r.text)
 
     def test_cadastro_com_quiz_atomico_e_repetivel(self):
-        dados=dict(cadastro=dict(nome="Nova Conta",email="cadastro@example.com",senha="senhaTeste123"),quiz=QUIZ)
+        dados=dict(cadastro=dict(nome="Nova Conta",email="cadastro@example.com",senha="SenhaTeste123!"),quiz=QUIZ)
         headers={"Idempotency-Key":"cadastro-com-quiz-01"}
         primeira=self.cliente.post("/api/v1/auth/registrar-com-quiz",headers=headers,json=dados)
         segunda=self.cliente.post("/api/v1/auth/registrar-com-quiz",headers=headers,json=dados)
@@ -199,10 +201,10 @@ class IdempotenciaHTTPTest(unittest.TestCase):
             self.assertEqual(self.contar(modelo),1,modelo.__name__)
         with SessionLocal() as db:
             recibo=db.query(OperacaoIdempotente).one()
-            self.assertNotIn("senhaTeste123",recibo.assinatura+recibo.resposta+recibo.cabecalhos)
+            self.assertNotIn("SenhaTeste123!",recibo.assinatura+recibo.resposta+recibo.cabecalhos)
 
     def test_quiz_com_falha_nao_cria_conta_nem_dados_parciais(self):
-        dados=dict(cadastro=dict(nome="Nova Conta",email="cadastro@example.com",senha="senhaTeste123"),quiz=QUIZ)
+        dados=dict(cadastro=dict(nome="Nova Conta",email="cadastro@example.com",senha="SenhaTeste123!"),quiz=QUIZ)
         original=QuizService.salvar
         def falhar(service, *args):
             original(service,*args)

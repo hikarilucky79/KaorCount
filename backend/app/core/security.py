@@ -40,6 +40,41 @@ def criar_token_acesso(id_usuario: UUID | str) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+TIPO_TOKEN_EMAIL = "email_verificado"
+
+
+def normalizar_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def criar_token_email_verificado(email: str) -> str:
+    # Sem "sub": decodificar_token não aceita este token como sessão de usuário.
+    payload = {
+        "email": normalizar_email(email),
+        "tipo": TIPO_TOKEN_EMAIL,
+        "exp": datetime.utcnow() + timedelta(minutes=settings.TOKEN_EMAIL_VALIDADE_MINUTOS),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def exigir_email_verificado(email: str, token: str | None) -> None:
+    """Recusa o cadastro quando o e-mail não tem um token de verificação válido."""
+    if not settings.EXIGIR_VERIFICACAO_EMAIL:
+        return
+    erro = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Confirme o seu e-mail antes de criar a conta.",
+    )
+    if not token:
+        raise erro
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise erro
+    if payload.get("tipo") != TIPO_TOKEN_EMAIL or payload.get("email") != normalizar_email(email):
+        raise erro
+
+
 def decodificar_token(token: str) -> str | None:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

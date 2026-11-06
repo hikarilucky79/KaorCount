@@ -85,12 +85,12 @@ class Bench:
     async def setup(self):
         # Usuário descartável para autenticar durante o benchmark.
         email = f"bench-{uuid.uuid4().hex[:8]}@example.com"
-        dados = {"nome": "Bench User", "email": email, "senha": "bench123456"}
+        dados = {"nome": "Bench User", "email": email, "senha": "Xk#9vLm!2pQz"}
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(self.base_url + "/auth/registrar", json=dados)
             r.raise_for_status()
             r = await client.post(self.base_url + "/auth/login",
-                                  json={"email": email, "senha": "bench123456"})
+                                  json={"email": email, "senha": "Xk#9vLm!2pQz"})
             r.raise_for_status()
             body = r.json()
         self.token = body.get("access_token")
@@ -101,7 +101,7 @@ class Bench:
                                      headers={"Authorization": f"Bearer {self.token}"})
                 r.raise_for_status()
                 self.id_usuario = r.json().get("id_usuario")
-        self._email_bench, self._senha_bench = email, "bench123456"
+        self._email_bench, self._senha_bench = email, "Xk#9vLm!2pQz"
 
     async def _bench_item(self, nome, metodo, path, n, writer=None, auth=False):
         lat, st, segs = await self._runner(metodo, path, n, writer=writer, auth=auth)

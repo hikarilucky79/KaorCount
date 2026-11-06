@@ -1,6 +1,6 @@
 ﻿from sqlalchemy.orm import Session
 
-from app.core.security import hash_senha, verificar_senha, criar_token_acesso
+from app.core.security import hash_senha, verificar_senha, criar_token_acesso, exigir_email_verificado
 from app.repositories.usuario_repo import UsuarioRepository
 from app.schemas.usuario import UsuarioCreate, UsuarioLogin
 from app.schemas.token import Token
@@ -22,6 +22,7 @@ class AuthService:
         self.repo = UsuarioRepository(db)
 
     def registrar(self, dados: UsuarioCreate):
+        exigir_email_verificado(dados.email, dados.token_verificacao)
         if self.repo.get_by_email(dados.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email jÃ¡ cadastrado")
         novo_usuario = self.repo.create({

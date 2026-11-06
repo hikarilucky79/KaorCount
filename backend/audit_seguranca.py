@@ -37,7 +37,7 @@ PROTEGIDOS = [
 # Endpoints publicos por design.
 PUBLICOS = [
     ("GET", "/health", None),
-    ("POST", "/auth/registrar", {"nome": "Auditor Teste", "email": f"audit-{uuid.uuid4().hex[:6]}@x.com", "senha": "audit123456"}),
+    ("POST", "/auth/registrar", {"nome": "Auditor Teste", "email": f"audit-{uuid.uuid4().hex[:6]}@x.com", "senha": "Xk#9vLm!2pQz"}),
     ("POST", "/auth/login", {"email": "ninguem@existe.com", "senha": "errada123"}),
 ]
 
@@ -78,12 +78,12 @@ def main():
     email_b = f"audit-b-{uuid.uuid4().hex[:6]}@x.com"
     for e in (email_a, email_b):
         r = client.post(BASE + "/auth/registrar",
-                        json={"nome": "Audit", "email": e, "senha": "audit123456"}, timeout=15)
+                        json={"nome": "Audit", "email": e, "senha": "Xk#9vLm!2pQz"}, timeout=15)
         r.raise_for_status()
     token_a = client.post(BASE + "/auth/login",
-                          json={"email": email_a, "senha": "audit123456"}, timeout=15).json()["access_token"]
+                          json={"email": email_a, "senha": "Xk#9vLm!2pQz"}, timeout=15).json()["access_token"]
     id_b = client.post(BASE + "/auth/login",
-                       json={"email": email_b, "senha": "audit123456"}, timeout=15)
+                       json={"email": email_b, "senha": "Xk#9vLm!2pQz"}, timeout=15)
     # Pega o id do usuario B via /auth/me com o token dele mesmo
     token_b = id_b.json()["access_token"]
     me_b = client.get(BASE + "/auth/me", headers={"Authorization": f"Bearer {token_b}"}, timeout=15)
