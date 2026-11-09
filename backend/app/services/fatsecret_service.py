@@ -150,16 +150,18 @@ class FatSecretService:
             )
 
         try:
-            token = FatAuthService.get_token()
+            request_params = FatAuthService.sign_params(
+                {**params, "format": "json"},
+                cls.API_URL,
+            )
         except Exception as ex:
             raise FatSecretIndisponivel(f"Falha ao autenticar na API: {ex}") from ex
 
-        params["format"] = "json"
         try:
             response = httpx.post(
                 cls.API_URL,
-                data=params,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded"},
+                data=request_params,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=15,
             )
             response.raise_for_status()
