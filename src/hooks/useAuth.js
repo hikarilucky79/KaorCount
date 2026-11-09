@@ -5,6 +5,7 @@
 import { useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 
+// [F428] Disponibiliza os dados e as ações de autenticação para os componentes.
 /**
  * Hook para acessar os dados e funções de autenticação.
  *

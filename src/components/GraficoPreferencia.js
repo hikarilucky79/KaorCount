@@ -3,10 +3,12 @@ import { View } from 'react-native';
 import useAuth from '../hooks/useAuth';
 import useTarefa from '../hooks/useTarefa';
 import { Card, Texto, Botao } from './RotinaUI';
+// [F398] Exibe controles para escolher o período mostrado no gráfico.
 export default function GraficoPreferencia() {
   const { usuario, salvarPreferencias } = useAuth();
   const periodo = usuario?.preferencias?.periodo_grafico ?? 7;
   const { ocupado, erro, executar } = useTarefa();
+  // [F399] Altera o período exibido no gráfico e salva a preferência.
   const mudar = valor => executar(async () => { await salvarPreferencias({ periodo_grafico: valor }); });
   return <Card titulo="HISTÓRICO DE CALORIAS">
     <Texto>Escolha o período exibido no gráfico da tela inicial.</Texto>

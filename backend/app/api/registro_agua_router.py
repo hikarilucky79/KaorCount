@@ -14,6 +14,7 @@ from app.schemas.registro_agua import RegistroAguaCreate, RegistroAguaUpdate, Re
 router = RouterIdempotente(prefix="/registro-agua", tags=["Registro de Água"])
 
 
+# [F060] Lista os registros de consumo de água.
 @router.get("/usuario/{id_usuario}", response_model=list[RegistroAguaResponse])
 def listar_registros(
     id_usuario: UUID,
@@ -27,6 +28,7 @@ def listar_registros(
     return service.listar_por_usuario(id_usuario, skip, limit)
 
 
+# [F061] Calcula o volume de água registrado na data informada.
 @router.get("/usuario/{id_usuario}/total/{data}", response_model=dict)
 def total_agua_dia(
     id_usuario: UUID,
@@ -40,6 +42,7 @@ def total_agua_dia(
     return {"id_usuario": str(id_usuario), "data": str(data), "total_ml": total}
 
 
+# [F062] Lista os registros de água dentro do intervalo informado.
 @router.get("/usuario/{id_usuario}/periodo", response_model=list[RegistroAguaResponse])
 def registros_por_periodo(
     id_usuario: UUID,
@@ -53,6 +56,7 @@ def registros_por_periodo(
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
 
+# [F063] Registra um novo consumo de água.
 @router.post("/", response_model=RegistroAguaResponse, status_code=status.HTTP_201_CREATED)
 def criar_registro(
     dados: RegistroAguaCreate,
@@ -64,6 +68,7 @@ def criar_registro(
     return service.criar(dados)
 
 
+# [F064] Atualiza um registro de consumo de água.
 @router.put("/{id_registro}", response_model=RegistroAguaResponse)
 def atualizar_registro(
     id_registro: UUID,
@@ -76,6 +81,7 @@ def atualizar_registro(
     return service.atualizar(id_registro, dados)
 
 
+# [F065] Remove um registro de consumo de água.
 @router.delete("/{id_registro}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_registro(
     id_registro: UUID,

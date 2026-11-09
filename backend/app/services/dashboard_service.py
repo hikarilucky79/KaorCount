@@ -15,12 +15,14 @@ _META_AGUA_PADRAO = 2000.0
 _CAMPOS_MACRO = ("calorias", "carboidratos", "proteinas", "gorduras")
 
 
+# [F175] Cria a estrutura de totais nutricionais zerados para iniciar um cálculo.
 def _macros_vazios() -> dict[str, float]:
     return {campo: 0.0 for campo in _CAMPOS_MACRO}
 
 
 class DashboardService:
 
+    # [F176] Inicializa a classe DashboardService.
     def __init__(self, db: Session):
         self.db = db
         self.meta_repo = MetaNutriRepository(db)
@@ -28,12 +30,14 @@ class DashboardService:
         self.progresso_repo = HistoricoProgressoRepository(db)
         self.refeicao_repo = RefeicaoRepository(db)
 
+    # [F177] Obtém a meta diária de consumo de água do usuário.
     def _meta_agua_diaria(self, id_usuario: UUID | str) -> float:
         config = self.db.query(LembreteConfig).filter(
             LembreteConfig.id_usuario == str(id_usuario)
         ).first()
         return config.agua_meta_diaria_ml if config else _META_AGUA_PADRAO
 
+    # [F178] Acrescenta ao total os nutrientes e calorias de um item consumido.
     def _somar_item(self, total: dict[str, float], item: ItemRefeicao) -> None:
         macros = NutricaoService.calcular_macros_item(
             calorias_porcao=item.alimento.calorias,
@@ -46,6 +50,7 @@ class DashboardService:
         for campo in _CAMPOS_MACRO:
             total[campo] += macros[campo]
 
+    # [F179] Soma calorias e macronutrientes dos itens das refeições do dia.
     def _macros_consumidos_refeicoes(self, refeicoes: list[Refeicao]) -> dict[str, float]:
         total = _macros_vazios()
         for refeicao in refeicoes:
@@ -53,6 +58,7 @@ class DashboardService:
                 self._somar_item(total, item)
         return {campo: round(valor, 2) for campo, valor in total.items()}
 
+    # [F180] Calcula a sequência de dias em que o usuário registrou refeições.
     def _streak_dias(self, id_usuario: UUID | str, data_base: date) -> int:
         """Contagem de dias consecutivos com pelo menos um alimento registrado."""
         dias = (
@@ -72,11 +78,13 @@ class DashboardService:
             esperado -= timedelta(days=1)
         return streak
 
+    # [F181] Calcula o percentual de uma meta já atingido.
     def _percentual(self, consumido: float, meta: float) -> float:
         if meta <= 0:
             return 0.0
         return round((consumido / meta) * 100, 1)
 
+    # [F182] Monta o resumo nutricional do dia, incluindo consumo e metas.
     def resumo_dia(self, id_usuario: UUID | str, data: date | None = None) -> dict:
         data = data or date.today()
         meta = self.meta_repo.get_meta_atual(id_usuario)
@@ -135,6 +143,7 @@ class DashboardService:
             "streak_dias": streak,
         }
 
+    # [F183] Retorna os registros usados para acompanhar a evolução do peso.
     def evolucao_peso(self, id_usuario: UUID | str, limit: int = 30) -> list[dict]:
         historico = self.progresso_repo.get_by_usuario(id_usuario, skip=0, limit=limit)
         historico = sorted(historico, key=lambda h: h.data_registro)
@@ -143,6 +152,7 @@ class DashboardService:
             for h in historico
         ]
 
+    # [F184] Agrega os dados de consumo e metas para um intervalo de datas.
     def _resumo_periodo(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> dict:
         meta = self.meta_repo.get_meta_atual(id_usuario)
         meta_calorias = meta.calorias_diarias if meta else 0
@@ -177,10 +187,12 @@ class DashboardService:
             "agua_total_ml": round(sum(agua_por_dia.values()), 2),
         }
 
+    # [F185] Monta o resumo nutricional dos últimos dias da semana.
     def resumo_semana(self, id_usuario: UUID | str, data_fim: date | None = None) -> dict:
         data_fim = data_fim or date.today()
         return self._resumo_periodo(id_usuario, data_fim - timedelta(days=6), data_fim)
 
+    # [F186] Monta o resumo nutricional do mês.
     def resumo_mes(self, id_usuario: UUID | str, data_fim: date | None = None) -> dict:
         data_fim = data_fim or date.today()
         return self._resumo_periodo(id_usuario, data_fim - timedelta(days=30), data_fim)

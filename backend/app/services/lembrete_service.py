@@ -8,9 +8,11 @@ _HORARIOS_PADRAO = ["08:00", "12:00", "15:00", "19:00"]
 
 
 class LembreteService:
+    # [F218] Inicializa a classe LembreteService.
     def __init__(self, db: Session):
         self.db = db
 
+    # [F219] Obtém ou cria as configurações de lembrete da conta.
     def _get_config(self, id_usuario: UUID | str) -> LembreteConfig:
         config = self.db.query(LembreteConfig).filter(
             LembreteConfig.id_usuario == str(id_usuario)
@@ -25,6 +27,7 @@ class LembreteService:
             self.db.refresh(config)
         return config
 
+    # [F220] Converte as configurações de lembrete para o formato usado pela API.
     def _config_to_dict(self, config: LembreteConfig) -> dict:
         return {
             "id_lembrete": config.id_lembrete,
@@ -35,9 +38,11 @@ class LembreteService:
             "ativo": config.ativo,
         }
 
+    # [F221] Retorna as configurações de lembrete do usuário.
     def buscar(self, id_usuario: UUID | str) -> dict:
         return self._config_to_dict(self._get_config(id_usuario))
 
+    # [F222] Atualiza as preferências de lembrete para consumo de água.
     def atualizar_agua(self, id_usuario: UUID | str, intervalo_min: int, meta_diaria_ml: float) -> dict:
         config = self._get_config(id_usuario)
         config.agua_intervalo_min = intervalo_min
@@ -45,20 +50,24 @@ class LembreteService:
         self.db.commit()
         return self._config_to_dict(config)
 
+    # [F223] Atualiza as preferências de lembrete para refeições.
     def atualizar_refeicao(self, id_usuario: UUID | str, horarios: list[str]) -> dict:
         config = self._get_config(id_usuario)
         config.refeicao_horarios = json.dumps(horarios)
         self.db.commit()
         return self._config_to_dict(config)
 
+    # [F224] Altera o estado de ativação dos lembretes e salva a configuração.
     def _set_ativo(self, id_usuario: UUID | str, ativo: bool) -> dict:
         config = self._get_config(id_usuario)
         config.ativo = ativo
         self.db.commit()
         return self._config_to_dict(config)
 
+    # [F225] Ativa os lembretes configurados para o usuário.
     def ativar(self, id_usuario: UUID | str) -> dict:
         return self._set_ativo(id_usuario, True)
 
+    # [F226] Desativa os lembretes do usuário.
     def desativar(self, id_usuario: UUID | str) -> dict:
         return self._set_ativo(id_usuario, False)

@@ -7,15 +7,18 @@ import useTheme from '../hooks/useTheme';
 import useTarefa from '../hooks/useTarefa';
 import ConfirmacaoAcaoModal from './ConfirmacaoAcaoModal';
 import { Card, Texto, Botao } from './RotinaUI';
+// [F406] Exibe ações de exportação de dados e desativação da conta.
 export default function PrivacidadeCard({ idUsuario, logout }) {
   const { cores } = useTheme();
   const [confirmar, setConfirmar] = useState(false);
   const { ocupado, erro, executar } = useTarefa();
+  // [F407] Solicita uma cópia dos dados do usuário para exportação.
   const exportar = () => executar(async atual => {
     const fim = dataDeHoje();
     const dados = await relatorioApi.obterDadosRelatorio(idUsuario, '2025-01-01', fim);
     if (atual()) await salvarArquivo(JSON.stringify(dados, null, 2), `dados_nutricionais_kaorcount_${fim}.json`, 'application/json');
   });
+  // [F408] Envia a solicitação para desativar a conta do usuário.
   const desativar = () => executar(async atual => {
     try { await usuarioApi.desativar(idUsuario); }
     finally { if (atual()) setConfirmar(false); }

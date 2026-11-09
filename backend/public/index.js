@@ -8,6 +8,7 @@ const navigation = document.getElementById("main-nav");
 if (header && menuButton && navigation) {
     const mobileLayout = window.matchMedia("(max-width: 800px)");
 
+    // [F307] Abre ou fecha o menu de navegação da página pública.
     function setMenuOpen(open, returnFocus = false) {
         menuButton.setAttribute("aria-expanded", String(open));
         navigation.classList.toggle("is-open", open);

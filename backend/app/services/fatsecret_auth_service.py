@@ -10,10 +10,12 @@ from app.core.config import settings
 
 
 class FatAuthService:
+    # [F571] Codifica valores para compor os parâmetros assinados pelo OAuth 1.0.
     @staticmethod
     def _encode(value: str) -> str:
         return quote(value, safe="~-._")
 
+    # [F197] Gera a assinatura OAuth 1.0 dos parâmetros enviados ao FatSecret.
     @classmethod
     def sign_params(
         cls,

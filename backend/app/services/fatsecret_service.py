@@ -34,6 +34,7 @@ _PADROES_ERRO_IRRECUPERAVEL = (
 class FatSecretIndisponivel(Exception):
     """Sinaliza que a API do FatSecret não respondeu de forma utilizável."""
 
+    # [F198] Inicializa a classe FatSecretIndisponivel.
     def __init__(self, mensagem: str, *, codigo=None, irrecuperavel: bool = False):
         super().__init__(mensagem)
         self.mensagem = mensagem
@@ -41,32 +42,38 @@ class FatSecretIndisponivel(Exception):
         self.irrecuperavel = irrecuperavel
 
 
+# [F199] Classifica a falha recebida do FatSecret para tratamento adequado.
 def _classificar_erro(mensagem: str) -> bool:
     """Diz se o erro do FatSecret é de configuração (não adianta repetir)."""
     texto = (mensagem or "").lower()
     return any(padrao in texto for padrao in _PADROES_ERRO_IRRECUPERAVEL)
 
 
+# [F200] Verifica se a integração com a fonte externa está temporariamente bloqueada.
 def fonte_externa_bloqueada() -> bool:
     return time.time() < _fonte_externa_bloqueada_ate
 
 
+# [F201] Retorna a causa registrada para o bloqueio da fonte externa.
 def motivo_fonte_externa_bloqueada() -> str | None:
     return _fonte_externa_motivo if fonte_externa_bloqueada() else None
 
 
+# [F202] Registra um bloqueio temporário para a integração externa.
 def _bloquear_fonte_externa(motivo: str) -> None:
     global _fonte_externa_bloqueada_ate, _fonte_externa_motivo
     _fonte_externa_bloqueada_ate = time.time() + COOLDOWN_FONTE_EXTERNA_SEGUNDOS
     _fonte_externa_motivo = motivo
 
 
+# [F203] Remove o bloqueio temporário da integração externa.
 def _liberar_fonte_externa() -> None:
     global _fonte_externa_bloqueada_ate, _fonte_externa_motivo
     _fonte_externa_bloqueada_ate = 0.0
     _fonte_externa_motivo = None
 
 
+# [F204] Converte uma resposta da API em uma lista previsível de itens.
 def _as_list(val) -> list:
     """FatSecret às vezes retorna um dict quando há apenas 1 item; normaliza para lista."""
     if isinstance(val, dict):
@@ -74,6 +81,7 @@ def _as_list(val) -> list:
     return val or []
 
 
+# [F205] Converte um valor recebido em número decimal, usando um padrão quando necessário.
 def _float(val, default: float = 0.0) -> float:
     try:
         return float(val) if val is not None else default
@@ -81,12 +89,14 @@ def _float(val, default: float = 0.0) -> float:
         return default
 
 
+# [F206] Padroniza o texto usado para comparar nomes de alimentos.
 def _normalizar(txt: str) -> str:
     if not txt:
         return ""
     return unicodedata.normalize("NFKD", txt).encode("ASCII", "ignore").decode("utf-8").lower().strip()
 
 
+# [F207] Extrai os valores nutricionais da descrição de alimento retornada pelo FatSecret.
 def _parse_food_description(desc: str) -> dict:
     if not desc:
         return {"calorias": 0.0, "proteinas": 0.0, "carboidratos": 0.0, "gorduras": 0.0, "porcao_padrao_g": 100.0}
@@ -97,6 +107,7 @@ def _parse_food_description(desc: str) -> dict:
     prot_match = re.search(r'(?:Protein|Prote[íi]na|Prot):\s*([\d\.,]+)', desc, re.I)
     portion_match = re.search(r'(?:Per|Por)\s*([\d\.,]+)\s*g', desc, re.I)
 
+    # [F208] Converte texto numérico recebido da API em número decimal.
     def _to_float(m, default=0.0):
         if not m:
             return default
@@ -126,6 +137,7 @@ _ERROS_ACAO = {
 }
 
 
+# [F209] Converte códigos de falha do FatSecret em mensagens compreensíveis.
 def _traduzir_erro_fatsecret(code, msg: str) -> str:
     """Devolve uma mensagem acionavel para erros conhecidos do FatSecret."""
     return _ERROS_ACAO.get(code, f"FatSecret API Error [{code}]: {msg}")
@@ -139,6 +151,7 @@ class FatSecretService:
 
     API_URL = "https://platform.fatsecret.com/rest/server.api"
 
+    # [F210] Executa uma requisição autenticada à API do FatSecret e trata falhas.
     @classmethod
     def _request(cls, params: dict) -> dict:
         # Se a fonte externa acabou de falhar por motivo de configuração,
@@ -191,6 +204,7 @@ class FatSecretService:
         _liberar_fonte_externa()
         return data
 
+    # [F211] Pesquisa alimentos na API do FatSecret e normaliza os resultados.
     @classmethod
     def buscar_alimentos(cls, nome: str, pagina: int = 0, max_resultados: int = 25, categoria: str | None = None, somente_brasil: bool = False) -> dict:
         alimentos_formatados = []
@@ -317,6 +331,7 @@ class FatSecretService:
                 "fonte_externa_indisponivel": True,
             }
 
+    # [F212] Obtém os dados de um alimento na API do FatSecret pelo identificador.
     @classmethod
     def buscar_alimento_por_id(cls, food_id: str) -> dict:
         resultado = cls._request({"method": "food.get.v4", "food_id": food_id})
@@ -363,6 +378,7 @@ class FatSecretService:
             },
         }
 
+    # [F213] Importa um alimento da base externa para o cadastro local.
     @classmethod
     def importar_alimento(cls, food_id: str) -> dict:
         detalhes = cls.buscar_alimento_por_id(food_id)

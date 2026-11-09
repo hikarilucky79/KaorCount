@@ -31,6 +31,7 @@ import { Home, Book, User } from 'lucide-react-native';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// [F001] Monta a navegação por abas e conecta as telas principais do aplicativo.
 function AppTabs() {
   const { cores } = useTheme();
 
@@ -83,6 +84,7 @@ function AppTabs() {
   );
 }
 
+// [F002] Configura a navegação principal entre as telas e os fluxos de autenticação.
 function NavegacaoRaiz() {
   const reduzirMovimento = useReduceMotion();
   const { carregando, logado } = useAuth();
@@ -98,6 +100,7 @@ function NavegacaoRaiz() {
     if (Platform.OS === 'web' || carregando || !fontesCarregadas || permissaoNotificacaoVerificada.current) return;
 
     permissaoNotificacaoVerificada.current = true;
+    // [F003] Solicita ao sistema operacional permissão para exibir notificações.
     const solicitarPermissaoNotificacao = async () => {
       try {
         if (Platform.OS === 'android') {
@@ -164,6 +167,7 @@ function NavegacaoRaiz() {
   );
 }
 
+// [F004] Inicializa o aplicativo e envolve as telas com os provedores e a navegação necessários.
 export default function App() {
   return (
     <AuthProvider>

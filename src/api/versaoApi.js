@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F384] Consulta à API a versão atual e as exigências de atualização.
 /**
  * GET /app/versao — pública, não exige login.
  * Timeout curto: a checagem acontece na abertura e não pode segurar o app.

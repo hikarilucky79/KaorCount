@@ -24,6 +24,7 @@ router = APIRouter(prefix="/relatorios", tags=["Relatórios de Progresso"])
         "e evolução de peso. Retorna um arquivo PDF para download."
     ),
 )
+# [F066] Gera e entrega o relatório nutricional em PDF.
 def exportar_pdf(
     id_usuario: UUID,
     data_inicio: date = Query(..., description="Data inicial do relatório"),
@@ -60,6 +61,7 @@ def exportar_pdf(
         "sem gerar o PDF. Útil para o frontend montar visualizações próprias."
     ),
 )
+# [F067] Monta os dados usados pelo relatório nutricional.
 def dados_relatorio(
     id_usuario: UUID,
     data_inicio: date = Query(..., description="Data inicial"),

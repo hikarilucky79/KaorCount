@@ -12,12 +12,14 @@ import { Download, AlertCircle } from 'lucide-react-native';
 import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 
+// [F440] Monta a tela que informa e inicia a atualização do aplicativo.
 export default function AtualizacaoScreen({ atualizacao, aoDispensar }) {
   const { cores, isDark } = useTheme();
   const { rf, getContainer, maxAuthWidth } = useResponsive();
   const [erro, setErro] = useState('');
   const instalada = Constants.expoConfig?.version;
 
+  // [F441] Abre o endereço de download e inicia a atualização do aplicativo.
   const atualizar = async () => {
     setErro('');
     try {

@@ -8,6 +8,7 @@ import Constants from 'expo-constants';
 import { obterTokenAutorizacao, limparSessaoGlobal } from '../auth/tokenBridge';
 import { novaChaveIdempotente } from './idempotencia';
 
+// [F322] Escolhe o endereço base da API para a plataforma atual.
 // ↓ URL base da API dinâmica conforme o ambiente:
 //   - EXPO_PUBLIC_API_URL: se definida, tem precedência (usada no Docker/produção
 //     para apontar para um proxy relative como "/api/v1").
@@ -36,8 +37,10 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
+// [F323] Calcula o hash SHA-256 usado na assinatura de requisições.
 // ↓ Implementação pura de SHA-256 em JavaScript (sem dependência nativa que possa quebrar no Expo Go)
 function gerarSHA256(ascii) {
+  // [F324] Aplica rotação circular à direita de bits no cálculo SHA-256.
   function rightRotate(value, amount) {
     return (value >>> amount) | (value << (32 - amount));
   }

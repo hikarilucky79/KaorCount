@@ -6,6 +6,7 @@ import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { CORES } from '../constants/Cores';
 
+// [F402] Exibe o indicador visual enquanto uma operação está em andamento.
 export default function LoadingIndicator({ mensagem = 'Carregando...', tamanho = 'large' }) {
   return (
     <View style={styles.container}>

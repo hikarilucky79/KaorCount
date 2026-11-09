@@ -15,12 +15,14 @@ from app.repositories.usuario_repo import UsuarioRepository
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
 
+# [F106] Gera o hash seguro da senha para armazenamento.
 def hash_senha(senha: str) -> bytes:
     senha_bytes = senha.encode("utf-8")[:72]
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(senha_bytes, salt)
 
 
+# [F107] Compara uma senha informada com o hash armazenado.
 def verificar_senha(senha: str, senha_hash: bytes | str) -> bool:
     try:
         senha_bytes = senha.encode("utf-8")[:72]
@@ -31,6 +33,7 @@ def verificar_senha(senha: str, senha_hash: bytes | str) -> bool:
         return False
 
 
+# [F108] Gera o token de autenticação do usuário.
 def criar_token_acesso(id_usuario: UUID | str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
@@ -43,10 +46,12 @@ def criar_token_acesso(id_usuario: UUID | str) -> str:
 TIPO_TOKEN_EMAIL = "email_verificado"
 
 
+# [F109] Padroniza o endereço de e-mail para comparações e armazenamento.
 def normalizar_email(email: str) -> str:
     return email.strip().lower()
 
 
+# [F110] Cria um token temporário que comprova a verificação do e-mail.
 def criar_token_email_verificado(email: str) -> str:
     # Sem "sub": decodificar_token não aceita este token como sessão de usuário.
     payload = {
@@ -57,6 +62,7 @@ def criar_token_email_verificado(email: str) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+# [F111] Exige um token válido de confirmação de e-mail antes de continuar.
 def exigir_email_verificado(email: str, token: str | None) -> None:
     """Recusa o cadastro quando o e-mail não tem um token de verificação válido."""
     if not settings.EXIGIR_VERIFICACAO_EMAIL:
@@ -75,6 +81,7 @@ def exigir_email_verificado(email: str, token: str | None) -> None:
         raise erro
 
 
+# [F112] Valida e interpreta os dados do token de autenticação.
 def decodificar_token(token: str) -> str | None:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -83,6 +90,7 @@ def decodificar_token(token: str) -> str | None:
         return None
 
 
+# [F113] Impede que uma conta acesse dados pertencentes a outro usuário.
 def garantir_proprio_usuario(usuario: Usuario, id_alvo: UUID | str) -> None:
     """
     Verifica se o recurso pertence ao usuário autenticado (anti-IDOR).
@@ -95,6 +103,7 @@ def garantir_proprio_usuario(usuario: Usuario, id_alvo: UUID | str) -> None:
         )
 
 
+# [F114] Obtém a conta autenticada a partir do token da requisição.
 def get_usuario_atual(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),

@@ -13,6 +13,7 @@ from app.schemas.alimento import AlimentoCreate, AlimentoResponse
 router = RouterIdempotente(prefix="/alimentos", tags=["Alimentos"])
 
 
+# [F005] Lista os alimentos cadastrados, com suporte aos filtros e limites recebidos.
 @router.get("/", response_model=list[AlimentoResponse])
 def listar_alimentos(
     skip: int = 0,
@@ -24,6 +25,7 @@ def listar_alimentos(
     return service.listar_todos(skip, limit)
 
 
+# [F006] Pesquisa alimentos do catálogo local pelos filtros e pelo termo recebidos.
 @router.get("/buscar", response_model=list[AlimentoResponse])
 def buscar_alimentos(
     nome: str,
@@ -36,6 +38,7 @@ def buscar_alimentos(
     return service.buscar_por_nome(nome, skip, limit)
 
 
+# [F007] Busca um alimento específico pelo identificador.
 @router.get("/{id_alimento}", response_model=AlimentoResponse)
 def buscar_alimento(
     id_alimento: UUID,
@@ -46,6 +49,7 @@ def buscar_alimento(
     return service.buscar_por_id(id_alimento)
 
 
+# [F008] Valida e cadastra um novo alimento.
 @router.post("/", response_model=AlimentoResponse, status_code=status.HTTP_201_CREATED)
 def criar_alimento(
     dados: AlimentoCreate,

@@ -14,10 +14,12 @@ import Fogo70 from '../../assets/fogo_70dias.svg';
 import Fogo100 from '../../assets/fogo_100dias.svg';
 import Fogo200 from '../../assets/fogo_200dias.svg';
 const artes = { 3: Fogo3, 5: Fogo5, 10: Fogo10, 20: Fogo20, 30: Fogo30, 50: Fogo50, 70: Fogo70, 100: Fogo100, 200: Fogo200 };
+// [F403] Renderiza o ícone correspondente à sequência de dias do usuário.
 export function IconeOfensiva({ dias = 0, tamanho = 46, cor }) {
   const Arte = artes[marcoOfensiva(dias)];
   return Arte ? <Arte width={tamanho * 0.78} height={tamanho} accessible={false} /> : <Flame size={tamanho * 0.6} color={cor} />;
 }
+// [F404] Exibe o emblema e o marco atual da sequência de dias do usuário.
 export default function OfensivaBadge({ dias = 0 }) {
   const { cores, isDark } = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start', backgroundColor: isDark ? cores.mutado : cores.branco, borderWidth: 1, borderColor: cores.borda, marginTop: 8, marginBottom: 12 }}>

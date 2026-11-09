@@ -5,6 +5,7 @@ import * as lembreteApi from '../api/lembreteApi';
 import useTarefa from '../hooks/useTarefa';
 import useTheme from '../hooks/useTheme';
 import { Card, Texto, Campo, Botao } from './RotinaUI';
+// [F400] Exibe e edita os horários de lembrete de água e refeições.
 export default function LembretesCard({ idUsuario }) {
   const { cores } = useTheme();
   const [config, setConfig] = useState(null);
@@ -18,6 +19,7 @@ export default function LembretesCard({ idUsuario }) {
     if (atual()) { setConfig(dados); setIntervalo(dados.agua_intervalo_min); setMeta(String(dados.agua_meta_diaria_ml)); setHorarios(dados.refeicao_horarios || []); }
   }), [idUsuario, executar]);
   useFocusEffect(useCallback(() => { carregar(); }, [carregar]));
+  // [F401] Salva as alterações feitas nos horários e opções de lembrete.
   const salvar = acao => executar(async atual => { setAviso(''); const dados = await acao(); if (atual()) { setConfig(dados); setAviso('Preferências salvas.'); } });
   return <Card titulo="LEMBRETES">
     {erro ? <Texto erro accessibilityRole="alert">{erro}</Texto> : null}

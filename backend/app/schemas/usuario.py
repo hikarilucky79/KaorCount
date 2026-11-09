@@ -15,6 +15,7 @@ class UsuarioCreate(BaseModel):
     # e-mail é digitado. Obrigatório quando EXIGIR_VERIFICACAO_EMAIL está ligado.
     token_verificacao: str | None = Field(None, max_length=2000)
 
+    # [F161] Valida a força da senha informada no esquema de entrada.
     @model_validator(mode="after")
     def _senha_forte(self) -> "UsuarioCreate":
         problema = validar_forca_senha(self.senha, self.email, self.nome)
@@ -34,6 +35,24 @@ class EmailConfirmarRequest(BaseModel):
 
 class EmailVerificadoResponse(BaseModel):
     token_verificacao: str
+
+
+class SenhaEsqueciRequest(BaseModel):
+    email: EmailStr
+
+
+class SenhaRedefinirRequest(BaseModel):
+    email: EmailStr
+    codigo: str = Field(..., pattern=r"^\d{6}$")
+    nova_senha: str = Field(..., min_length=8, max_length=100)
+
+    # [F162] Valida a força da senha informada no esquema de entrada.
+    @model_validator(mode="after")
+    def _senha_forte(self) -> "SenhaRedefinirRequest":
+        problema = validar_forca_senha(self.nova_senha, self.email)
+        if problema:
+            raise ValueError(problema)
+        return self
 
 
 class PreferenciasUpdate(BaseModel):

@@ -5,6 +5,7 @@ import api from '../api/client';
 import { buscarVersao } from '../api/versaoApi';
 import { avaliarAtualizacao, resolverUrl } from '../util/versao';
 
+// [F427] Consulta e disponibiliza o estado de versão e atualização do aplicativo.
 /**
  * Verifica, uma vez ao abrir o app, se existe uma versão mais nova.
  *

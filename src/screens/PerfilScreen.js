@@ -48,6 +48,7 @@ import { dataDeHoje } from '../util/data';
 import { UNIDADES_PADRAO, alturaDeCm, alturaParaCm, formatarAltura, formatarPeso, formatarValorInput, pesoDeKg, pesoParaKg } from '../util/medidas';
 import { unidadesDaConta } from '../util/medidas';
 
+// [F475] Monta a tela para visualizar e editar o perfil nutricional.
 export default function PerfilScreen({ navigation, route }) {
   const { usuario, atualizarUsuario } = useAuth();
   const { cores, isDark } = useTheme();
@@ -101,6 +102,7 @@ export default function PerfilScreen({ navigation, route }) {
     (perfilNutri?.objetivo_nutricional || perfilNutri?.objetivo)
   );
 
+  // [F476] Classifica o índice de massa corporal de acordo com a faixa calculada.
   // ↓ Classificação do IMC
   const classificarIMC = (valor) => {
     const v = parseFloat(valor);
@@ -187,6 +189,7 @@ export default function PerfilScreen({ navigation, route }) {
     useCallback(() => { carregarDados(); }, [carregarDados, modoEdicao])
   );
 
+  // [F477] Formata a data de nascimento para o campo de edição do perfil.
   // ───────────────────────────────────────────────────────────
   // ↓ Formatação de máscara simples para data DD/MM/AAAA
   // ───────────────────────────────────────────────────────────
@@ -229,11 +232,13 @@ export default function PerfilScreen({ navigation, route }) {
     }
   }, [modoEdicao, carregando, unidadesCarregadas, erroCarregamento, preencherFormulario]);
 
+  // [F478] Fecha o editor e retorna à visualização do perfil.
   const voltarDoEditor = () => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('AppTabs', { screen: 'Perfil' });
   };
 
+  // [F479] Valida e salva os dados alterados no perfil nutricional.
   // ───────────────────────────────────────────────────────────
   // ↓ Salvar Perfil e Recalcular Metas
   // ───────────────────────────────────────────────────────────

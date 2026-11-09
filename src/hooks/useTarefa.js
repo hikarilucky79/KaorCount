@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+// [F438] Executa uma tarefa assíncrona e disponibiliza estado de carregamento e erro.
 // Uma operação por card; respostas de telas desmontadas não atualizam a interface.
 export default function useTarefa() {
   const [ocupado, setOcupado] = useState(false);

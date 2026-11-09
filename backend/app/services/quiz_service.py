@@ -7,9 +7,11 @@ from app.services.perfil_nutri_service import PerfilNutriService
 
 
 class QuizService:
+    # [F242] Inicializa a classe QuizService.
     def __init__(self, db):
         self.db = db
 
+    # [F243] Persiste as respostas do questionário inicial do usuário.
     def salvar(self, id_usuario, dados):
         """A rota mantém todos os commits abaixo na mesma transação."""
         id_usuario = str(id_usuario)

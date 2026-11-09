@@ -468,7 +468,9 @@ explicativa.
 | `ENVIRONMENT` | `development` | `production` ativa as travas de segurança |
 | `CORS_ORIGINS` | vazio | Domínios permitidos no CORS (obrigatório em produção) |
 | `EXIGIR_VERIFICACAO_EMAIL` | `true` | O cadastro só é aceito depois que o e-mail é confirmado com um código. Desligue só em testes locais |
-| `SMTP_HOST` / `SMTP_PORT` | vazio / `587` | Servidor SMTP que envia o código (587 usa STARTTLS, 465 usa SSL) |
+| `RESEND_API_KEY` | vazio | Chave da API do [Resend](https://resend.com), provedor preferencial dos e-mails de código |
+| `RESEND_FROM` | vazio | Remetente completo, ex.: `KaorCount <nao-responda@seudominio.com>`. O domínio precisa estar verificado no painel do Resend; com `onboarding@resend.dev` só chega ao dono da conta |
+| `SMTP_HOST` / `SMTP_PORT` | vazio / `587` | Fallback, usado só sem Resend. Servidor SMTP que envia o código (587 usa STARTTLS, 465 usa SSL) |
 | `SMTP_USER` / `SMTP_PASSWORD` | vazio | Credenciais do SMTP |
 | `SMTP_FROM` | vazio | Remetente exibido. Em provedores sem domínio próprio (ex.: Brevo, SendGrid) precisa ser um e-mail já verificado no provedor |
 
@@ -479,7 +481,16 @@ O cadastro tem dois passos antes do quiz:
 1. `POST /auth/email/enviar-codigo` envia um código de 6 dígitos (vale 10 min, até 5 tentativas, reenvio a cada 60 s, no máximo 5 códigos por e-mail por hora).
 2. `POST /auth/email/confirmar` troca o código por um `token_verificacao` (válido por 2 h), que o app envia junto do cadastro em `/auth/registrar` e `/auth/registrar-com-quiz`.
 
-Sem SMTP configurado, o ambiente de desenvolvimento imprime o código no log da API; em produção o envio falha com 503.
+Sem Resend nem SMTP configurado, o ambiente de desenvolvimento imprime o código no log da API; em produção o envio falha com 503.
+
+### Recuperação de senha
+
+1. `POST /auth/senha/esqueci` com `{ "email" }` envia um código de 6 dígitos ao e-mail. Responde sempre `204`, exista a conta ou não, para não revelar quem tem cadastro.
+2. `POST /auth/senha/redefinir` com `{ "email", "codigo", "nova_senha" }` troca a senha. A nova senha segue a mesma regra do cadastro.
+
+O código vale 10 min, é de uso único, aceita até 5 tentativas, reenvio a cada 60 s e no máximo 5 códigos por e-mail por hora (os mesmos limites do cadastro, aplicados também a e-mails sem conta). O código é guardado só como HMAC. Os tokens de sessão já emitidos continuam válidos até expirar: a API não tem revogação de JWT.
+
+A tabela `recuperacao_senha` é criada sozinha na subida da API (`create_all`); não há migração.
 
 A senha precisa ter pelo menos 8 caracteres, com letra maiúscula, minúscula, número e símbolo, não pode ser uma senha comum nem conter o nome ou o e-mail. A regra é validada no backend (`backend/app/core/senha.py`) e espelhada no app (`src/util/senha.js`). O login não aplica a regra, então contas antigas continuam entrando.
 
@@ -1069,10 +1080,14 @@ ficam de fora.
 
 1. Importe o repositório e defina **Root Directory = `backend`**
    (Settings → General). É o que limita o deploy à API + `public/`.
-2. Copie `.env.vercel.example` para as **Environment Variables** do painel
-   (Settings → Environment Variables). `DATABASE_URL`, `SECRET_KEY`,
-   `CORS_ORIGINS` e `ENVIRONMENT=production` são obrigatórios — a API recusa
-   subir sem eles.
+2. Use `backend/.env.vercel.example` como referência ao preencher as
+   **Environment Variables** do painel (Settings → Environment Variables).
+   `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS` e `ENVIRONMENT=production` são
+   obrigatórios — a API recusa subir sem eles. Para cadastro e recuperação de
+   senha por e-mail, configure também `RESEND_API_KEY` e `RESEND_FROM`. O backend
+   chama a API do Resend por HTTPS; o remetente `onboarding@resend.dev` serve
+   apenas para testes enviados ao dono da conta. Para usuários reais, verifique
+   um domínio no Resend e use um endereço desse domínio em `RESEND_FROM`.
 3. `backend/vercel.json` define a região `gru1` (São Paulo), os redirecionamentos de
    `/` e `/index.html`, a rota `/download` e os cabeçalhos de segurança.
 

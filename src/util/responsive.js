@@ -10,6 +10,7 @@ export const BASE_HEIGHT = 844;
 export const MAX_CONTENT_WIDTH = 640;
 export const MAX_AUTH_WIDTH = 480;
 
+// [F546] Ajusta um tamanho horizontal de acordo com a largura da tela.
 /**
  * Escala horizontal direta baseada na largura da tela
  */
@@ -18,6 +19,7 @@ export const scale = (size, screenWidth) => {
   return (w / BASE_WIDTH) * size;
 };
 
+// [F547] Ajusta um tamanho vertical de acordo com a altura da tela.
 /**
  * Escala vertical direta baseada na altura da tela
  */
@@ -26,6 +28,7 @@ export const verticalScale = (size, screenHeight) => {
   return (h / BASE_HEIGHT) * size;
 };
 
+// [F548] Aplica uma escala moderada a um tamanho para diferentes telas.
 /**
  * Escala moderada com fator de amortecimento (ideal para paddings, margens e ícones)
  */
@@ -35,6 +38,7 @@ export const moderateScale = (size, screenWidth, factor = 0.5) => {
   return size + (s - size) * factor;
 };
 
+// [F549] Calcula um tamanho de fonte adaptável às dimensões da tela.
 /**
  * Cálculo de tamanho de fonte responsivo com limites seguros (min e max)
  */
@@ -47,6 +51,7 @@ export const responsiveFontSize = (size, screenWidth, minSize, maxSize) => {
   return Math.round(Math.min(Math.max(scaled, min), max));
 };
 
+// [F550] Classifica as dimensões da tela e retorna informações de layout do dispositivo.
 /**
  * Detecta características do dispositivo com base nas dimensões
  */
@@ -72,6 +77,7 @@ export const getDeviceInfo = (width, height) => {
   };
 };
 
+// [F551] Calcula a largura máxima e o estilo do contêiner para a tela.
 /**
  * Estilo de container centralizado responsivo para telas grandes / tablets / web
  */

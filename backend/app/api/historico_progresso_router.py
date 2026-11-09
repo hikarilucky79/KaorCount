@@ -14,6 +14,7 @@ from app.schemas.historico_progresso import HistoricoProgressoCreate, HistoricoP
 router = RouterIdempotente(prefix="/historico-progresso", tags=["Histórico de Progresso"])
 
 
+# [F023] Lista histórico.
 @router.get("/usuario/{id_usuario}", response_model=list[HistoricoProgressoResponse])
 def listar_historico(
     id_usuario: UUID,
@@ -27,6 +28,7 @@ def listar_historico(
     return service.listar_por_usuario(id_usuario, skip, limit)
 
 
+# [F024] Lista registros de progresso dentro do período informado.
 @router.get("/usuario/{id_usuario}/periodo", response_model=list[HistoricoProgressoResponse])
 def historico_por_periodo(
     id_usuario: UUID,
@@ -40,6 +42,7 @@ def historico_por_periodo(
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
 
+# [F025] Busca um registro específico do histórico de progresso.
 @router.get("/{id_progresso}", response_model=HistoricoProgressoResponse)
 def buscar_historico(
     id_progresso: UUID,
@@ -52,6 +55,7 @@ def buscar_historico(
     return registro
 
 
+# [F026] Registra uma nova medição no histórico de progresso.
 @router.post("/", response_model=HistoricoProgressoResponse, status_code=status.HTTP_201_CREATED)
 def criar_historico(
     dados: HistoricoProgressoCreate,
@@ -63,6 +67,7 @@ def criar_historico(
     return service.criar(dados)
 
 
+# [F027] Atualiza uma medição já registrada no histórico.
 @router.put("/{id_progresso}", response_model=HistoricoProgressoResponse)
 def atualizar_historico(
     id_progresso: UUID,
@@ -75,6 +80,7 @@ def atualizar_historico(
     return service.atualizar(id_progresso, dados)
 
 
+# [F028] Remove uma medição do histórico de progresso.
 @router.delete("/{id_progresso}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_historico(
     id_progresso: UUID,

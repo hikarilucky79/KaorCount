@@ -18,9 +18,11 @@ from app.services.perfil_nutri_service import (
 )
 
 class AuthService:
+    # [F166] Inicializa a classe AuthService.
     def __init__(self, db: Session):
         self.repo = UsuarioRepository(db)
 
+    # [F167] Cria uma conta de usuário após validar os dados informados.
     def registrar(self, dados: UsuarioCreate):
         exigir_email_verificado(dados.email, dados.token_verificacao)
         if self.repo.get_by_email(dados.email):
@@ -60,6 +62,7 @@ class AuthService:
             raise
         return novo_usuario
 
+    # [F168] Autentica o usuário usando e-mail e senha.
     def login(self, dados: UsuarioLogin) -> Token:
         usuario = self.repo.get_by_email(dados.email)
         if not usuario or not verificar_senha(dados.senha, usuario.senha_hash):

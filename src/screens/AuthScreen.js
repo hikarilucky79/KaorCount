@@ -36,6 +36,7 @@ import useTheme from '../hooks/useTheme';
 import useResponsive from '../hooks/useResponsive';
 import useReduceMotion from '../hooks/useReduceMotion';
 
+// [F442] Monta a tela de login, cadastro e recuperação de senha.
 export default function AuthScreen({ navigation }) {
   const { login, iniciarCadastro } = useAuth();
   const { cores, isDark } = useTheme();
@@ -68,6 +69,7 @@ export default function AuthScreen({ navigation }) {
   const [mostrarSenhaCad, setMostrarSenhaCad] = useState(false);
 
 
+  // [F443] Troca o fluxo exibido e coordena a transição visual da tela.
   // ───────────────────────────────────────────────────────────
   // ↓ Transição usando o próprio Banner existente
   // ───────────────────────────────────────────────────────────
@@ -109,6 +111,7 @@ export default function AuthScreen({ navigation }) {
     });
   };
 
+  // [F444] Valida os campos e envia as credenciais para autenticação.
   // ───────────────────────────────────────────────────────────
   // ↓ Handler de Login
   // ───────────────────────────────────────────────────────────
@@ -135,6 +138,7 @@ export default function AuthScreen({ navigation }) {
     }
   };
 
+  // [F445] Abre o fluxo de criação de uma nova conta.
   // ───────────────────────────────────────────────────────────
   // ↓ Handler de Cadastro
   // ───────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ limitar_geracao = limitador_usuario(
 )
 
 
+# [F068] Limita a frequência de geração de sugestões por fonte de dados.
 def limitar_geracao_por_fonte(db: Session = Depends(get_db), usuario: Usuario = Depends(get_usuario_atual)) -> None:
     possui_catalogo = db.query(Alimento.id_alimento).filter(Alimento.porcao_padrao_g > 0, Alimento.calorias > 0).first()
     if not possui_catalogo:
@@ -35,6 +36,7 @@ def limitar_geracao_por_fonte(db: Session = Depends(get_db), usuario: Usuario = 
                             headers={"Retry-After": str(_segundos_ate_reiniciar(db, chave, 60))})
 
 
+# [F069] Confere se o recurso pertence ao usuário autenticado.
 def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
     """
     Garante que o usuário autenticado só opere sobre as próprias sugestões.
@@ -57,6 +59,7 @@ def _garantir_dono(usuario: Usuario, id_usuario: UUID) -> str:
     response_model=list[SugestaoRefeicaoResponse],
     dependencies=[Depends(limitar_geracao_por_fonte)],
 )
+# [F070] Gera sugestões de refeições com base nas metas e preferências do usuário.
 def gerar_sugestoes(
     id_usuario: UUID,
     db: Session = Depends(get_db),
@@ -66,6 +69,7 @@ def gerar_sugestoes(
     return SugestaoService(db).gerar_todas(id_usuario)
 
 
+# [F071] Lista sugestões de refeição já geradas para o usuário.
 @router.get("/{id_usuario}", response_model=list[SugestaoRefeicaoResponse])
 def listar_sugestoes(
     id_usuario: UUID,
@@ -78,6 +82,7 @@ def listar_sugestoes(
     return SugestaoService(db).listar_por_usuario(id_usuario, skip, limit)
 
 
+# [F072] Confirma uma sugestão e registra a refeição correspondente.
 @router.post("/aceitar/{id_sugestao}", response_model=SugestaoAceitaResponse)
 def aceitar(
     id_sugestao: UUID,

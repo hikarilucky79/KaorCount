@@ -13,6 +13,7 @@ from app.models.usuario import Usuario
 from app.models.preferencia_usuario import PreferenciaUsuario
 from app.models.operacao_idempotente import OperacaoIdempotente
 from app.models.verificacao_email import VerificacaoEmail
+from app.models.recuperacao_senha import RecuperacaoSenha
 
 __all__ = [
     "Alimento",
@@ -30,4 +31,5 @@ __all__ = [
     "PreferenciaUsuario",
     "OperacaoIdempotente",
     "VerificacaoEmail",
+    "RecuperacaoSenha",
 ]

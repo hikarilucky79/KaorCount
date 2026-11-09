@@ -15,6 +15,7 @@ from app.schemas.item_refeicao import ItemRefeicaoCreate, ItemRefeicaoUpdate, It
 router = RouterIdempotente(prefix="/refeicoes", tags=["Refeições"])
 
 
+# [F048] Lista as refeições do usuário.
 @router.get("/usuario/{id_usuario}", response_model=list[RefeicaoResponse])
 def listar_refeicoes(
     id_usuario: UUID,
@@ -28,6 +29,7 @@ def listar_refeicoes(
     return service.listar_por_usuario(id_usuario, skip, limit)
 
 
+# [F049] Lista refeições dentro do intervalo informado.
 @router.get("/usuario/{id_usuario}/periodo", response_model=list[RefeicaoResponse])
 def refeicoes_por_periodo(
     id_usuario: UUID,
@@ -41,6 +43,7 @@ def refeicoes_por_periodo(
     return service.listar_por_periodo(id_usuario, data_inicio, data_fim)
 
 
+# [F050] Lista refeições registradas em uma data.
 @router.get("/usuario/{id_usuario}/dia/{data}", response_model=list[RefeicaoResponse])
 def refeicoes_por_dia(
     id_usuario: UUID,
@@ -53,6 +56,7 @@ def refeicoes_por_dia(
     return service.listar_por_dia(id_usuario, data)
 
 
+# [F051] Calcula o total diário de calorias e macronutrientes.
 @router.get("/usuario/{id_usuario}/dia/{data}/macros", response_model=dict)
 def resumo_macros_dia(
     id_usuario: UUID,
@@ -66,6 +70,7 @@ def resumo_macros_dia(
     return {"id_usuario": str(id_usuario), "data": str(data), "macros": macros}
 
 
+# [F052] Busca uma refeição pelo identificador.
 @router.get("/{id_refeicao}", response_model=RefeicaoResponse)
 def buscar_refeicao(
     id_refeicao: UUID,
@@ -78,6 +83,7 @@ def buscar_refeicao(
     return refeicao
 
 
+# [F053] Registra uma nova refeição.
 @router.post("/", response_model=RefeicaoResponse, status_code=status.HTTP_201_CREATED)
 def criar_refeicao(
     dados: RefeicaoCreate,
@@ -89,6 +95,7 @@ def criar_refeicao(
     return service.criar(dados)
 
 
+# [F054] Atualiza os dados de uma refeição existente.
 @router.put("/{id_refeicao}", response_model=RefeicaoResponse)
 def atualizar_refeicao(
     id_refeicao: UUID,
@@ -101,6 +108,7 @@ def atualizar_refeicao(
     return service.atualizar(id_refeicao, dados)
 
 
+# [F055] Remove uma refeição registrada.
 @router.delete("/{id_refeicao}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_refeicao(
     id_refeicao: UUID,
@@ -112,6 +120,7 @@ def deletar_refeicao(
     service.deletar(id_refeicao)
 
 
+# [F056] Lista os alimentos associados a uma refeição.
 @router.get("/{id_refeicao}/itens", response_model=list[ItemRefeicaoResponse])
 def listar_itens(
     id_refeicao: UUID,
@@ -123,6 +132,7 @@ def listar_itens(
     return service.listar_itens(id_refeicao)
 
 
+# [F057] Adiciona um alimento à refeição.
 @router.post("/{id_refeicao}/itens", response_model=ItemRefeicaoResponse, status_code=status.HTTP_201_CREATED)
 def adicionar_item(
     id_refeicao: UUID,
@@ -136,6 +146,7 @@ def adicionar_item(
     return service.adicionar_item(dados)
 
 
+# [F058] Atualiza a quantidade ou os dados de um alimento da refeição.
 @router.put("/itens/{id_item}", response_model=ItemRefeicaoResponse)
 def atualizar_item(
     id_item: UUID,
@@ -151,6 +162,7 @@ def atualizar_item(
     return service.atualizar_item(id_item, dados)
 
 
+# [F059] Remove um alimento da refeição.
 @router.delete("/itens/{id_item}", status_code=status.HTTP_204_NO_CONTENT)
 def remover_item(
     id_item: UUID,

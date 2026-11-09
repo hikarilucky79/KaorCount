@@ -7,6 +7,7 @@
     const note = document.getElementById("qr-note");
     if (!region || !container || !title || !note) return;
 
+    // [F308] Exibe uma mensagem quando a versão de download não está disponível.
     const showUnavailable = (message) => {
         title.textContent = "Quer abrir esta página no celular?";
         note.textContent = message;

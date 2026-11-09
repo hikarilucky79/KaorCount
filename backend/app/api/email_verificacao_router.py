@@ -29,6 +29,7 @@ limitar_confirmacao = limitador_ip(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(limitar_envio)],
 )
+# [F017] Envia ao e-mail um código de verificação.
 def enviar_codigo(dados: EmailCodigoRequest, db: Session = Depends(get_db)):
     VerificacaoEmailService(db).enviar_codigo(dados.email)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -39,6 +40,7 @@ def enviar_codigo(dados: EmailCodigoRequest, db: Session = Depends(get_db)):
     response_model=EmailVerificadoResponse,
     dependencies=[Depends(limitar_confirmacao)],
 )
+# [F018] Valida o código enviado e confirma o endereço de e-mail.
 def confirmar_codigo(dados: EmailConfirmarRequest, db: Session = Depends(get_db)):
     token = VerificacaoEmailService(db).confirmar_codigo(dados.email, dados.codigo)
     return EmailVerificadoResponse(token_verificacao=token)

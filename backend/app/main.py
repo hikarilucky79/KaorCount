@@ -24,7 +24,7 @@ from app.core.exceptions import (
     data_error_handler,
     operational_error_handler,
 )
-from app.api import auth_router, email_verificacao_router, versao_router, usuario_router, alimento_router, perfil_nutri_router
+from app.api import auth_router, email_verificacao_router, recuperacao_senha_router, versao_router, usuario_router, alimento_router, perfil_nutri_router
 from app.api import meta_nutri_router, registro_agua_router, refeicao_router
 from app.api import historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router
 from app.api import dashboard_router
@@ -73,7 +73,7 @@ app.add_middleware(
 )
 
 for router in [
-    auth_router, email_verificacao_router, versao_router, usuario_router, alimento_router, perfil_nutri_router,
+    auth_router, email_verificacao_router, recuperacao_senha_router, versao_router, usuario_router, alimento_router, perfil_nutri_router,
     meta_nutri_router, registro_agua_router, refeicao_router,
     historico_progresso_router, fatsecret_router, sugestao_router, lembrete_router,
     dashboard_router, relatorio_router, pesquisa_inicial_router, quiz_router,
@@ -102,6 +102,7 @@ for _prefixo in ("css", "js", "img", "html", "downloads"):
 # Raiz e /index.html — só quando o HTML está no bundle. Na Vercel o vercel.json
 # reescreve "/" para /html/index.html, servido direto do CDN.
 if INDEX_HTML.is_file():
+    # [F117] Atende a rota raiz da API com informações básicas do serviço.
     @app.get("/", include_in_schema=False)
     @app.get("/index.html", include_in_schema=False)
     def root():
@@ -109,10 +110,12 @@ if INDEX_HTML.is_file():
 
 DOWNLOAD_HTML = PUBLIC_DIR / "html" / "download.html"
 if DOWNLOAD_HTML.is_file():
+    # [F118] Entrega a página pública de download do aplicativo.
     @app.get("/download", include_in_schema=False)
     def download_page():
         return FileResponse(DOWNLOAD_HTML)
 
+# [F119] Informa se a API está respondendo.
 @app.get("/health")
 def health():
     return {"status": "ok"}

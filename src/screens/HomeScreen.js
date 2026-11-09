@@ -23,6 +23,7 @@ import * as dashboardApi from '../api/dashboardApi';
 import * as metaNutriApi from '../api/metaNutriApi';
 import { distribuicaoCalorica } from '../util/nutricao';
 
+// [F472] Renderiza uma barra do gráfico que resume o consumo calórico de um dia.
 function BarraHistorico({ altura, cor, diaNome, corTexto, data, calorias, larguraBarra = 14, alturaTrilho = 65 }) {
   return <View style={styles.colunaDia} accessible accessibilityLabel={`${data.split('-').reverse().join('/')}: ${Math.round(calorias || 0)} calorias`}>
     <View style={[styles.trilhoBarra, { height: alturaTrilho }]}>
@@ -32,6 +33,7 @@ function BarraHistorico({ altura, cor, diaNome, corTexto, data, calorias, largur
   </View>;
 }
 
+// [F473] Monta o painel diário com metas, consumo e progresso do usuário.
 export default function HomeScreen({ navigation }) {
   const { usuario } = useAuth();
   const focado = useIsFocused();
@@ -198,6 +200,7 @@ export default function HomeScreen({ navigation }) {
     }
   }, [usuario?.id_usuario]);
 
+  // [F474] Atualiza a tela após a aceitação de uma sugestão de refeição.
   const aoAceitarSugestao = async (resultado, preparada) => {
     await carregarDados(true);
     if (!resultado.itens_criados) return;

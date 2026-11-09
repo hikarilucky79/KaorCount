@@ -14,12 +14,14 @@ _CACHE_TTL_SECS = 3600  # 1 hora de cache em memória para otimizar requisiçõe
 TACO_API_URL = "https://raw.githubusercontent.com/marcelosanto/tabela_taco/master/tabela_alimentos.json"
 
 
+# [F292] Padroniza nomes de alimentos para busca na tabela TACO.
 def _normalizar(txt: str) -> str:
     if not txt:
         return ""
     return unicodedata.normalize("NFKD", txt).encode("ASCII", "ignore").decode("utf-8").lower().strip()
 
 
+# [F293] Converte um valor da tabela TACO em número decimal.
 def _to_float(val, default: float = 0.0) -> float:
     if val is None or val == "" or val == "NA" or val == "Tr":
         return default
@@ -29,6 +31,7 @@ def _to_float(val, default: float = 0.0) -> float:
         return default
 
 
+# [F294] Formata o nome técnico do alimento para exibição.
 def _formatar_nome_amigavel(desc: str) -> str:
     """Preserva as características da descrição original da TACO."""
     partes = [parte.strip() for parte in (desc or "").split(",") if parte.strip() and _normalizar(parte) not in ("cru", "crua", "crus", "cruas")]
@@ -68,6 +71,7 @@ VARIACOES_CULINARIA_BRASIL = {
 
 class TacoService:
 
+    # [F295] Carrega os dados locais da Tabela Brasileira de Composição de Alimentos (TACO).
     @classmethod
     def _obter_dados_taco(cls) -> list:
         global _TACO_CACHE, _CACHE_TIMESTAMP
@@ -87,6 +91,7 @@ class TacoService:
 
         return _TACO_CACHE or []
 
+    # [F296] Pesquisa alimentos na tabela brasileira TACO.
     @classmethod
     def buscar_alimentos(cls, termo: str, max_resultados: int = 25) -> list:
         if not termo or not termo.strip():

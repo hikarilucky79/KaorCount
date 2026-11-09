@@ -17,10 +17,12 @@ _SENHAS_COMUNS = {
 }
 
 
+# [F115] Normaliza senha.
 def _normalizar(valor: str) -> str:
     return re.sub(r"[^a-z0-9]", "", valor.casefold())
 
 
+# [F116] Verifica se a senha atende aos critérios mínimos de segurança.
 def validar_forca_senha(senha: str, email: str | None = None, nome: str | None = None) -> str | None:
     """Devolve a mensagem do problema encontrado ou None se a senha é aceitável."""
     if (

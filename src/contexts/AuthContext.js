@@ -18,6 +18,7 @@ const USUARIO_KEY = '@kaorcount_usuario';
 
 export const AuthContext = createContext({});
 
+// [F422] Compartilha estado e operações de autenticação com as telas do aplicativo.
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const usuarioRef = useRef(null);
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
     recuperarSessao();
   }, []);
 
+  // [F423] Restaura a sessão salva e verifica se o token do usuário continua válido.
   const recuperarSessao = async () => {
     try {
       const tokenSalvo = await AsyncStorage.getItem(TOKEN_KEY);
@@ -112,6 +114,7 @@ export function AuthProvider({ children }) {
     setCadastroPendente(null);
   }, []);
 
+  // [F424] Remove tokens e dados locais da sessão atual.
   const limparSessao = async () => {
     sessaoRef.current += 1;
     usuarioRef.current = null;
@@ -174,6 +177,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// [F425] Disponibiliza estado e ações reutilizáveis para autenticação.
 // ↓ Hook para as telas.
 export function useAuth() {
   return React.useContext(AuthContext);

@@ -13,6 +13,7 @@ from app.schemas.perfil_nutri import PerfilNutriCreate, PerfilNutriUpdate, Perfi
 router = RouterIdempotente(prefix="/perfil-nutri", tags=["Perfil Nutricional"])
 
 
+# [F040] Obtém o perfil nutricional do usuário.
 @router.get("/{id_usuario}", response_model=PerfilNutriResponse)
 def buscar_perfil(
     id_usuario: UUID,
@@ -24,6 +25,7 @@ def buscar_perfil(
     return service.buscar_por_usuario(id_usuario)
 
 
+# [F041] Cria o perfil nutricional com os dados informados.
 @router.post("/", response_model=PerfilNutriResponse, status_code=status.HTTP_201_CREATED)
 def criar_perfil(
     dados: PerfilNutriCreate,
@@ -35,6 +37,7 @@ def criar_perfil(
     return service.criar(dados)
 
 
+# [F042] Atualiza os dados do perfil nutricional.
 @router.put("/{id_usuario}", response_model=PerfilNutriResponse)
 def atualizar_perfil(
     id_usuario: UUID,
@@ -47,6 +50,7 @@ def atualizar_perfil(
     return service.atualizar(id_usuario, dados)
 
 
+# [F043] Remove o perfil nutricional do usuário.
 @router.delete("/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_perfil(
     id_usuario: UUID,

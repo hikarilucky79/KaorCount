@@ -21,6 +21,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
         "sequência de dias (streak) com registro de refeição."
     ),
 )
+# [F013] Monta o resumo nutricional do dia, incluindo consumo e metas.
 def resumo_dia(
     id_usuario: UUID,
     data: date | None = Query(None, description="Data do resumo (padrão: hoje)"),
@@ -37,6 +38,7 @@ def resumo_dia(
     summary="Resumo semanal do dashboard",
     description="Calorias consumidas por dia nos últimos 7 dias e total de água ingerido.",
 )
+# [F014] Monta o resumo nutricional dos últimos dias da semana.
 def resumo_semana(
     id_usuario: UUID,
     data_fim: date | None = Query(None, description="Data final do intervalo (padrão: hoje)"),
@@ -53,6 +55,7 @@ def resumo_semana(
     summary="Resumo mensal do dashboard",
     description="Calorias consumidas por dia nos últimos 31 dias e total de água ingerido.",
 )
+# [F015] Monta o resumo nutricional do mês.
 def resumo_mes(
     id_usuario: UUID,
     data_fim: date | None = Query(None, description="Data final do intervalo (padrão: hoje)"),
@@ -69,6 +72,7 @@ def resumo_mes(
     summary="Evolução de peso do usuário",
     description="Histórico de peso do usuário em ordem cronológica (padrão: últimos 30 registros).",
 )
+# [F016] Retorna os registros usados para acompanhar a evolução do peso.
 def evolucao_peso(
     id_usuario: UUID,
     limit: int = Query(30, ge=1, le=365),

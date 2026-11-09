@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+// [F519] Salva o conteúdo no dispositivo ou compartilha o arquivo gerado.
 export async function salvarArquivo(conteudo, nome, mimeType) {
   if (Platform.OS === 'web') {
     const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: mimeType });

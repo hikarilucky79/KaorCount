@@ -10,6 +10,7 @@ from app.core.config import settings
 Base = declarative_base()
 
 
+# [F082] Define as opções TLS/SSL para a conexão com o banco.
 def _ssl_do_banco():
     """
     TiDB Cloud (e afins) exigem TLS e o certificado encadeia numa CA pública,
@@ -25,6 +26,7 @@ def _ssl_do_banco():
     return None
 
 
+# [F083] Configura a conexão e cria o mecanismo de acesso ao banco.
 def criar_engine():
     db_url = settings.DATABASE_URL
     if not db_url.startswith("sqlite"):
@@ -68,6 +70,7 @@ def criar_engine():
     )
 
 class SessionTransacional(Session):
+    # [F084] Confirma a transação da sessão do banco de dados.
     def commit(self):
         # A rota idempotente confirma os efeitos e a resposta em um único commit.
         if self.info.get("idempotencia"):
@@ -79,6 +82,7 @@ class SessionTransacional(Session):
 engine = criar_engine()
 SessionLocal = sessionmaker(class_=SessionTransacional, autocommit=False, autoflush=False, bind=engine)
 
+# [F085] Abre e fornece uma sessão de banco de dados para a requisição.
 def get_db():
     db = SessionLocal()
     try:

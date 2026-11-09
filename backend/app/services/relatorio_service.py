@@ -23,6 +23,7 @@ from io import BytesIO
 
 class RelatorioService:
 
+    # [F261] Inicializa a classe RelatorioService.
     def __init__(self, db: Session):
         self.db = db
         self.agua_repo = RegistroAguaRepository(db)
@@ -31,6 +32,7 @@ class RelatorioService:
 
     # -- coleta de dados --
 
+    # [F262] Agrega calorias e macronutrientes consumidos em cada dia do período.
     def _macros_por_dia(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> list[dict]:
         """Calorias e macros consumidos por cada dia do período."""
         if data_inicio > data_fim:
@@ -104,6 +106,7 @@ class RelatorioService:
             dia += timedelta(days=1)
         return dias
 
+    # [F263] Agrega o consumo de água de cada dia do período.
     def _agua_por_dia(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> list[dict]:
         """Total de ml de água ingerido por dia no período."""
         if data_inicio > data_fim:
@@ -144,6 +147,7 @@ class RelatorioService:
             dia += timedelta(days=1)
         return dias
 
+    # [F264] Organiza as medições para apresentar a evolução do peso no relatório.
     def _evolucao_peso(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> list[dict]:
         """Registros de peso no período, em ordem cronológica."""
         historico = self.db.query(
@@ -159,6 +163,7 @@ class RelatorioService:
             for h in historico
         ]
 
+    # [F265] Calcula totais e médias do período que será exportado.
     def _resumo_periodo(self, dias_macros: list[dict], dias_agua: list[dict]) -> dict:
         """Totais agregados do período."""
         total_cal = sum(d["calorias"] for d in dias_macros)
@@ -176,6 +181,7 @@ class RelatorioService:
 
     # -- geração do PDF --
 
+    # [F266] Monta o relatório nutricional e gera o arquivo PDF.
     def gerar_relatorio_pdf(
         self,
         id_usuario: UUID | str,
@@ -369,6 +375,7 @@ class RelatorioService:
 
     # -- endpoint JSON alternativo --
 
+    # [F267] Produz os dados agregados usados na exportação do relatório.
     def gerar_dados_relatorio(
         self,
         id_usuario: UUID | str,

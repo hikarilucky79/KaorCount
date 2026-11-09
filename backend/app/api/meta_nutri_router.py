@@ -13,6 +13,7 @@ from app.schemas.meta_nutri import MetaNutriCreate, MetaNutriUpdate, MetaNutriRe
 router = RouterIdempotente(prefix="/metas-nutri", tags=["Metas Nutricionais"])
 
 
+# [F034] Lista as metas nutricionais associadas ao usuário.
 @router.get("/usuario/{id_usuario}", response_model=list[MetaNutriResponse])
 def listar_metas_por_usuario(
     id_usuario: UUID,
@@ -24,6 +25,7 @@ def listar_metas_por_usuario(
     return service.listar_por_usuario(id_usuario)
 
 
+# [F035] Obtém a meta nutricional vigente para o usuário.
 @router.get("/usuario/{id_usuario}/atual", response_model=MetaNutriResponse)
 def meta_atual(
     id_usuario: UUID,
@@ -35,6 +37,7 @@ def meta_atual(
     return service.meta_atual(id_usuario)
 
 
+# [F036] Busca uma meta nutricional pelo identificador.
 @router.get("/{id_meta}", response_model=MetaNutriResponse)
 def buscar_meta(
     id_meta: UUID,
@@ -47,6 +50,7 @@ def buscar_meta(
     return meta
 
 
+# [F037] Cria uma meta nutricional para o usuário.
 @router.post("/", response_model=MetaNutriResponse, status_code=status.HTTP_201_CREATED)
 def criar_meta(
     dados: MetaNutriCreate,
@@ -58,6 +62,7 @@ def criar_meta(
     return service.criar(dados)
 
 
+# [F038] Atualiza uma meta nutricional existente.
 @router.put("/{id_meta}", response_model=MetaNutriResponse)
 def atualizar_meta(
     id_meta: UUID,
@@ -70,6 +75,7 @@ def atualizar_meta(
     return service.atualizar(id_meta, dados)
 
 
+# [F039] Remove uma meta nutricional.
 @router.delete("/{id_meta}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_meta(
     id_meta: UUID,

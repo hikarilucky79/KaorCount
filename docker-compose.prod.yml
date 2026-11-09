@@ -99,7 +99,10 @@ services:
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       FATSECRET_CLIENT_ID: ${FATSECRET_CLIENT_ID:-}
       FATSECRET_CLIENT_SECRET: ${FATSECRET_CLIENT_SECRET:-}
-      # E-mail de verificação do cadastro: sem SMTP em produção ninguém consegue se cadastrar
+      # E-mails de código (cadastro e recuperação de senha): sem Resend nem SMTP em
+      # produção ninguém consegue se cadastrar ou recuperar a senha
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

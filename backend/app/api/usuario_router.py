@@ -13,6 +13,7 @@ from app.schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 router = RouterIdempotente(prefix="/usuarios", tags=["Usuários"])
 
 
+# [F073] Lista os usuários cadastrados.
 @router.get("/", response_model=list[UsuarioResponse])
 def listar_usuarios(
     skip: int = 0,
@@ -27,6 +28,7 @@ def listar_usuarios(
     return [service.buscar_por_id(usuario.id_usuario)]
 
 
+# [F074] Busca um usuário pelo identificador.
 @router.get("/{id_usuario}", response_model=UsuarioResponse)
 def buscar_usuario(
     id_usuario: UUID,
@@ -38,6 +40,7 @@ def buscar_usuario(
     return service.buscar_por_id(id_usuario)
 
 
+# [F075] Atualiza os dados da conta do usuário.
 @router.put("/{id_usuario}", response_model=UsuarioResponse)
 def atualizar_usuario(
     id_usuario: UUID,
@@ -50,6 +53,7 @@ def atualizar_usuario(
     return service.atualizar(id_usuario, dados)
 
 
+# [F076] Desativa a conta do usuário.
 @router.patch("/{id_usuario}/status", response_model=UsuarioResponse)
 def desativar_usuario(
     id_usuario: UUID,
@@ -62,6 +66,7 @@ def desativar_usuario(
     return service.buscar_por_id(id_usuario)
 
 
+# [F077] Remove a conta do usuário.
 @router.delete("/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_usuario(
     id_usuario: UUID,

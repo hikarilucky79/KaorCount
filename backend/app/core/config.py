@@ -70,9 +70,17 @@ class Settings(BaseSettings):
     LIMITE_CONFIRMACOES_POR_IP: int = 30
     LIMITE_JANELA_CONFIRMACAO_SEGUNDOS: int = 3600
 
-    # Servidor SMTP (Brevo, SendGrid, Gmail com senha de app etc.). SMTP_FROM é o
-    # remetente exibido; em provedores sem domínio próprio ele precisa ser um
-    # endereço já verificado no provedor. Vazio = não envia (só log em dev).
+    # Resend (https://resend.com): provedor preferencial de e-mail. RESEND_FROM é
+    # o remetente completo, ex.: "KaorCount <nao-responda@seudominio.com>", e o
+    # domínio precisa estar verificado no painel do Resend. Com o remetente de
+    # teste (onboarding@resend.dev) o Resend só entrega ao dono da conta.
+    RESEND_API_KEY: str = ""
+    RESEND_FROM: str = ""
+
+    # Servidor SMTP (Brevo, SendGrid, Gmail com senha de app etc.), usado só quando
+    # o Resend não está configurado. SMTP_FROM é o remetente exibido; em
+    # provedores sem domínio próprio ele precisa ser um endereço já verificado no
+    # provedor. Sem Resend nem SMTP não envia (só log em dev).
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -89,16 +97,19 @@ class Settings(BaseSettings):
     LIMITE_SUGESTOES_POR_USUARIO: int = 5
     LIMITE_JANELA_SUGESTAO_SEGUNDOS: int = 3600
 
+    # [F079] Verifica se a configuração ativa corresponde ao ambiente de produção.
     @property
     def is_production(self) -> bool:
         return (self.ENVIRONMENT or self.APP_ENV).strip().lower() in {
             "production", "prod", "producao",
         }
 
+    # [F080] Converte a configuração de origens permitidas em uma lista para CORS.
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
+    # [F081] Impede o uso de uma chave insegura no ambiente de produção.
     @model_validator(mode="after")
     def _travar_chave_em_producao(self) -> "Settings":
         # A SECRET_KEY assina todos os tokens JWT: com a chave padrão — pública

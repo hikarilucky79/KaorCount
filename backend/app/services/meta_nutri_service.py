@@ -12,9 +12,11 @@ from fastapi import HTTPException, status
 class MetaNutriService(BaseService):
     nao_encontrado_msg = "Meta nutricional não encontrada"
 
+    # [F227] Inicializa a classe MetaNutriService.
     def __init__(self, db: Session):
         super().__init__(MetaNutriRepository(db))
 
+    # [F228] Cria um novo registro de meta nutricional no sistema.
     def criar(self, dados: MetaNutriCreate) -> MetaNutri:
         self.repo.db.query(Usuario).filter(Usuario.id_usuario == str(dados.id_usuario)).with_for_update().first()
         # Upsert: para um mesmo usuário/dia não pode existir mais de uma meta.
@@ -26,9 +28,11 @@ class MetaNutriService(BaseService):
             return self.repo.update(existente, dados.model_dump(exclude={"id_usuario"}))
         return self.repo.create(dados.model_dump())
 
+    # [F229] Lista registros associados ao usuário autenticado.
     def listar_por_usuario(self, id_usuario: UUID | str) -> list[MetaNutri]:
         return self.repo.get_by_usuario(id_usuario)
 
+    # [F230] Obtém a meta nutricional vigente para o usuário.
     def meta_atual(self, id_usuario: UUID | str) -> MetaNutri:
         meta = self.repo.get_meta_atual(id_usuario)
         if not meta:

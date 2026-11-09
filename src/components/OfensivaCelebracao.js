@@ -3,6 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text
 import useTheme from '../hooks/useTheme';
 import { IconeOfensiva } from './OfensivaBadge';
 
+// [F405] Renderiza a celebração visual de um marco da sequência de uso.
 export default function OfensivaCelebracao({ progresso, aoFechar }) {
   const { cores, isDark } = useTheme();
   const [dias, setDias] = useState(progresso?.anterior || 0);

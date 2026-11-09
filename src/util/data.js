@@ -6,6 +6,7 @@
 // devolve o dia seguinte, e a API guarda a refeição num dia que o usuário não
 // viu. Todo envio de data passa por aqui.
 
+// [F520] Converte uma data para o formato aceito pela API.
 export const formatarDataAPI = (data) => {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, '0');
@@ -13,4 +14,5 @@ export const formatarDataAPI = (data) => {
   return `${ano}-${mes}-${dia}`;
 };
 
+// [F521] Retorna a data atual no formato aceito pela API.
 export const dataDeHoje = () => formatarDataAPI(new Date());

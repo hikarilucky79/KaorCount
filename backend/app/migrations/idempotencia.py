@@ -5,6 +5,7 @@ from app.core.database import engine
 from app.models.operacao_idempotente import OperacaoIdempotente
 
 
+# [F120] Aplica a migração necessária para criar a estrutura de idempotência.
 def aplicar(bind):
     OperacaoIdempotente.__table__.create(bind, checkfirst=True)
     inspetor = inspect(bind)

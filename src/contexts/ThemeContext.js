@@ -22,6 +22,7 @@ export const ThemeContext = createContext({
 
 const THEME_STORAGE_KEY = '@kaorcount_tema_modo';
 
+// [F426] Compartilha o tema e as opções de aparência com os componentes.
 export const ThemeProvider = ({ children }) => {
   // Captura o esquema de cores do celular (Dark / Light)
   const { usuario, salvarPreferencias } = useAuth();

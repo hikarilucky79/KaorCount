@@ -5,6 +5,7 @@
 import api from './client';
 import { dataDeHoje } from '../util/data';
 
+// [F325] Solicita à API o resumo nutricional da data selecionada.
 /**
  * Resumo nutricional do dia.
  * GET /dashboard/usuario/{id_usuario}?data=YYYY-MM-DD
@@ -16,6 +17,7 @@ export const resumoDia = async (idUsuario, data = dataDeHoje()) => {
   return response.data;
 };
 
+// [F326] Solicita à API o resumo nutricional da semana.
 /**
  * Resumo semanal (últimos 7 dias).
  * GET /dashboard/usuario/{id_usuario}/semana?data_fim=YYYY-MM-DD
@@ -25,6 +27,7 @@ export const resumoSemana = async (idUsuario, dataFim = dataDeHoje()) => {
   return response.data;
 };
 
+// [F327] Solicita à API o resumo nutricional do mês.
 /**
  * Resumo mensal (últimos 31 dias).
  * GET /dashboard/usuario/{id_usuario}/mes?data_fim=YYYY-MM-DD
@@ -34,6 +37,7 @@ export const resumoMes = async (idUsuario, dataFim = dataDeHoje()) => {
   return response.data;
 };
 
+// [F328] Solicita à API os registros de evolução do peso.
 /**
  * Evolução de peso do usuário.
  * GET /dashboard/usuario/{id_usuario}/evolucao-peso?limit=30

@@ -13,9 +13,11 @@ from fastapi import HTTPException, status
 class UsuarioService(BaseService):
     nao_encontrado_msg = "Usuário não encontrado"
 
+    # [F297] Inicializa a classe UsuarioService.
     def __init__(self, db: Session):
         super().__init__(UsuarioRepository(db))
 
+    # [F298] Cria um novo registro de conta do usuário no sistema.
     def criar(self, dados: UsuarioCreate) -> Usuario:
         exigir_email_verificado(dados.email, dados.token_verificacao)
         if self.repo.get_by_email(dados.email):
@@ -26,9 +28,11 @@ class UsuarioService(BaseService):
             "senha_hash": hash_senha(dados.senha),
         })
 
+    # [F299] Lista as contas de usuário cadastradas.
     def listar_todos(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
         return self.repo.get_all(skip, limit)
 
+    # [F300] Atualiza os dados de conta do usuário existente no sistema.
     def atualizar(self, id_usuario: UUID | str, dados: UsuarioUpdate) -> Usuario:
         usuario = self.buscar_por_id(id_usuario)
         update_data = dados.model_dump(exclude_unset=True)
@@ -46,6 +50,7 @@ class UsuarioService(BaseService):
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já está em uso")
         return self.repo.update(usuario, update_data)
 
+    # [F301] Desativa a conta do usuário sem remover seus dados.
     def desativar(self, id_usuario: UUID | str) -> None:
         usuario = self.buscar_por_id(id_usuario)
         self.repo.update(usuario, {"status_conta": "inativo"})

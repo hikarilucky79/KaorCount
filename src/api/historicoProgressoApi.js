@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F332] Solicita à API as medições de progresso associadas ao usuário.
 /**
  * Listar histórico por usuário.
  * GET /historico-progresso/usuario/{id_usuario}
@@ -15,6 +16,7 @@ export const listarPorUsuario = async (idUsuario, skip = 0, limit = 100) => {
   return response.data;
 };
 
+// [F333] Cria um novo registro de histórico de progresso pela API.
 /**
  * Criar registro de progresso.
  * POST /historico-progresso/
@@ -25,6 +27,7 @@ export const criar = async (dados, config = {}) => {
   return response.data;
 };
 
+// [F334] Solicita à API a medição de progresso associada ao identificador informado.
 /**
  * Buscar histórico por ID.
  * GET /historico-progresso/{id_progresso}

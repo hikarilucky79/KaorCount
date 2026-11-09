@@ -11,11 +11,13 @@ import { prepararCelebracao } from '../util/ofensivaCelebracao';
 import { Card, Texto, Botao } from './RotinaUI';
 import ConfirmacaoAcaoModal from './ConfirmacaoAcaoModal';
 const nomes = { cafe_manha: 'Café da manhã', almoco: 'Almoço', lanche: 'Lanche', jantar: 'Jantar', janta: 'Jantar' };
+// [F417] Determina o título da sugestão de acordo com o tipo de refeição.
 const tituloSugestao = sugestao => {
   const tipo = nomes[tipoRefeicao(sugestao.tipo_refeicao)] || 'Refeição';
   const nome = sugestao.nome.replace(/cafe_manha|almoco|lanche|jantar|janta/g, valor => nomes[valor]);
   return nome.toLowerCase().startsWith(tipo.toLowerCase()) ? nome : `${tipo} · ${nome}`;
 };
+// [F418] Exibe sugestões de refeições e ações para gerar, aceitar ou desfazer uma sugestão.
 export default function SugestoesCard({ idUsuario, aoAceitar }) {
   const [sugestoes, setSugestoes] = useState([]);
   const [aviso, setAviso] = useState('');
@@ -35,10 +37,12 @@ export default function SugestoesCard({ idUsuario, aoAceitar }) {
     const intervalo = setInterval(() => setAgora(new Date()), 60000);
     return () => clearInterval(intervalo);
   }, [carregar]));
+  // [F419] Solicita novas sugestões de refeição para exibição no cartão.
   const gerar = () => executar(async atual => {
     const lista = await sugestaoApi.gerarSugestoes(idUsuario);
     if (atual()) setSugestoes(lista || []);
   });
+  // [F420] Registra a sugestão de refeição escolhida pelo usuário.
   const aceitar = sugestao => executar(async atual => {
     const celebracao = await prepararCelebracao(idUsuario, dataDeHoje());
     let resultado;
@@ -58,6 +62,7 @@ export default function SugestoesCard({ idUsuario, aoAceitar }) {
     setAviso(resultado.itens_criados ? 'Refeição registrada no Diário.' : 'A sugestão não tinha alimentos disponíveis para registrar.');
     await aoAceitar(resultado, celebracao);
   });
+  // [F421] Desfaz a aceitação da sugestão escolhida.
   const desfazer = () => executar(async atual => {
     try {
       const resultado = await sugestaoApi.desfazerSugestao(confirmarDesfazer.id_sugestao);

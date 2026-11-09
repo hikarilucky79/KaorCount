@@ -19,9 +19,11 @@ GENERO_SEM_QUIZ = "masculino"
 
 
 class PerfilNutriService:
+    # [F235] Inicializa a classe PerfilNutriService.
     def __init__(self, db: Session):
         self.repo = PerfilNutriRepository(db)
 
+    # [F236] Obtém as medidas recentes do usuário para cálculos nutricionais.
     def medidas_recentes(self, id_usuario: UUID | str) -> tuple[float, float]:
         """
         Peso e altura do último registro de progresso. Sem isso a TMB sairia do
@@ -32,10 +34,12 @@ class PerfilNutriService:
             return float(ultimo[0].peso_atual), float(ultimo[0].altura_atual)
         return NutricaoService.PESO_PADRAO_KG, NutricaoService.ALTURA_PADRAO_CM
 
+    # [F237] Calcula a taxa metabólica basal pela fórmula Mifflin-St Jeor.
     def calcular_tmb(self, id_usuario: UUID | str, data_nascimento: date, genero: str) -> float:
         peso, altura = self.medidas_recentes(id_usuario)
         return NutricaoService.calcular_tmb(data_nascimento, genero, peso_kg=peso, altura_cm=altura)
 
+    # [F238] Obtém o perfil nutricional associado ao usuário.
     def buscar_por_usuario(self, id_usuario: UUID | str) -> PerfilNutri:
         perfil = self.repo.get_by_usuario(id_usuario)
         if not perfil:
@@ -54,6 +58,7 @@ class PerfilNutriService:
             self.repo.db.refresh(perfil)
         return perfil
 
+    # [F239] Cria um novo registro de perfil nutricional no sistema.
     def criar(self, dados: PerfilNutriCreate) -> PerfilNutri:
         if self.repo.get_by_usuario(dados.id_usuario):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Perfil nutricional já existe para este usuário")
@@ -65,6 +70,7 @@ class PerfilNutriService:
         )
         return self.repo.create(obj_data)
 
+    # [F240] Atualiza os dados de perfil nutricional existente no sistema.
     def atualizar(self, id_usuario: UUID | str, dados: PerfilNutriUpdate) -> PerfilNutri:
         perfil = self.repo.get_by_usuario(id_usuario)
         if not perfil:
@@ -90,6 +96,7 @@ class PerfilNutriService:
             alteracoes["tmb_calculo"] = self.calcular_tmb(id_usuario, nascimento, genero)
         return self.repo.update(perfil, alteracoes)
 
+    # [F241] Remove o perfil nutricional associado ao usuário.
     def deletar(self, id_usuario: UUID | str) -> None:
         perfil = self.buscar_por_usuario(id_usuario)
         self.repo.delete(perfil)

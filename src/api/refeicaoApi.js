@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F356] Lista pela API as refeições da data selecionada.
 /**
  * Listar refeições do dia.
  * GET /refeicoes/usuario/{id}/dia/{data}
@@ -13,6 +14,7 @@ export const listarPorDia = async (idUsuario, data) => {
   return response.data;
 };
 
+// [F357] Solicita à API as refeições registradas dentro do período informado.
 /**
  * Listar refeições por período.
  * GET /refeicoes/usuario/{id}/periodo?data_inicio=...&data_fim=...
@@ -24,6 +26,7 @@ export const listarPorPeriodo = async (idUsuario, dataInicio, dataFim) => {
   return response.data;
 };
 
+// [F358] Solicita à API o resumo diário de calorias e macronutrientes.
 /**
  * Resumo de macros do dia.
  * GET /refeicoes/usuario/{id}/dia/{data}/macros
@@ -33,6 +36,7 @@ export const resumoMacrosDia = async (idUsuario, data) => {
   return response.data;
 };
 
+// [F359] Solicita à API a refeição associada ao identificador informado.
 /**
  * Buscar refeição por ID.
  * GET /refeicoes/{id_refeicao}
@@ -42,6 +46,7 @@ export const buscarPorId = async (idRefeicao) => {
   return response.data;
 };
 
+// [F360] Solicita à API o registro de uma nova refeição.
 /**
  * Criar nova refeição.
  * POST /refeicoes/
@@ -52,6 +57,7 @@ export const criar = async (dados, config = {}) => {
   return response.data;
 };
 
+// [F361] Solicita à API a atualização de uma refeição registrada.
 /**
  * Atualizar refeição.
  * PUT /refeicoes/{id_refeicao}
@@ -61,6 +67,7 @@ export const atualizar = async (idRefeicao, dados) => {
   return response.data;
 };
 
+// [F362] Solicita à API a remoção de uma refeição registrada.
 /**
  * Deletar refeição.
  * DELETE /refeicoes/{id_refeicao}
@@ -69,6 +76,7 @@ export const deletar = async (idRefeicao) => {
   await api.delete(`/refeicoes/${idRefeicao}`);
 };
 
+// [F363] Solicita à API os alimentos de uma refeição.
 /**
  * Listar itens de uma refeição.
  * GET /refeicoes/{id_refeicao}/itens
@@ -78,6 +86,7 @@ export const listarItens = async (idRefeicao) => {
   return response.data;
 };
 
+// [F364] Solicita à API a inclusão de um alimento em uma refeição.
 /**
  * Adicionar item a uma refeição.
  * POST /refeicoes/{id_refeicao}/itens
@@ -87,6 +96,7 @@ export const adicionarItem = async (idRefeicao, dados, config = {}) => {
   return response.data;
 };
 
+// [F365] Solicita à API a atualização de um alimento da refeição.
 /**
  * Atualizar item de refeição.
  * PUT /refeicoes/itens/{id_item}
@@ -96,6 +106,7 @@ export const atualizarItem = async (idItem, dados) => {
   return response.data;
 };
 
+// [F366] Solicita à API a remoção de um alimento da refeição.
 /**
  * Remover item de refeição.
  * DELETE /refeicoes/itens/{id_item}

@@ -5,6 +5,7 @@
 import { useContext } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
 
+// [F439] Disponibiliza o tema ativo para os componentes.
 export default function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {

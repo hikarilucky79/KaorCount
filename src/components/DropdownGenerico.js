@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, TouchableWit
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
 import { CORES } from '../constants/Cores';
 
+// [F392] Exibe uma lista suspensa reutilizável para escolher uma opção.
 export default function DropdownGenerico({ 
   valorSelecionado, 
   onChange, 
@@ -13,6 +14,7 @@ export default function DropdownGenerico({
 
   const opcaoAtual = opcoes.find(opt => opt.id === valorSelecionado);
 
+  // [F393] Atualiza a opção escolhida no menu suspenso.
   const selecionar = (id) => {
     onChange(id);
     setVisivel(false);

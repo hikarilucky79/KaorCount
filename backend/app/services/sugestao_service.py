@@ -22,6 +22,7 @@ from app.services.nutricao_service import NutricaoService
 from fastapi import HTTPException, status
 
 
+# [F268] Padroniza texto de alimento para comparação e filtragem.
 def _normalizar(texto: str) -> str:
     """Minúsculas sem acento, para comparar nomes de alimentos."""
     if not texto:
@@ -43,6 +44,7 @@ class _CacheBusca:
     _store: Dict[str, tuple[float, List[Dict]]] = {}
     _vazios: set[str] = set()
 
+    # [F269] Obtém o valor armazenado para a chave de sugestão informada.
     @classmethod
     def get(cls, termo: str) -> List[Dict]:
         agora = time.time()
@@ -54,6 +56,7 @@ class _CacheBusca:
                 return list(entrada[1])
         return []  # cache miss — quem chama busca de verdade
 
+    # [F270] Salva o valor associado à chave de sugestão informada.
     @classmethod
     def set(cls, termo: str, alimentos: List[Dict]) -> None:
         with cls._lock:
@@ -62,6 +65,7 @@ class _CacheBusca:
             else:
                 cls._vazios.add(termo)
 
+    # [F271] Pesquisa alimentos usados na composição de sugestões.
     @classmethod
     def buscar(cls, termo: str, max_resultados: int = 20) -> List[Dict]:
         em_cache = cls.get(termo)
@@ -110,6 +114,7 @@ class SugestaoService:
     PORCAO_MAX_G = 400.0
     PORCAO_PASSO_G = 5.0
 
+    # [F272] Inicializa a classe SugestaoService.
     def __init__(self, db: Session):
         self.db = db
         self.perfil_repo = PerfilNutriRepository(db)
@@ -117,10 +122,12 @@ class SugestaoService:
         self.alimento_repo = AlimentoRepository(db)
         self.refeicao_repo = RefeicaoRepository(db)
 
+    # [F273] Obtém candidatos a alimento na API do FatSecret.
     def _buscar_alimentos_fatsecret(self, termo: str, max_resultados: int = 20) -> List[Dict]:
         """Busca alimentos no FatSecret (com cache em memória)."""
         return _CacheBusca.buscar(termo, max_resultados=max_resultados)
 
+    # [F274] Converte os nutrientes do alimento para uma base de 100 gramas.
     @staticmethod
     def _para_100g(alimento: Dict) -> Dict | None:
         """
@@ -164,6 +171,7 @@ class SugestaoService:
             "origem_dados": alimento.get("origem_dados"),
         }
 
+    # [F275] Filtra alimentos que se encaixam nos macronutrientes desejados.
     def _filtrar_alimentos_por_macros(
         self,
         alimentos: List[Dict],
@@ -217,12 +225,14 @@ class SugestaoService:
         # que a refeição ainda seja montada.
         return viaveis or filtrados
 
+    # [F276] Verifica se o item pode ser incluído sem ultrapassar os limites da refeição.
     @staticmethod
     def _cabe_na_refeicao(alimento: Dict, meta_calorias: float, tolerancia: float) -> bool:
         """True se o alimento não estoura sozinho a meta calórica da refeição."""
         limite = max(meta_calorias, 1.0) * (1.0 + tolerancia)
         return alimento["calorias"] * (SugestaoService.PORCAO_MIN_G / 100.0) <= limite
 
+    # [F277] Monta uma resposta de erro com o código e a mensagem informados.
     def _erro(self, totais: Dict[str, float], alvo: Dict[str, float]) -> float:
         """
         Erro ponderado entre o total da combinação e o alvo.
@@ -238,6 +248,7 @@ class SugestaoService:
             erro += peso * (desvio ** 2)
         return erro
 
+    # [F278] Calcula os nutrientes de uma porção específica do alimento.
     def _macros_da_porcao(self, alimento: Dict, gramas: float) -> Dict[str, float]:
         """Macros de uma porção específica (alimento já normalizado para 100 g)."""
         fator = gramas / 100.0
@@ -248,6 +259,7 @@ class SugestaoService:
             "gorduras": alimento["gorduras"] * fator,
         }
 
+    # [F279] Soma calorias e nutrientes dos itens selecionados.
     def _totalizar(self, combinacao: List[Dict]) -> Dict[str, float]:
         totais = {"calorias": 0.0, "carboidratos": 0.0, "proteinas": 0.0, "gorduras": 0.0}
         for item in combinacao:
@@ -256,11 +268,13 @@ class SugestaoService:
                 totais[chave] += macros[chave]
         return totais
 
+    # [F280] Arredonda uma porção para um valor prático de exibição.
     def _arredondar_porcao(self, gramas: float) -> float:
         """Arredonda a porção para passos de 5 g, respeitando as faixas."""
         limitada = min(max(gramas, self.PORCAO_MIN_G), self.PORCAO_MAX_G)
         return max(round(limitada / self.PORCAO_PASSO_G) * self.PORCAO_PASSO_G, self.PORCAO_PASSO_G)
 
+    # [F281] Escolhe a combinação de alimentos mais próxima das metas nutricionais.
     def _selecionar_combinacao_otima(
         self,
         alimentos: List[Dict],
@@ -340,6 +354,7 @@ class SugestaoService:
             })
         return resultado
 
+    # [F282] Ajusta as porções para aproximar a combinação das metas nutricionais.
     def _refinar_porcoes(self, combinacao: List[Dict], alvo: Dict[str, float], iteracoes: int = 60) -> List[Dict]:
         """
         Ajuste fino das porções por coordenada-descida.
@@ -391,6 +406,7 @@ class SugestaoService:
 
         return combinacao
 
+    # [F283] Salva no catálogo local um alimento obtido de uma fonte externa.
     def _importar_alimento_local(self, item: Dict) -> Dict | None:
         """
         Garante o alimento na base local para poder virar item de refeição.
@@ -445,6 +461,7 @@ class SugestaoService:
         except Exception:
             return None
 
+    # [F284] Gera sugestões de refeições para os tipos disponíveis.
     def gerar_todas(self, id_usuario: UUID | str) -> List[SugestaoRefeicao]:
         meta = self.meta_repo.get_meta_atual(id_usuario)
         if not meta:
@@ -566,6 +583,7 @@ class SugestaoService:
         self.db.commit()
         return [self._serializar(s) for s in sugestoes]
 
+    # [F285] Monta a representação de um alimento dentro da sugestão de refeição.
     @staticmethod
     def _item_sugerido(item: Dict) -> Dict:
         """Normaliza um item da combinação para o formato persistido."""
@@ -581,11 +599,13 @@ class SugestaoService:
             "gorduras": round(item["gord_item"], 1),
         }
 
+    # [F286] Padroniza o tipo de refeição para comparações internas.
     @staticmethod
     def _tipo_normalizado(tipo: str) -> str:
         nome = _normalizar(tipo).replace(" ", "_")
         return {"cafe_da_manha": "cafe_manha", "jantar": "janta", "lanches": "lanche"}.get(nome, nome)
 
+    # [F287] Verifica se dois tipos de refeição representam a mesma categoria.
     def _refeicoes_equivalentes(self, sugestao: SugestaoRefeicao, dia: date) -> list[Refeicao]:
         itens = json.loads(sugestao.alimentos_sugeridos) if sugestao.alimentos_sugeridos else []
         assinatura = sorted((str(item["id_alimento_local"]), float(item["quantidade_g"]))
@@ -599,6 +619,7 @@ class SugestaoService:
         return [refeicao for refeicao in refeicoes if self._tipo_normalizado(refeicao.tipo_refeicao) == tipo and
                 sorted((str(item.id_alimento), float(item.quantidade_alimento_g)) for item in refeicao.itens) == assinatura]
 
+    # [F288] Converte uma sugestão e seus itens para o formato de resposta da API.
     def _serializar(self, sugestao: SugestaoRefeicao) -> Dict:
         """Converte o model em dict de resposta (com o JSON deserializado)."""
         return {
@@ -618,6 +639,7 @@ class SugestaoService:
             ),
         }
 
+    # [F289] Lista sugestões já geradas para o usuário.
     def listar_por_usuario(self, id_usuario: UUID | str, skip: int = 0, limit: int = 50) -> List[Dict]:
         lista = (
             self.db.query(SugestaoRefeicao)
@@ -629,6 +651,7 @@ class SugestaoService:
         )
         return [self._serializar(s) for s in lista]
 
+    # [F290] Desfaz a aceitação anterior da sugestão de refeição.
     def desfazer(self, id_sugestao: UUID | str, id_usuario: UUID | str, dia: date | None = None) -> Dict:
         sugestao = self.db.query(SugestaoRefeicao).filter(
             SugestaoRefeicao.id_sugestao == str(id_sugestao)
@@ -647,6 +670,7 @@ class SugestaoService:
         self.db.refresh(sugestao)
         return {"sugestao": self._serializar(sugestao), "id_refeicao": None, "itens_criados": 0}
 
+    # [F291] Confirma uma sugestão e registra a refeição correspondente.
     def aceitar(self, id_sugestao: UUID | str, id_usuario: UUID | str | None = None, data_refeicao: date | None = None) -> Dict:
         """
         Marca a sugestão como aceita e materializa a refeição no diário.

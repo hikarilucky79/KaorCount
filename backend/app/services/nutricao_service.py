@@ -16,6 +16,7 @@ class NutricaoService:
     }
     MACROS_PADRAO = (0.45, 0.30, 0.25)
 
+    # [F231] Calcula a taxa metabólica basal pela fórmula Mifflin-St Jeor.
     @staticmethod
     def calcular_tmb(data_nascimento: date, genero: str, peso_kg: float = PESO_PADRAO_KG, altura_cm: float = ALTURA_PADRAO_CM) -> float:
         hoje = date.today()
@@ -26,12 +27,14 @@ class NutricaoService:
         ajuste = 5 if genero.lower() in ("masculino", "m") else (-161 if genero.lower() in ("feminino", "f") else 0)
         return base + ajuste
 
+    # [F232] Estima as calorias diárias com base na TMB, atividade e objetivo.
     @staticmethod
     def calcular_calorias_diarias(tmb: float, nivel_atividade: str = "sedentario", objetivo: str = "manter_peso") -> float:
         fator = NutricaoService.FATOR_ATIVIDADE.get(nivel_atividade.lower(), 1.2)
         ajuste = NutricaoService.OBJETIVO_CALORIAS.get(objetivo.lower(), 1.0)
         return round(tmb * fator * ajuste)
 
+    # [F233] Distribui as calorias diárias entre carboidratos, proteínas e gorduras.
     @staticmethod
     def calcular_macros(calorias_diarias: float, objetivo: str = "manter_peso") -> dict:
         pct_carb, pct_prot, pct_gord = NutricaoService.MACROS_POR_OBJETIVO.get(
@@ -44,6 +47,7 @@ class NutricaoService:
             "gordura_g": round(calorias_diarias * pct_gord / 9),
         }
 
+    # [F234] Ajusta calorias e macronutrientes à quantidade consumida do alimento.
     @staticmethod
     def calcular_macros_item(
         calorias_porcao: float, carb_porcao: float, prot_porcao: float,

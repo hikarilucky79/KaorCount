@@ -8,12 +8,15 @@ from app.repositories.base import BaseRepository
 
 
 class RegistroAguaRepository(BaseRepository[RegistroAgua]):
+    # [F152] Inicializa a classe RegistroAguaRepository.
     def __init__(self, db: Session):
         super().__init__(RegistroAgua, db)
 
+    # [F153] Busca um registro pelo identificador.
     def get_by_id(self, id_registro_agua: UUID | str) -> RegistroAgua | None:
         return self.get("id_registro_agua", id_registro_agua)
 
+    # [F154] Busca os registros associados a um usuário.
     def get_by_usuario(self, id_usuario: UUID | str, skip: int = 0, limit: int = 100) -> list[RegistroAgua]:
         return (
             self.db.query(RegistroAgua)
@@ -24,6 +27,7 @@ class RegistroAguaRepository(BaseRepository[RegistroAgua]):
             .all()
         )
 
+    # [F155] Busca os registros que pertencem ao período informado.
     def get_by_periodo(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> list[RegistroAgua]:
         return (
             self.db.query(RegistroAgua)
@@ -36,6 +40,7 @@ class RegistroAguaRepository(BaseRepository[RegistroAgua]):
             .all()
         )
 
+    # [F156] Soma os registros de água do usuário na data informada.
     def get_total_dia(self, id_usuario: UUID | str, data: date) -> float:
         total = self.db.query(func.sum(RegistroAgua.quantidade_ml)).filter(
             RegistroAgua.id_usuario == str(id_usuario),
@@ -43,6 +48,7 @@ class RegistroAguaRepository(BaseRepository[RegistroAgua]):
         ).scalar()
         return float(total or 0.0)
 
+    # [F157] Soma o consumo de água por data dentro do período informado.
     def get_totais_por_periodo(self, id_usuario: UUID | str, data_inicio: date, data_fim: date) -> dict[date, float]:
         totais = (
             self.db.query(RegistroAgua.data_registro, func.sum(RegistroAgua.quantidade_ml))

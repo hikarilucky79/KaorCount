@@ -12,6 +12,7 @@ class VersaoApp(BaseModel):
     url_download: str
 
 
+# [F078] Retorna a versão atual do aplicativo e os requisitos de atualização.
 @router.get("/versao", response_model=VersaoApp)
 def versao_do_app(response: Response):
     """Pública de propósito: o app consulta ao abrir, antes de qualquer login."""

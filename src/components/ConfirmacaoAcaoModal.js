@@ -13,6 +13,7 @@ import { LogOut } from 'lucide-react-native';
 
 const COR_ACAO_DESTRUTIVA = '#A42320';
 
+// [F390] Exibe uma janela que pede confirmação antes de uma ação importante.
 export default function ConfirmacaoAcaoModal({
   visivel,
   cores,
@@ -27,6 +28,7 @@ export default function ConfirmacaoAcaoModal({
   aoConfirmar,
   aoCancelar,
 }) {
+  // [F391] Fecha a confirmação sem executar a ação solicitada.
   const cancelar = () => {
     if (!ocupado) aoCancelar();
   };

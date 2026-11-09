@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F329] Solicita à API a pesquisa de alimentos na base externa FatSecret.
 /**
  * Buscar alimentos na base do FatSecret.
  * GET /fatsecret/buscar?nome=...&pagina=0&max_resultados=20
@@ -16,6 +17,7 @@ export const buscarAlimentos = async (nome, pagina = 0, maxResultados = 25, cate
   return response.data;
 };
 
+// [F330] Solicita à API os dados detalhados de um alimento do FatSecret.
 /**
  * Detalhes de um alimento do FatSecret.
  * GET /fatsecret/alimento/{food_id}
@@ -25,6 +27,7 @@ export const detalhesAlimento = async (foodId) => {
   return response.data;
 };
 
+// [F331] Solicita à API a importação local de um alimento do FatSecret.
 /**
  * Importar alimento do FatSecret para a base local.
  * POST /fatsecret/importar/{food_id}

@@ -30,6 +30,7 @@ export const ITENS_MENU_CONFIGURACAO = [
   { id: 'sobre', rota: 'ConfiguracaoSobre', grupo: 'SUPORTE', titulo: 'Sobre o KaorCount', descricao: 'Versão do aplicativo', Icone: Info },
 ];
 
+// [F446] Renderiza um botão de objetivo nutricional com animação de seleção.
 function BotaoObjetivoAnimado({ obj, ativo, cores, onPress, rf, moderateScale }) {
   const IconeComp = obj.icone;
 
@@ -61,6 +62,7 @@ function BotaoObjetivoAnimado({ obj, ativo, cores, onPress, rf, moderateScale })
   );
 }
 
+// [F447] Renderiza um botão de nível de atividade com animação de seleção.
 function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
 
   return (
@@ -95,6 +97,7 @@ function BotaoAtividadeAnimado({ nivel, ativo, cores, onPress, rf }) {
   );
 }
 
+// [F448] Monta a tela de preferências da conta e do aplicativo.
 export default function ConfiguracaoScreen({ navigation, route }) {
   const { usuario, logout, salvarPreferencias } = useAuth();
   const { cores, isDark, toggleTema, salvandoTema } = useTheme();
@@ -157,6 +160,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }, [carregarDados, secaoSelecionada])
   );
 
+  // [F449] Salva a preferência de unidade de medida selecionada.
   const atualizarUnidade = async (campo, valor) => {
     if (carregandoUnidades) return;
     setCarregandoUnidades(true);
@@ -167,6 +171,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     } finally { setCarregandoUnidades(false); }
   };
 
+  // [F450] Atualiza o nível de atividade física e recalcula as metas.
   // ───────────────────────────────────────────────────────────
   // ↓ Atualizar nível de atividade via API
   // ───────────────────────────────────────────────────────────
@@ -195,6 +200,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }
   };
 
+  // [F451] Atualiza o objetivo nutricional e recalcula as metas.
   // ───────────────────────────────────────────────────────────
   // ↓ Atualizar objetivo via API
   // ───────────────────────────────────────────────────────────
@@ -223,6 +229,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }
   };
 
+  // [F452] Encerra a sessão e apaga os dados de autenticação locais.
   // ───────────────────────────────────────────────────────────
   // ↓ Logout real: limpar token e navegar para Auth
   // ───────────────────────────────────────────────────────────
@@ -242,6 +249,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     }
   };
 
+  // [F453] Abre a confirmação para encerrar a sessão do usuário.
   const handleLogout = () => setConfirmacaoSaidaVisivel(true);
 
   const gruposMenu = ['CONTA', 'ROTINA', 'PREFERÊNCIAS', 'SUPORTE'].map((grupo) => ({
@@ -253,6 +261,7 @@ export default function ConfiguracaoScreen({ navigation, route }) {
   const detalhe = Boolean(secaoSelecionada);
   const corTextoMenu = cores.textoEscuro;
 
+  // [F454] Seleciona e abre a opção de configuração escolhida.
   const selecionarItem = (item) => {
     if (item.aba) {
       navigation.navigate('AppTabs', { screen: item.aba });
@@ -261,10 +270,12 @@ export default function ConfiguracaoScreen({ navigation, route }) {
     navigation.push(item.rota, { secao: item.id, abrirEdicao: item.id === 'perfil' });
   };
 
+  // [F455] Retorna à tela ou seção anterior das configurações.
   const voltar = () => navigation.canGoBack()
     ? navigation.goBack()
     : navigation.navigate('AppTabs', { screen: 'Perfil' });
 
+  // [F456] Renderiza o conteúdo detalhado da opção de configuração selecionada.
   const renderDetalhe = () => {
     switch (secaoSelecionada) {
       case 'conta':

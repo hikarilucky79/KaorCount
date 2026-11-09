@@ -9,11 +9,14 @@ from app.services.base_service import BaseService
 class AlimentoService(BaseService):
     nao_encontrado_msg = "Alimento não encontrado"
 
+    # [F163] Inicializa a classe AlimentoService.
     def __init__(self, db: Session):
         super().__init__(AlimentoRepository(db))
 
+    # [F164] Lista alimentos do catálogo local com os filtros informados.
     def listar_todos(self, skip: int = 0, limit: int = 100) -> list[Alimento]:
         return self.repo.get_all(skip, limit)
 
+    # [F165] Pesquisa o catálogo local pelo nome do alimento.
     def buscar_por_nome(self, nome: str, skip: int = 0, limit: int = 50) -> list[Alimento]:
         return self.repo.search_by_name(nome, skip, limit)

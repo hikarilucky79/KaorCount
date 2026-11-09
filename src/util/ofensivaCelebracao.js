@@ -4,7 +4,9 @@ import * as dashboardApi from '../api/dashboardApi';
 import { dataDeHoje, formatarDataAPI } from './data';
 import { primeiraComidaDoDia } from './rotina';
 
+// [F540] Monta a chave usada para registrar a celebração de uma data.
 const chave = (id, data) => `@kaorcount_ofensiva_${id}_${data}`;
+// [F541] Verifica se a sequência de uso atingiu um marco e prepara sua celebração.
 export async function prepararCelebracao(id, data, refeicoesConhecidas) {
   if (!id || data !== dataDeHoje()) return null;
   try {
@@ -22,6 +24,7 @@ export async function prepararCelebracao(id, data, refeicoesConhecidas) {
     return null;
   }
 }
+// [F542] Registra que a celebração preparada foi exibida ao usuário.
 export async function concluirCelebracao(preparada) {
   if (!preparada || preparada.data !== dataDeHoje()) return null;
   let anterior = preparada.anterior;
@@ -32,6 +35,7 @@ export async function concluirCelebracao(preparada) {
   }
   return { anterior, atual: anterior + 1 };
 }
+// [F543] Marca a celebração como concluída para evitar repetições.
 export async function marcarCelebracao(id, data) {
   try { await AsyncStorage.setItem(chave(id, data), '1'); } catch { /* Não impede o registro da refeição. */ }
 }

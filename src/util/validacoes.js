@@ -1,3 +1,4 @@
+// [F566] Valida os dados recebidos pelo formulário antes do envio.
 export const validarFormulario = (dados) => {
   const erros = {};
 

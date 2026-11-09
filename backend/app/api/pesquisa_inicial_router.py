@@ -13,6 +13,7 @@ from app.schemas.pesquisa_inicial import PesquisaInicialResponse, PesquisaInicia
 router = RouterIdempotente(prefix="/pesquisa-inicial", tags=["Pesquisa Inicial"])
 
 
+# [F044] Salva ou atualiza as respostas da pesquisa inicial.
 @router.put("/{id_usuario}", response_model=PesquisaInicialResponse)
 def salvar_pesquisa_inicial(
     id_usuario: UUID,

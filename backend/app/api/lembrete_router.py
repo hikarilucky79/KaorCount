@@ -10,6 +10,7 @@ from app.services.lembrete_service import LembreteService
 router = RouterIdempotente(prefix="/lembretes", tags=["Lembretes e Notificações"])
 
 
+# [F029] Obtém as configurações de lembretes do usuário.
 @router.get("/config/{id_usuario}")
 def buscar_config(
     id_usuario: UUID,
@@ -21,6 +22,7 @@ def buscar_config(
     return service.buscar(id_usuario)
 
 
+# [F030] Salva horários e preferências dos lembretes de água.
 @router.put("/config/{id_usuario}/agua")
 def configurar_agua(
     id_usuario: UUID,
@@ -34,6 +36,7 @@ def configurar_agua(
     return service.atualizar_agua(id_usuario, intervalo_min, meta_diaria_ml)
 
 
+# [F031] Salva horários e preferências dos lembretes de refeições.
 @router.put("/config/{id_usuario}/refeicoes")
 def configurar_refeicoes(
     id_usuario: UUID,
@@ -47,6 +50,7 @@ def configurar_refeicoes(
     return service.atualizar_refeicao(id_usuario, lista_horarios)
 
 
+# [F032] Ativa os lembretes configurados para o usuário.
 @router.post("/config/{id_usuario}/ativar")
 def ativar(
     id_usuario: UUID,
@@ -58,6 +62,7 @@ def ativar(
     return service.ativar(id_usuario)
 
 
+# [F033] Desativa os lembretes do usuário.
 @router.post("/config/{id_usuario}/desativar")
 def desativar(
     id_usuario: UUID,

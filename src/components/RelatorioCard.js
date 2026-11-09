@@ -5,6 +5,7 @@ import { formatarDataAPI } from '../util/data';
 import { validarPeriodo } from '../util/rotina';
 import useTarefa from '../hooks/useTarefa';
 import { Card, Texto, Campo, Botao } from './RotinaUI';
+// [F409] Exibe os filtros de período e ações para consultar ou baixar o relatório.
 export default function RelatorioCard({ idUsuario, abertoInicial = false }) {
   const [aberto, setAberto] = useState(abertoInicial);
   const [periodo, setPeriodo] = useState(7);
@@ -12,17 +13,20 @@ export default function RelatorioCard({ idUsuario, abertoInicial = false }) {
   const [fim, setFim] = useState('');
   const [resumo, setResumo] = useState(null);
   const { ocupado, erro, executar } = useTarefa();
+  // [F410] Calcula o intervalo de datas selecionado para o relatório.
   const datas = () => {
     if (periodo === 'personalizado') return validarPeriodo(inicio, fim);
     const final = new Date(); const inicial = new Date(final);
     inicial.setDate(inicial.getDate() - periodo + 1);
     return [formatarDataAPI(inicial), formatarDataAPI(final)];
   };
+  // [F411] Solicita o relatório do período selecionado.
   const consultar = () => executar(async atual => {
     const [a, b] = datas();
     const dados = await relatorioApi.obterDadosRelatorio(idUsuario, a, b);
     if (atual()) setResumo(dados.resumo);
   });
+  // [F412] Faz o download do arquivo de relatório gerado.
   const baixar = () => executar(async () => { const [a, b] = datas(); await relatorioApi.baixarRelatorioPdf(idUsuario, a, b); });
   return <Card titulo="RELATÓRIO NUTRICIONAL">
     <Botao configuracao onPress={() => setAberto(!aberto)} disabled={ocupado}>Exportar Relatório Nutricional (PDF)</Botao>

@@ -26,6 +26,7 @@ router = RouterIdempotente(
 )
 
 
+# [F019] Informa a disponibilidade da integração com a base externa de alimentos.
 @router.get("/status")
 def status_fonte_externa(
     usuario: Usuario = Depends(get_usuario_atual),
@@ -38,6 +39,7 @@ def status_fonte_externa(
     }
 
 
+# [F020] Pesquisa a base externa FatSecret pelos termos enviados pelo aplicativo.
 @router.get("/buscar")
 def buscar_alimentos(
     nome: str = Query("", min_length=0),
@@ -50,6 +52,7 @@ def buscar_alimentos(
     return FatSecretService.buscar_alimentos(nome, pagina, max_resultados, categoria, somente_brasil)
 
 
+# [F021] Busca os dados detalhados de um alimento na base externa.
 @router.get("/alimento/{food_id}")
 def detalhes_alimento(
     food_id: str,
@@ -64,6 +67,7 @@ def detalhes_alimento(
         )
 
 
+# [F022] Importa um alimento da base externa para o cadastro local.
 @router.post("/importar/{food_id}", response_model=AlimentoResponse, status_code=status.HTTP_201_CREATED)
 def importar_alimento(
     food_id: str,

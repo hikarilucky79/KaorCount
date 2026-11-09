@@ -23,11 +23,13 @@ import useResponsive from '../hooks/useResponsive';
 const TAMANHO_CODIGO = 6;
 const INTERVALO_REENVIO_SEGUNDOS = 60;
 
+// [F514] Traduz erros da API em mensagens exibidas na tela de confirmação.
 const mensagemDoErro = (error, padrao) => {
   const detalhe = error?.response?.data?.detail || error?.message;
   return typeof detalhe === 'string' && detalhe ? detalhe : padrao;
 };
 
+// [F515] Monta a tela que recebe e valida o código de confirmação de e-mail.
 export default function VerificarEmailScreen({ navigation }) {
   const { cadastroPendente, iniciarCadastro } = useAuth();
   const { cores, isDark } = useTheme();
@@ -54,6 +56,7 @@ export default function VerificarEmailScreen({ navigation }) {
     return () => clearTimeout(id);
   }, [espera]);
 
+  // [F516] Valida o código digitado e confirma o endereço de e-mail.
   const confirmar = async (valor = codigo) => {
     if (confirmando) return;
     if (valor.length !== TAMANHO_CODIGO) {
@@ -74,6 +77,7 @@ export default function VerificarEmailScreen({ navigation }) {
     }
   };
 
+  // [F517] Atualiza e valida a entrada do código conforme o usuário digita.
   const aoDigitar = (texto) => {
     const apenasDigitos = texto.replace(/\D/g, '').slice(0, TAMANHO_CODIGO);
     setCodigo(apenasDigitos);
@@ -82,6 +86,7 @@ export default function VerificarEmailScreen({ navigation }) {
     if (apenasDigitos.length === TAMANHO_CODIGO) confirmar(apenasDigitos);
   };
 
+  // [F518] Solicita o reenvio do código de confirmação de e-mail.
   const reenviar = async () => {
     if (espera > 0 || reenviando) return;
     setErro('');

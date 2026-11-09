@@ -35,17 +35,20 @@ limitar_login = limitador_ip(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(guarda_cadastro)],
 )
+# [F009] Cria uma conta de usuário após validar os dados informados.
 def registrar(dados: UsuarioCreate, db: Session = Depends(get_db)):
     service = AuthService(db)
     return service.registrar(dados)
 
 
+# [F010] Autentica o usuário usando e-mail e senha.
 @router.post("/login", response_model=Token, dependencies=[Depends(limitar_login)])
 def login(dados: UsuarioLogin, db: Session = Depends(get_db)):
     service = AuthService(db)
     return service.login(dados)
 
 
+# [F011] Cria a conta e salva as respostas do questionário de cadastro.
 @router.post("/registrar-com-quiz", response_model=UsuarioResponse, status_code=201, dependencies=[Depends(guarda_cadastro)])
 def registrar_com_quiz(
     dados: CadastroComQuiz,
@@ -57,6 +60,7 @@ def registrar_com_quiz(
     return usuario
 
 
+# [F012] Retorna o perfil do usuário autenticado.
 @router.get("/me", response_model=UsuarioResponse)
 def perfil_atual(usuario: Usuario = Depends(get_usuario_atual)):
     return usuario

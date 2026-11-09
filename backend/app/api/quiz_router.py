@@ -12,6 +12,7 @@ from app.services.quiz_service import QuizService
 router = RouterIdempotente(prefix="/quiz", tags=["Quiz"])
 
 
+# [F045] Salva as respostas do questionário de cadastro.
 @router.put("/{id_usuario}", status_code=204)
 def salvar_quiz(
     id_usuario: UUID,

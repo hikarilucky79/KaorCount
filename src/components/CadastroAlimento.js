@@ -5,9 +5,11 @@ import { validarAlimento } from '../util/rotina';
 import useTarefa from '../hooks/useTarefa';
 import { Texto, Campo, Botao } from './RotinaUI';
 const campos = { nome_alimento: 'Nome do alimento', porcao_padrao_g: 'Porção de referência (g)', calorias: 'Calorias (kcal)', proteinas: 'Proteínas (g)', carboidratos: 'Carboidratos (g)', gorduras: 'Gorduras (g)' };
+// [F388] Renderiza o formulário de cadastro de um alimento.
 export default function CadastroAlimento({ aoCriar }) {
   const [valores, setValores] = useState({ nome_alimento: '', porcao_padrao_g: '100', calorias: '', proteinas: '', carboidratos: '', gorduras: '' });
   const { ocupado, erro, executar } = useTarefa();
+  // [F389] Valida os campos e salva o novo alimento.
   const salvar = () => executar(async atual => {
     const alimento = await alimentoApi.criar(validarAlimento(valores));
     if (atual()) aoCriar(alimento);

@@ -40,9 +40,11 @@ import { formatarDataAPI } from '../util/data';
 import { UNIDADES_PADRAO, formatarAgua } from '../util/medidas';
 import { unidadesDaConta } from '../util/medidas';
 
+// [F457] Padroniza o texto de busca para ignorar caixa e acentuação.
 const normalizarTexto = (txt) => 
   (txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+// [F458] Monta o diário para registrar refeições, calorias e consumo de água.
 export default function DiarioAlimentar({ navigation }) {
   const { usuario } = useAuth();
   const focado = useIsFocused();
@@ -131,6 +133,7 @@ export default function DiarioAlimentar({ navigation }) {
   const metaCarboidrato = metaAtual?.carboidrato_g || metaAtual?.carboidrato_meta_g || 180;
   const metaGordura = metaAtual?.gordura_g || metaAtual?.gordura_meta_g || 55;
 
+  // [F459] Soma calorias e nutrientes de todas as refeições da data selecionada.
   // ↓ Totais de macros (calculados a partir das refeições e itens carregados)
   const calcularTotaisDoDia = () => {
     let cal = 0, prot = 0, carb = 0, gord = 0;
@@ -227,6 +230,7 @@ export default function DiarioAlimentar({ navigation }) {
     lanche: { icone: Cookie, titulo: 'Lanches', metaCal: 200 },
   };
 
+  // [F460] Soma as calorias dos itens de uma lista de refeições.
   const calcularCaloriasRefeicoes = (lista) => {
     let total = 0;
     (lista || []).forEach(r => {
@@ -291,6 +295,7 @@ export default function DiarioAlimentar({ navigation }) {
     carregarDados();
   }, [carregarDados]));
 
+  // [F461] Altera a data selecionada no diário alimentar.
   const mudarData = (diasOffset) => {
     if (travaCopia.current || (diasOffset > 0 && ehHoje)) return;
     const novaData = new Date(dataSelecionada);
@@ -345,6 +350,7 @@ export default function DiarioAlimentar({ navigation }) {
     return () => clearTimeout(timer);
   }, [busca]);
 
+  // [F462] Registra o volume de água informado pelo usuário.
   // ───────────────────────────────────────────────────────────
   // ↓ Hidratação (+150, +250, +350)
   // ───────────────────────────────────────────────────────────
@@ -379,6 +385,7 @@ export default function DiarioAlimentar({ navigation }) {
     }
   };
 
+  // [F463] Abre o formulário para adicionar alimento ou refeição.
   // ───────────────────────────────────────────────────────────
   // ↓ Abrir modal para adicionar alimento
   // ───────────────────────────────────────────────────────────
@@ -394,6 +401,7 @@ export default function DiarioAlimentar({ navigation }) {
     setModalVisivel(true);
   };
 
+  // [F464] Valida e registra o alimento selecionado no diário.
   // ───────────────────────────────────────────────────────────
   // ↓ Salvar alimento na refeição
   // ───────────────────────────────────────────────────────────
@@ -500,6 +508,7 @@ export default function DiarioAlimentar({ navigation }) {
     }
   };
 
+  // [F465] Abre a confirmação para remover um alimento do diário.
   // ───────────────────────────────────────────────────────────
   // ↓ Remover alimento da refeição
   // ───────────────────────────────────────────────────────────
@@ -514,6 +523,7 @@ export default function DiarioAlimentar({ navigation }) {
     setConfirmacaoRemocaoVisivel(true);
   };
 
+  // [F466] Confirma a remoção do item selecionado.
   const confirmarRemocaoItem = async () => {
     if (idItemPendenteRemocao == null || removendoItem) return;
     setRemovendoItem(true);
@@ -531,6 +541,7 @@ export default function DiarioAlimentar({ navigation }) {
     }
   };
 
+  // [F467] Cancela a remoção e limpa o estado de confirmação.
   const cancelarRemocaoItem = () => {
     if (removendoItem) return;
     setConfirmacaoRemocaoVisivel(false);
@@ -538,6 +549,7 @@ export default function DiarioAlimentar({ navigation }) {
     setNomeItemPendenteRemocao('');
   };
 
+  // [F468] Soma as calorias de refeições de um tipo específico.
   // ───────────────────────────────────────────────────────────
   // ↓ Calcular calorias de um tipo de refeição
   // ───────────────────────────────────────────────────────────
@@ -556,6 +568,7 @@ export default function DiarioAlimentar({ navigation }) {
     return Math.round(total);
   };
 
+  // [F469] Prepara e exibe a celebração da sequência registrada no diário.
   // ───────────────────────────────────────────────────────────
   // ↓ Renderizar bloco de refeição com botão + e lista de itens
   // ───────────────────────────────────────────────────────────
@@ -566,6 +579,7 @@ export default function DiarioAlimentar({ navigation }) {
     await marcarCelebracao(preparada.id, preparada.data);
   };
 
+  // [F470] Copia para a data atual os alimentos registrados no dia anterior.
   const copiarDeOntem = async tipo => {
     if (travaCopia.current || !usuario?.id_usuario) return;
     travaCopia.current = true;
@@ -607,6 +621,7 @@ export default function DiarioAlimentar({ navigation }) {
     }
   };
 
+  // [F471] Monta o bloco visual de uma categoria de refeição.
   const renderBlocoRefeicao = (tipo) => {
     const config = tiposConfig[tipo];
     const lista = refeicoesPorTipo[tipo] || [];

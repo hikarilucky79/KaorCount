@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F310] Solicita à API a lista de alimentos cadastrados.
 /**
  * Listar alimentos da base local.
  * GET /alimentos/
@@ -13,6 +14,7 @@ export const listarTodos = async (skip = 0, limit = 100) => {
   return response.data;
 };
 
+// [F311] Solicita à API o alimento associado ao identificador informado.
 /**
  * Buscar alimento por ID.
  * GET /alimentos/{id_alimento}
@@ -22,6 +24,7 @@ export const buscarPorId = async (idAlimento) => {
   return response.data;
 };
 
+// [F312] Pesquisa alimentos pelo nome informado.
 /**
  * Buscar alimentos por nome.
  * GET /alimentos/buscar?nome=...
@@ -33,6 +36,7 @@ export const buscarPorNome = async (nome, limit = 20) => {
   return response.data;
 };
 
+// [F313] Cria um novo registro de alimento pela API.
 /**
  * Criar novo alimento na base local.
  * POST /alimentos/

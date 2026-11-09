@@ -6,12 +6,15 @@ from app.repositories.base import BaseRepository
 
 
 class AlimentoRepository(BaseRepository[Alimento]):
+    # [F121] Inicializa a classe AlimentoRepository.
     def __init__(self, db: Session):
         super().__init__(Alimento, db)
 
+    # [F122] Busca um registro pelo identificador.
     def get_by_id(self, id_alimento: UUID | str) -> Alimento | None:
         return self.get("id_alimento", id_alimento)
 
+    # [F123] Busca alimentos pelo nome, com suporte a paginação.
     def search_by_name(self, nome: str, skip: int = 0, limit: int = 50) -> list[Alimento]:
         return (
             self.db.query(Alimento)
@@ -21,6 +24,7 @@ class AlimentoRepository(BaseRepository[Alimento]):
             .all()
         )
 
+    # [F124] Busca um alimento pelo identificador da fonte de origem.
     def buscar_por_origem(self, origem: str, food_id: str) -> Alimento | None:
         """
         Busca um alimento pela origem externa.

@@ -11,12 +11,14 @@ import { pontosPeso } from '../util/rotina';
 import useTarefa from '../hooks/useTarefa';
 import useTheme from '../hooks/useTheme';
 import { Card, Texto, Botao } from './RotinaUI';
+// [F394] Renderiza o gráfico com os registros de evolução do peso.
 function GraficoPeso({ registros, unidade }) {
   const { cores } = useTheme();
   const [largura, setLargura] = useState(0);
   const { pontos } = pontosPeso(registros);
   if (!pontos.length) return null;
   const inicio = pontos[0], fim = pontos[pontos.length - 1];
+  // [F395] Formata uma data para o rótulo curto exibido no gráfico de peso.
   const dataCurta = data => data.slice(8, 10) + '/' + data.slice(5, 7);
   const chartWidth = Math.max(1, largura - 64);
   const dados = pontos.map((p, i) => ({ value: pesoDeKg(p.peso_kg, unidade), topLabelComponent: pontos.length <= 4 || i === pontos.length - 1 ? () => <Text style={{ color: cores.textoEscuro, fontSize: 11, fontWeight: '600', textAlign: 'center', width: 65 }}>{formatarPeso(p.peso_kg, unidade)}</Text> : undefined }));
@@ -58,6 +60,7 @@ function GraficoPeso({ registros, unidade }) {
     <View style={{ marginLeft: 56 + margemGrupo, width: larguraGrupo, marginTop: 4, flexDirection: 'row', justifyContent: pontos.length > 1 ? 'space-between' : 'center' }}><Texto style={{ width: larguraBarra, textAlign: 'center', color: cores.textoSuave, fontSize: 11, marginBottom: 0 }}>{dataCurta(inicio.data)}</Texto>{pontos.length > 1 ? <Texto style={{ width: larguraBarra, textAlign: 'center', color: cores.textoSuave, fontSize: 11, marginBottom: 0 }}>{dataCurta(fim.data)}</Texto> : null}</View>
   </View>;
 }
+// [F396] Exibe a evolução do peso e oferece o formulário para registrar uma nova medição.
 export default function EvolucaoPesoCard({ idUsuario, unidade, alturaCm, aoRegistrar }) {
   const [registros, setRegistros] = useState([]);
   const [editando, setEditando] = useState(false);
@@ -72,6 +75,7 @@ export default function EvolucaoPesoCard({ idUsuario, unidade, alturaCm, aoRegis
     if (atual()) setRegistros([...(lista || [])].sort((a, b) => a.data.localeCompare(b.data)));
   }), [idUsuario, executar]);
   useFocusEffect(useCallback(() => { carregar(); }, [carregar]));
+  // [F397] Registra uma nova medição de peso e atualiza a evolução exibida.
   const registrar = () => {
     setMostrarErro(true);
     return salvamento.executar(async atual => {

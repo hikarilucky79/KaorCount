@@ -4,6 +4,7 @@
 // ───────────────────────────────────────────────────────────────
 import api from './client';
 
+// [F343] Solicita à API as metas nutricionais associadas ao usuário.
 /**
  * Listar metas nutricionais do usuário.
  * GET /metas-nutri/usuario/{id_usuario}
@@ -13,6 +14,7 @@ export const listarPorUsuario = async (idUsuario) => {
   return response.data;
 };
 
+// [F344] Solicita à API a meta nutricional vigente do usuário.
 /**
  * Buscar meta nutricional atual (ativa) do usuário.
  * GET /metas-nutri/usuario/{id_usuario}/atual
@@ -29,6 +31,7 @@ export const metaAtual = async (idUsuario) => {
   }
 };
 
+// [F345] Solicita à API a meta nutricional associada ao identificador informado.
 /**
  * Buscar meta por ID.
  * GET /metas-nutri/{id_meta}
@@ -38,6 +41,7 @@ export const buscarPorId = async (idMeta) => {
   return response.data;
 };
 
+// [F346] Solicita à API a criação de uma meta nutricional.
 /**
  * Criar nova meta nutricional.
  * POST /metas-nutri/
@@ -48,6 +52,7 @@ export const criar = async (dados) => {
   return response.data;
 };
 
+// [F347] Solicita à API a atualização de uma meta nutricional.
 /**
  * Atualizar meta nutricional.
  * PUT /metas-nutri/{id_meta}
@@ -57,6 +62,7 @@ export const atualizar = async (idMeta, dados) => {
   return response.data;
 };
 
+// [F348] Solicita à API a remoção de uma meta nutricional.
 /**
  * Deletar meta nutricional.
  * DELETE /metas-nutri/{id_meta}

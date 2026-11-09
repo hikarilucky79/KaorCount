@@ -23,10 +23,12 @@ from app.core.config import settings
 from app.models.operacao_idempotente import OperacaoIdempotente
 
 
+# [F092] Gera uma assinatura hash para comparar o conteúdo da requisição.
 def _hash(valor):
     return hmac.new(settings.SECRET_KEY.encode(), valor.encode(), hashlib.sha256).hexdigest()
 
 
+# [F093] Reserva uma chave de idempotência para impedir operações duplicadas.
 def _reservar(db, identificador, assinatura):
     registro = OperacaoIdempotente(id_operacao=identificador, assinatura=assinatura)
     db.add(registro)
@@ -46,6 +48,7 @@ def _reservar(db, identificador, assinatura):
 
 
 class RotaIdempotente(APIRoute):
+    # [F094] Inicializa a classe RotaIdempotente.
     def __init__(self, path, endpoint, **kwargs):
         # Login sempre autentica novamente e emite um token novo.
         escrita = set(kwargs.get("methods") or []) & {"POST", "PUT", "PATCH", "DELETE"}
@@ -56,6 +59,7 @@ class RotaIdempotente(APIRoute):
         assinatura_endpoint = inspect.signature(endpoint)
         nome_request = next((p.name for p in assinatura_endpoint.parameters.values() if p.annotation is Request), None)
 
+        # [F095] Executa o endpoint com controle de idempotência e tratamento de repetição.
         @wraps(endpoint)
         async def executar(**valores):
             request = valores.pop("request_idempotencia") if nome_request is None else valores[nome_request]
@@ -131,5 +135,6 @@ class RotaIdempotente(APIRoute):
 
 
 class RouterIdempotente(APIRouter):
+    # [F096] Inicializa a classe RouterIdempotente.
     def __init__(self, *args, **kwargs):
         super().__init__(*args, route_class=RotaIdempotente, **kwargs)

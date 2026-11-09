@@ -31,6 +31,7 @@ export const CATEGORIAS_AJUDA = [
     ['Como desativo minha conta?', 'Em Configurações, abra Conta e escolha Desativar minha conta. A desativação encerra seu acesso e não exclui os dados.'],
   ]},
 ];
+// [F387] Monta a interface de ajuda organizada por categorias.
 export default function AjudaCategorias({ navigation, categoria }) {
   const { cores } = useTheme();
   const atual = CATEGORIAS_AJUDA.find(c => c.id === categoria);

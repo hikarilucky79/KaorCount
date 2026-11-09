@@ -44,6 +44,7 @@ const DELTA_POR_RITMO = {
 // ↓ Piso mínimo de calorias diárias (segurança) para qualquer objetivo.
 const CALORIAS_MINIMAS = 1200;
 
+// [F533] Calcula a idade considerando se a pessoa já fez aniversário neste ano.
 // ↓ Calcula idade a partir da data de nascimento (Date ou 'YYYY-MM-DD').
 export function calcularIdade(dataNascimento) {
   if (!dataNascimento) return 0;
@@ -58,6 +59,7 @@ export function calcularIdade(dataNascimento) {
   return idade;
 }
 
+// [F534] Calcula a taxa metabólica basal pela fórmula Mifflin-St Jeor.
 // ↓ TMB pela fórmula Mifflin-St Jeor (igual ao backend).
 export function calcularTMB(dataNascimento, genero, pesoKg = 70, alturaCm = 170) {
   const idade = calcularIdade(dataNascimento);
@@ -67,6 +69,7 @@ export function calcularTMB(dataNascimento, genero, pesoKg = 70, alturaCm = 170)
   return base + ajuste;
 }
 
+// [F535] Estima a meta calórica diária a partir da atividade física e do objetivo.
 // ↓ Calorias diárias = TMB × fator de atividade × ajuste do objetivo.
 export function calcularCaloriasDiarias(tmb, nivelAtividade = 'sedentario', objetivo = 'manter_peso') {
   const fator = FATOR_ATIVIDADE[String(nivelAtividade).toLowerCase()] || 1.2;
@@ -74,6 +77,7 @@ export function calcularCaloriasDiarias(tmb, nivelAtividade = 'sedentario', obje
   return Math.round(tmb * fator * ajuste);
 }
 
+// [F536] Calcula as metas diárias de carboidratos, proteínas e gorduras.
 // ↓ Macros em gramas a partir das calorias (carb/prot ÷4 kcal, gord ÷9 kcal).
 export function calcularMacros(caloriasDiarias, objetivo = 'manter_peso') {
   const [pctCarb, pctProt, pctGord] =
@@ -86,6 +90,7 @@ export function calcularMacros(caloriasDiarias, objetivo = 'manter_peso') {
   };
 }
 
+// [F537] Calcula TMB, calorias e macronutrientes a partir das respostas do quiz.
 // ↓ Atalho: devolve tudo calculado a partir das respostas do quiz.
 //   'ritmo' (sustentavel | moderado | acelerado) ajusta a meta calórica
 //   quando o objetivo é perder peso ou ganhar massa. Quando omitido
@@ -113,6 +118,7 @@ export function calcularPlanoNutricional({ dataNascimento, genero, pesoKg, altur
   return { tmb, ...calcularMacros(Math.round(calorias), objetivo) };
 }
 
+// [F538] Calcula o percentual calórico proveniente de cada macronutriente.
 // ↓ Distribuição do que foi consumido em % das CALORIAS (proteína/carbo ×4,
 //   gordura ×9). É a mesma unidade em que MACROS_POR_OBJETIVO define a meta;
 //   medir em gramas trataria 1 g de gordura igual a 1 g de carboidrato.
@@ -129,6 +135,7 @@ export function distribuicaoCalorica(proteinaG = 0, carboidratoG = 0, gorduraG =
   };
 }
 
+// [F539] Converte texto numérico pt-BR em número JavaScript.
 // ↓ Conversões aceitando vírgula ou ponto (pt-BR) para altura e peso.
 export function parseNumeroBr(valor) {
   if (valor === null || valor === undefined) return NaN;

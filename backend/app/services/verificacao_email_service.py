@@ -19,10 +19,12 @@ CODIGOS_POR_EMAIL = 5
 JANELA_CODIGOS_EMAIL_SEGUNDOS = 3600
 
 
+# [F302] Gera um hash seguro para armazenar e comparar códigos de verificação.
 def _hash_codigo(email: str, codigo: str) -> str:
     return hmac.new(settings.SECRET_KEY.encode(), f"{email}:{codigo}".encode(), hashlib.sha256).hexdigest()
 
 
+# [F303] Interrompe novo envio quando o intervalo mínimo entre códigos não passou.
 def _rejeitar_espera(detalhe: str, segundos: int) -> None:
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -32,9 +34,11 @@ def _rejeitar_espera(detalhe: str, segundos: int) -> None:
 
 
 class VerificacaoEmailService:
+    # [F304] Inicializa a classe VerificacaoEmailService.
     def __init__(self, db: Session):
         self.db = db
 
+    # [F305] Envia ao e-mail um código de verificação.
     def enviar_codigo(self, email: str) -> None:
         email = normalizar_email(email)
         if UsuarioRepository(self.db).get_by_email(email):
@@ -79,6 +83,7 @@ class VerificacaoEmailService:
                 self.db.commit()
             raise
 
+    # [F306] Valida o código enviado e marca o e-mail do usuário como confirmado.
     def confirmar_codigo(self, email: str, codigo: str) -> str:
         email = normalizar_email(email)
         invalido = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Código inválido ou expirado.")

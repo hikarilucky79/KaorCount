@@ -19,8 +19,10 @@ const SENHAS_COMUNS = new Set([
   'letmein123', 'iloveyou1', 'kaorcount', 'kaorcount1', 'kaorcount123',
 ]);
 
+// [F562] Padroniza o texto da senha para verificar se contém dados pessoais.
 const normalizar = (valor) => String(valor || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// [F563] Valida a senha e verifica se ela contém dados pessoais fáceis de adivinhar.
 // ↓ Devolve a mensagem do problema, ou null quando a senha é aceitável.
 export function validarSenha(senha, { email = '', nome = '' } = {}) {
   if (!REQUISITOS_SENHA.every(({ atende }) => atende(senha))) return MENSAGEM_SENHA_FRACA;

@@ -88,6 +88,7 @@ const SombraBotao = Platform.select({
 //   cada render.
 // ───────────────────────────────────────────────────────────────
 
+// [F480] Renderiza um valor numérico com animação respeitando a preferência de movimento reduzido.
 // ↓ Número que sobe de 0 até o valor final.
 function NumeroAnimado({ valor, estilo, reduzirMovimento }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -111,7 +112,9 @@ function NumeroAnimado({ valor, estilo, reduzirMovimento }) {
   return <Text style={estilo}>{exibido}</Text>;
 }
 
+// [F481] Calcula o caminho vetorial de um segmento do gráfico de rosca.
 function caminhoArcoRosquinha(inicio, fim, raioExterno, raioInterno, centro = 150) {
+  // [F482] Calcula as coordenadas de um ponto do gráfico a partir do raio e do ângulo.
   const ponto = (raio, angulo) => {
     const radianos = (angulo * Math.PI) / 180;
     return { x: centro + raio * Math.cos(radianos), y: centro + raio * Math.sin(radianos) };
@@ -130,6 +133,7 @@ function caminhoArcoRosquinha(inicio, fim, raioExterno, raioInterno, centro = 15
   ].join(' ');
 }
 
+// [F483] Renderiza uma opção do questionário em formato de cartão selecionável.
 // ↓ Cartão de opção com seleção animada (acento, borda e check).
 function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores, tom, rf, reduzirMovimento }) {
   const pop = useRef(new Animated.Value(0)).current;
@@ -195,6 +199,7 @@ function CartaoOpcao({ label, descricao, Icone, selecionado, aoSelecionar, cores
   );
 }
 
+// [F484] Renderiza uma opção selecionável em formato de pílula.
 // ↓ Pílula de opção (usada no gênero, onde a descrição não cabe).
 function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
   return (
@@ -228,6 +233,7 @@ function PilulaOpcao({ label, selecionado, aoSelecionar, cores, rf }) {
   );
 }
 
+// [F485] Renderiza um campo numérico que limita, arredonda e formata o valor digitado.
 // ↓ Tela numérica padrão do quiz: campo de input sem bordas e, logo abaixo,
 //   uma barra estática (decorativa, não interativa).
 function EntradaNumerica({
@@ -235,11 +241,15 @@ function EntradaNumerica({
 }) {
   const [texto, setTexto] = useState(null);
 
+  // [F486] Restringe um valor aos limites mínimo e máximo informados.
   const limitar = (n) => Math.max(minimo, Math.min(maximo, n));
+  // [F487] Arredonda o valor numérico para a quantidade de casas decimais configurada.
   const arredondar = (n) => Number(n.toFixed(casas));
   const atual = limitar(Number.isFinite(valor) ? valor : minimo);
+  // [F488] Formata um número para exibição no campo de entrada.
   const formatar = (n) => n.toFixed(casas).replace('.', ',');
 
+  // [F489] Interpreta a entrada numérica digitada e aplica limites e formatação.
   const aoDigitar = (entrada) => {
     const limpo = entrada.replace(casas > 0 ? /[^0-9,.]/g : /[^0-9]/g, '').replace('.', ',');
     setTexto(limpo);
@@ -247,6 +257,7 @@ function EntradaNumerica({
     if (Number.isFinite(numero) && numero >= minimo && numero <= maximo) aoMudar(arredondar(numero));
   };
 
+  // [F490] Confirma e formata o valor quando o campo de entrada perde o foco.
   const aoSair = () => {
     const numero = parseNumeroBr(texto);
     if (Number.isFinite(numero)) aoMudar(limitar(arredondar(numero)));
@@ -294,6 +305,7 @@ function EntradaNumerica({
   );
 }
 
+// [F491] Monta o questionário inicial e calcula a prévia do plano nutricional.
 export default function QuizCadastroScreen({ navigation }) {
   // ↓ Dados do usuário já autenticado no cadastro.
   const { usuario, cadastroPendente, registrar } = useAuth();
@@ -381,6 +393,7 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Helpers de máscara/parsing
   // ───────────────────────────────────────────────────────────
 
+  // [F492] Verifica se a data de nascimento informada é válida.
   // ↓ Valida o ano de nascimento (1900 até o ano atual).
   const validarDataNascimento = (valor) => {
     if (!/^\d{4}$/.test(valor)) return null;
@@ -390,6 +403,7 @@ export default function QuizCadastroScreen({ navigation }) {
     return new Date(ano, 0, 1);
   };
 
+  // [F493] Converte a data do formulário para o formato ISO usado pela API.
   // ↓ Usa 1º de janeiro como data aproximada, já que só coletamos o ano.
   const dataParaISO = (valor) => {
     const dataObj = validarDataNascimento(valor);
@@ -397,11 +411,13 @@ export default function QuizCadastroScreen({ navigation }) {
     return `${dataObj.getFullYear()}-01-01`;
   };
 
+  // [F494] Atualiza o ano exibido no campo de nascimento.
   const atualizarAnoNascimento = (ano) => {
     setDataNascimento(String(ano));
     setErroEtapa('');
   };
 
+  // [F495] Valida os campos obrigatórios da etapa atual do cadastro.
   // ───────────────────────────────────────────────────────────
   // ↓ Validação da etapa corrente antes de avançar
   // ───────────────────────────────────────────────────────────
@@ -446,6 +462,7 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
+  // [F496] Atualiza a etapa atual do questionário e a animação de transição.
   // ───────────────────────────────────────────────────────────
   // ↓ Navegação entre as etapas (com transição animada)
   // ───────────────────────────────────────────────────────────
@@ -470,6 +487,7 @@ export default function QuizCadastroScreen({ navigation }) {
     });
   };
 
+  // [F497] Valida os dados e avança para a próxima etapa do cadastro.
   const avancar = () => {
     if (transicaoRef.current) return;
     const erro = validarEtapa();
@@ -487,6 +505,7 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
+  // [F498] Retorna à etapa anterior do questionário.
   const voltar = () => {
     if (enviando || transicaoRef.current) return;
     if (etapaAtual > 1) {
@@ -497,6 +516,7 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
+  // [F499] Envia o cadastro e as respostas do quiz para persistência.
   // ───────────────────────────────────────────────────────────
   // ↓ Cadastro e respostas são confirmados juntos pelo backend.
   // A chave permanece estável ao tentar novamente após uma falha de rede.
@@ -560,6 +580,7 @@ export default function QuizCadastroScreen({ navigation }) {
     }
   };
 
+  // [F500] Finaliza o questionário quando não há transição em andamento.
   const handleFinalizar = () => { if (!transicaoRef.current) salvarTudo(); };
 
   useLayoutEffect(() => {
@@ -577,6 +598,7 @@ export default function QuizCadastroScreen({ navigation }) {
   // ↓ Helpers de renderização
   // ───────────────────────────────────────────────────────────
 
+  // [F501] Monta o título e a pergunta da etapa do questionário.
   // ↓ Cabeçalho de cada etapa: ícone em círculo + título + pergunta.
   const renderCabecalhoEtapa = (_IconeEtapa, titulo, pergunta) => (
     <View style={styles.headerEtapa}>
@@ -587,6 +609,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F502] Monta as opções de gênero do questionário.
   // ↓ Etapa 1 — Gênero.
   const renderGenero = () => (
     <View>
@@ -606,6 +629,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F503] Monta as opções de unidade de medida.
   // ↓ Botões de unidade (kg/lb, cm/in) usados nas telas numéricas.
   const renderUnidades = (opcoes, atual, aoSelecionar) => (
     <View style={styles.unidadesPesoObjetivo}>
@@ -638,6 +662,7 @@ export default function QuizCadastroScreen({ navigation }) {
   const UNIDADES_PESO = [{ id: 'kg', rotulo: 'Quilogramas' }, { id: 'lb', rotulo: 'Libras' }];
   const UNIDADES_ALTURA = [{ id: 'cm', rotulo: 'Centímetros' }, { id: 'in', rotulo: 'Polegadas' }];
 
+  // [F504] Monta os campos da etapa de data de nascimento.
   // ↓ Etapa 2 — Ano de nascimento.
   const renderNascimento = () => {
     const ano = Number(dataNascimento) || 2000;
@@ -656,6 +681,7 @@ export default function QuizCadastroScreen({ navigation }) {
     );
   };
 
+  // [F505] Monta os campos da etapa de altura.
   // ↓ Etapa 3 — Altura.
   const renderAltura = () => {
     const emIn = unidadeAltura === 'in';
@@ -681,6 +707,7 @@ export default function QuizCadastroScreen({ navigation }) {
     );
   };
 
+  // [F506] Monta os campos da etapa de peso.
   // ↓ Etapa 4 — Peso atual.
   const renderPeso = () => {
     const emLb = unidadePesoObjetivo === 'lb';
@@ -708,6 +735,7 @@ export default function QuizCadastroScreen({ navigation }) {
     );
   };
 
+  // [F507] Monta as opções de nível de atividade física.
   // ↓ Etapa 7 — Nível de atividade física.
   const renderAtividade = () => (
     <View>
@@ -729,6 +757,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F508] Monta as opções de objetivo nutricional.
   // ↓ Etapa 6 — Objetivo principal.
   const renderObjetivo = () => (
     <View>
@@ -750,6 +779,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F509] Monta as opções de ritmo para mudança de peso.
   // ↓ Etapa 8 — Ritmo para alcançar a meta (só p/ perder/ganhar massa).
   const renderRitmo = () => (
     <View>
@@ -779,6 +809,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F510] Monta a pergunta sobre como o usuário conheceu o aplicativo.
   // ↓ Etapas 9 e 10 — origem e experiência prévia.
   const renderOrigemApp = () => (
     <View>
@@ -796,6 +827,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F511] Monta a pergunta sobre a experiência com contagem de calorias.
   const renderExperienciaCalorias = () => (
     <View>
       {renderCabecalhoEtapa(Flame, 'Você já contou calorias?', 'Queremos entender sua experiência anterior.')}
@@ -812,6 +844,7 @@ export default function QuizCadastroScreen({ navigation }) {
     </View>
   );
 
+  // [F512] Monta os campos para definir o peso desejado.
   const renderPesoObjetivo = () => {
     const pesoKg = parseNumeroBr(pesoObjetivoStr) || 60;
     const emLb = unidadePesoObjetivo === 'lb';
@@ -839,6 +872,7 @@ export default function QuizCadastroScreen({ navigation }) {
     );
   };
 
+  // [F513] Monta a tela final com o plano nutricional calculado.
   // ↓ Tela de conclusão — aparece depois que as respostas são salvas.
   const renderConclusao = () => {
     const plano = resumoFinal?.plano;

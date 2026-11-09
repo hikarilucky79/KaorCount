@@ -11,6 +11,7 @@ from app.models.limite_requisicao import LimiteRequisicao
 from app.models.usuario import Usuario
 
 
+# [F097] Identifica o endereço IP associado à requisição do cliente.
 def ip_do_cliente(request: Request) -> str:
     """
     Quem chega na API é o proxy da Vercel (ou o Caddy), então request.client.host
@@ -27,6 +28,7 @@ def ip_do_cliente(request: Request) -> str:
     return request.client.host if request.client else "desconhecido"
 
 
+# [F098] Consome uma tentativa do limite configurado e retorna o estado restante.
 def consumir(db: Session, chave: str, maximo: int, janela_segundos: int) -> tuple[int, int]:
     """
     Registra uma tentativa na janela da chave e devolve (quantidade, restante).
@@ -50,6 +52,7 @@ def consumir(db: Session, chave: str, maximo: int, janela_segundos: int) -> tupl
     return linha.quantidade, restante
 
 
+# [F099] Calcula quanto falta para a janela do limite ser reiniciada.
 def _segundos_ate_reiniciar(db: Session, chave: str, janela_segundos: int) -> int:
     linha = db.get(LimiteRequisicao, chave)
     if linha is None:
@@ -58,6 +61,7 @@ def _segundos_ate_reiniciar(db: Session, chave: str, janela_segundos: int) -> in
     return max(int(janela_segundos - decorrido), 1)
 
 
+# [F100] Interrompe a requisição ao exceder o limite permitido.
 def _rejeitar(retry_after: int) -> None:
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -66,9 +70,11 @@ def _rejeitar(retry_after: int) -> None:
     )
 
 
+# [F101] Cria uma dependência que limita requisições por endereço IP.
 def limitador_ip(chave_prefixo: str, maximo: int, janela_segundos: int):
     """Dependência: limita por IP de origem."""
 
+    # [F102] Verifica e aplica o limite configurado antes de executar a rota.
     def _dependencia(request: Request, db: Session = Depends(get_db)) -> None:
         chave = f"{chave_prefixo}:{ip_do_cliente(request)}"
         _, restante = consumir(db, chave, maximo, janela_segundos)
@@ -78,9 +84,11 @@ def limitador_ip(chave_prefixo: str, maximo: int, janela_segundos: int):
     return _dependencia
 
 
+# [F103] Cria uma dependência que limita requisições por usuário.
 def limitador_usuario(maximo: int, janela_segundos: int):
     """Dependência: limita por usuário autenticado (precisa do token válido antes)."""
 
+    # [F104] Verifica e aplica o limite configurado antes de executar a rota.
     def _dependencia(
         db: Session = Depends(get_db),
         usuario: Usuario = Depends(get_usuario_atual),
@@ -93,6 +101,7 @@ def limitador_usuario(maximo: int, janela_segundos: int):
     return _dependencia
 
 
+# [F105] Aplica controles de segurança ao endpoint de cadastro.
 def guarda_cadastro(
     request: Request,
     db: Session = Depends(get_db),
