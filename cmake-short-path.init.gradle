@@ -1,0 +1,9 @@
+gradle.beforeProject { project ->
+  project.afterEvaluate {
+    def android = project.extensions.findByName('android')
+    def cmake = android?.externalNativeBuild?.cmake
+    if (cmake != null) {
+      cmake.buildStagingDirectory = new File(project.rootProject.projectDir, '.cxx-short/' + project.name)
+    }
+  }
+}
