@@ -47,10 +47,11 @@ export default function AuthScreen({ navigation }) {
   const BANNER_FORM_ALTURA = isLandscape ? Math.min(170, height * 0.4) : Math.min(270, Math.max(235, height * 0.3));
   const BANNER_EXPANDIDO_ALTURA = height;
 
-  // ↓ Estado para controlar a tela ativa: 'welcome' | 'login' | 'register'
+  // ↓ Estado para controlar a tela ativa: 'welcome' | 'login' | 'register' | 'forgot'
   const [modo, setModo] = useState('welcome');
   const [carregandoReq, setCarregandoReq] = useState(false);
   const [erroMsg, setErroMsg] = useState('');
+  const [avisoMsg, setAvisoMsg] = useState('');
   const [animando, setAnimando] = useState(false);
 
   // ↓ Valor animado (0 = repouso da tela atual, 1 = banner totalmente estendido cobrindo a tela)
@@ -68,14 +69,22 @@ export default function AuthScreen({ navigation }) {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [mostrarSenhaCad, setMostrarSenhaCad] = useState(false);
 
+  // ↓ Estados das etapas de recuperação da senha
+  const [etapaRecuperacao, setEtapaRecuperacao] = useState('email');
+  const [codigoRecuperacao, setCodigoRecuperacao] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  const [mostrarSenhaRecuperacao, setMostrarSenhaRecuperacao] = useState(false);
+
 
   // [F443] Troca o fluxo exibido e coordena a transição visual da tela.
   // ───────────────────────────────────────────────────────────
   // ↓ Transição usando o próprio Banner existente
   // ───────────────────────────────────────────────────────────
-  const transicionarPara = (novoModo) => {
+  const transicionarPara = (novoModo, aviso = '') => {
     if (animando) return;
     setErroMsg('');
+    setAvisoMsg(aviso);
     if (reduzirMovimento) {
       if (novoModo === 'app') navigation.replace('AppTabs');
       else setModo(novoModo);
@@ -117,6 +126,7 @@ export default function AuthScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setErroMsg('');
+    setAvisoMsg('');
     if (!emailLogin.trim() || !emailLogin.includes('@')) {
       setErroMsg('Por favor, informe um e-mail válido.');
       return;
@@ -144,6 +154,7 @@ export default function AuthScreen({ navigation }) {
   // ───────────────────────────────────────────────────────────
   const handleCadastrar = async () => {
     setErroMsg('');
+    setAvisoMsg('');
 
     if (!nome.trim()) {
       setErroMsg('Por favor, informe seu nome completo.');
@@ -173,6 +184,70 @@ export default function AuthScreen({ navigation }) {
     } catch (error) {
       const msg = error?.response?.data?.detail || error?.message || 'Não foi possível enviar o código para o seu e-mail.';
       setErroMsg(typeof msg === 'string' ? msg : 'Não foi possível enviar o código para o seu e-mail.');
+    } finally {
+      setCarregandoReq(false);
+    }
+  };
+
+  // [F572] Solicita ou reenvia o código de recuperação sem revelar se a conta existe.
+  const handleSolicitarRecuperacao = async () => {
+    setErroMsg('');
+    setAvisoMsg('');
+    const emailNormalizado = emailLogin.trim();
+    if (!EMAIL_VALIDO.test(emailNormalizado)) {
+      setErroMsg('Por favor, informe um e-mail válido.');
+      return;
+    }
+
+    setCarregandoReq(true);
+    try {
+      await authApi.esqueciSenha(emailNormalizado);
+      setEtapaRecuperacao('codigo');
+      setAvisoMsg('Se houver uma conta ativa associada a este e-mail, enviaremos um código. Verifique também a caixa de spam.');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.message || 'Não foi possível solicitar o código agora. Tente novamente mais tarde.';
+      setErroMsg(typeof msg === 'string' ? msg : 'Não foi possível solicitar o código agora. Tente novamente mais tarde.');
+    } finally {
+      setCarregandoReq(false);
+    }
+  };
+
+  // [F573] Valida o código e a nova senha antes de concluir a recuperação.
+  const handleRedefinirSenha = async () => {
+    setErroMsg('');
+    setAvisoMsg('');
+    const emailNormalizado = emailLogin.trim();
+    if (!EMAIL_VALIDO.test(emailNormalizado)) {
+      setErroMsg('Por favor, informe um e-mail válido.');
+      setEtapaRecuperacao('email');
+      return;
+    }
+    if (!/^\d{6}$/.test(codigoRecuperacao)) {
+      setErroMsg('Informe o código de 6 dígitos recebido por e-mail.');
+      return;
+    }
+    const problemaSenha = validarSenha(novaSenha, { email: emailNormalizado });
+    if (problemaSenha) {
+      setErroMsg(problemaSenha);
+      return;
+    }
+    if (novaSenha !== confirmarNovaSenha) {
+      setErroMsg('As senhas digitadas não coincidem.');
+      return;
+    }
+
+    setCarregandoReq(true);
+    try {
+      await authApi.redefinirSenha(emailNormalizado, codigoRecuperacao, novaSenha);
+      setSenhaLogin('');
+      setCodigoRecuperacao('');
+      setNovaSenha('');
+      setConfirmarNovaSenha('');
+      setEtapaRecuperacao('email');
+      transicionarPara('login', 'Senha redefinida com sucesso. Entre com sua nova senha.');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.message || 'Não foi possível redefinir a senha. Confira o código e tente novamente.';
+      setErroMsg(typeof msg === 'string' ? msg : 'Não foi possível redefinir a senha. Confira o código e tente novamente.');
     } finally {
       setCarregandoReq(false);
     }
@@ -233,18 +308,24 @@ export default function AuthScreen({ navigation }) {
           <View style={styles.authBannerContent}>
             <TouchableOpacity
               style={styles.btnVoltarBanner}
-              onPress={() => transicionarPara('welcome')}
+              onPress={() => transicionarPara(modo === 'forgot' ? 'login' : 'welcome')}
               activeOpacity={0.75}
-              accessibilityLabel="Voltar para boas-vindas"
+              accessibilityLabel={modo === 'forgot' ? 'Voltar para o login' : 'Voltar para boas-vindas'}
             >
               <ChevronLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <View>
               <Text style={[styles.authBannerTitle, { fontSize: rf(29, 25, 34) }]}>
-                {modo === 'login' ? 'Bem-vindo de volta!' : 'Crie sua conta'}
+                {modo === 'login' ? 'Bem-vindo de volta!' : modo === 'register' ? 'Crie sua conta' : 'Recuperar senha'}
               </Text>
               <Text style={[styles.authBannerSubtitle, { fontSize: rf(16, 14, 18) }]}>
-                {modo === 'login' ? 'Entre na sua conta para continuar' : 'Comece sua jornada nutricional'}
+                {modo === 'login'
+                  ? 'Entre na sua conta para continuar'
+                  : modo === 'register'
+                    ? 'Comece sua jornada nutricional'
+                    : etapaRecuperacao === 'email'
+                      ? 'Informe seu e-mail para receber um código'
+                      : 'Digite o código recebido e escolha uma nova senha'}
               </Text>
             </View>
           </View>
@@ -347,6 +428,12 @@ export default function AuthScreen({ navigation }) {
                       <Text style={styles.textoErro}>{erroMsg}</Text>
                     </View>
                   ) : null}
+                  {avisoMsg ? (
+                    <View style={styles.bannerSucesso} accessibilityLiveRegion="polite">
+                      <Check size={16} color="#23834A" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.textoSucesso}>{avisoMsg}</Text>
+                    </View>
+                  ) : null}
 
                   {/* Input E-mail */}
                   <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
@@ -356,7 +443,7 @@ export default function AuthScreen({ navigation }) {
                       placeholder="E-mail"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       value={emailLogin}
-                      onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); }}
+                      onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); setAvisoMsg(''); }}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       editable={!carregandoReq}
@@ -371,7 +458,7 @@ export default function AuthScreen({ navigation }) {
                       placeholder="Senha"
                       placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
                       value={senhaLogin}
-                      onChangeText={(t) => { setSenhaLogin(t); setErroMsg(''); }}
+                      onChangeText={(t) => { setSenhaLogin(t); setErroMsg(''); setAvisoMsg(''); }}
                       secureTextEntry={!mostrarSenhaLogin}
                       editable={!carregandoReq}
                     />
@@ -386,7 +473,14 @@ export default function AuthScreen({ navigation }) {
 
                   <TouchableOpacity
                     style={styles.forgotPassword}
-                    onPress={() => setErroMsg('A recuperação de senha ainda não está disponível.')}
+                    onPress={() => {
+                      setEtapaRecuperacao('email');
+                      setCodigoRecuperacao('');
+                      setNovaSenha('');
+                      setConfirmarNovaSenha('');
+                      setMostrarSenhaRecuperacao(false);
+                      transicionarPara('forgot');
+                    }}
                     accessibilityRole="button"
                   >
                     <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria, fontSize: rf(13, 11, 15) }]}>Esqueci minha senha</Text>
@@ -425,7 +519,167 @@ export default function AuthScreen({ navigation }) {
       )}
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 3. TELA: CADASTRO / REGISTER                                */}
+      {/* 3. TELA: RECUPERAÇÃO DE SENHA                              */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {modo === 'forgot' && (
+        <Animated.View style={[styles.areaCorpoFlex, { opacity: opacidadeCorpo }]}>
+          <ScrollView
+            contentContainerStyle={styles.scrollForm}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.responsivoWrapper, getContainer(maxAuthWidth)]}>
+              <View style={styles.corpoFormCentro}>
+                <View style={[styles.cardFormulario, { backgroundColor: cores.branco, borderColor: cores.borda, borderWidth: 1 }]}>
+                  {erroMsg ? (
+                    <View style={styles.bannerErro}>
+                      <AlertCircle size={16} color="#EB5757" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.textoErro}>{erroMsg}</Text>
+                    </View>
+                  ) : null}
+                  {avisoMsg ? (
+                    <View style={styles.bannerSucesso} accessibilityLiveRegion="polite">
+                      <Check size={16} color="#23834A" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.textoSucesso}>{avisoMsg}</Text>
+                    </View>
+                  ) : null}
+
+                  {etapaRecuperacao === 'email' ? (
+                    <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                      <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                      <TextInput
+                        style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                        placeholder="E-mail cadastrado"
+                        placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                        value={emailLogin}
+                        onChangeText={(t) => { setEmailLogin(t); setErroMsg(''); setAvisoMsg(''); }}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        editable={!carregandoReq}
+                      />
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.textoEmailRecuperacao, { color: cores.textoSuave }]}>Se a conta existir, o código foi enviado para {emailLogin.trim()}.</Text>
+                      <TouchableOpacity
+                        style={styles.linkRecuperacao}
+                        onPress={() => {
+                          setEtapaRecuperacao('email');
+                          setCodigoRecuperacao('');
+                          setNovaSenha('');
+                          setConfirmarNovaSenha('');
+                          setMostrarSenhaRecuperacao(false);
+                          setErroMsg('');
+                          setAvisoMsg('');
+                        }}
+                        disabled={carregandoReq}
+                      >
+                        <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Alterar e-mail</Text>
+                      </TouchableOpacity>
+
+                      <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                        <Mail size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                        <TextInput
+                          style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                          placeholder="Código de 6 dígitos"
+                          placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                          value={codigoRecuperacao}
+                          onChangeText={(t) => { setCodigoRecuperacao(t.replace(/[^0-9]/g, '').slice(0, 6)); setErroMsg(''); }}
+                          keyboardType="number-pad"
+                          textContentType="oneTimeCode"
+                          maxLength={6}
+                          editable={!carregandoReq}
+                        />
+                      </View>
+
+                      <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                        <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                        <TextInput
+                          style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                          placeholder="Nova senha"
+                          placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                          value={novaSenha}
+                          onChangeText={(t) => { setNovaSenha(t); setErroMsg(''); }}
+                          secureTextEntry={!mostrarSenhaRecuperacao}
+                          autoComplete="new-password"
+                          editable={!carregandoReq}
+                        />
+                        <TouchableOpacity onPress={() => setMostrarSenhaRecuperacao(!mostrarSenhaRecuperacao)} accessibilityLabel={mostrarSenhaRecuperacao ? 'Ocultar nova senha' : 'Mostrar nova senha'}>
+                          {mostrarSenhaRecuperacao
+                            ? <EyeOff size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />
+                            : <Eye size={18} color={isDark ? '#8A7E74' : '#9C8E81'} />}
+                        </TouchableOpacity>
+                      </View>
+
+                      {novaSenha.length > 0 ? (
+                        <View style={styles.requisitosSenha} accessibilityLiveRegion="polite">
+                          {REQUISITOS_SENHA.map(({ id, rotulo, atende }) => {
+                            const ok = atende(novaSenha);
+                            const cor = ok ? '#2E9E5B' : (isDark ? '#8A7E74' : '#9C8E81');
+                            return (
+                              <View key={id} style={styles.requisitoSenha} accessibilityLabel={rotulo + ': ' + (ok ? 'atendido' : 'pendente')}>
+                                {ok ? <Check size={14} color={cor} /> : <Circle size={14} color={cor} />}
+                                <Text style={[styles.requisitoSenhaTexto, { color: cor, fontSize: rf(12, 11, 14) }]}>{rotulo}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+
+                      <View style={[styles.inputContainer, { backgroundColor: isDark ? '#262626' : cores.fundoInput, borderColor: isDark ? '#3A3A3A' : cores.borda }]}>
+                        <Lock size={18} color={isDark ? '#8A7E74' : '#9C8E81'} style={{ marginRight: 10 }} />
+                        <TextInput
+                          style={[styles.inputText, { color: cores.textoEscuro, fontSize: rf(14, 12, 16) }]}
+                          placeholder="Confirmar nova senha"
+                          placeholderTextColor={isDark ? '#8A7E74' : '#9C8E81'}
+                          value={confirmarNovaSenha}
+                          onChangeText={(t) => { setConfirmarNovaSenha(t); setErroMsg(''); }}
+                          secureTextEntry={!mostrarSenhaRecuperacao}
+                          autoComplete="new-password"
+                          editable={!carregandoReq}
+                        />
+                      </View>
+                    </>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.btnPrincipal, { marginTop: 10 }, carregandoReq && { opacity: 0.6 }]}
+                    onPress={etapaRecuperacao === 'email' ? handleSolicitarRecuperacao : handleRedefinirSenha}
+                    disabled={carregandoReq}
+                    activeOpacity={0.8}
+                  >
+                    {carregandoReq ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Text style={[styles.txtBtnPrincipal, { fontSize: rf(15, 13, 17) }]}>
+                          {etapaRecuperacao === 'email' ? 'Enviar código' : 'Redefinir senha'}
+                        </Text>
+                        <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  {etapaRecuperacao === 'codigo' ? (
+                    <TouchableOpacity
+                      style={styles.linkRecuperacao}
+                      onPress={handleSolicitarRecuperacao}
+                      disabled={carregandoReq}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.txtRodapeLinkDestaque, { color: cores.primaria }]}>Reenviar código</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </Animated.View>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 4. TELA: CADASTRO / REGISTER                                */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modo === 'register' && (
         <Animated.View style={[styles.areaCorpoFlex, { opacity: opacidadeCorpo }]}>
@@ -784,9 +1038,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 12,
   },
+  bannerSucesso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FFF4',
+    borderColor: '#9AE6B4',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
   textoErro: {
     fontSize: 12,
     color: '#E53E3E',
+    fontWeight: '600',
+    flex: 1,
+  },
+  textoSucesso: {
+    fontSize: 12,
+    color: '#276749',
     fontWeight: '600',
     flex: 1,
   },
@@ -805,6 +1076,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginTop: -2,
     marginBottom: 10,
+  },
+  textoEmailRecuperacao: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 4,
+  },
+  linkRecuperacao: {
+    alignSelf: 'flex-end',
+    marginBottom: 12,
+    paddingVertical: 4,
   },
 
   inputText: {

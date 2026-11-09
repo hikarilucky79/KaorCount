@@ -274,3 +274,5 @@ Os identificadores são globais e permanecem iguais aos comentários no código.
 | F568 | `compararVersoes` | [src/util/versao.js](../src/util/versao.js) | Compara duas versões semânticas do aplicativo. |
 | F569 | `avaliarAtualizacao` | [src/util/versao.js](../src/util/versao.js) | Determina se a versão instalada deve ou precisa ser atualizada. |
 | F570 | `resolverUrl` | [src/util/versao.js](../src/util/versao.js) | Resolve o endereço de download usando a URL base da API. |
+| F572 | `handleSolicitarRecuperacao` | [src/screens/AuthScreen.js](../src/screens/AuthScreen.js) | Valida o e-mail e solicita ou reenvia o código de recuperação de senha. |
+| F573 | `handleRedefinirSenha` | [src/screens/AuthScreen.js](../src/screens/AuthScreen.js) | Valida o código, a força da nova senha e a confirmação antes de redefini-la. |
