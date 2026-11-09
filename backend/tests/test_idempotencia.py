@@ -197,6 +197,11 @@ class IdempotenciaHTTPTest(unittest.TestCase):
         segunda=self.cliente.post("/api/v1/auth/registrar-com-quiz",headers=headers,json=dados)
         self.assertEqual(primeira.status_code,201,primeira.text)
         self.assertEqual(primeira.content,segunda.content)
+        sessao=self.cliente.post("/api/v1/auth/login",json={"email":"cadastro@example.com","senha":"SenhaTeste123!"})
+        self.assertEqual(sessao.status_code,200,sessao.text)
+        perfil=self.cliente.get("/api/v1/auth/me",headers={"Authorization":"Bearer "+sessao.json()["access_token"]})
+        self.assertEqual(perfil.status_code,200,perfil.text)
+        self.assertEqual(perfil.json()["email"],"cadastro@example.com")
         for modelo in [MetaNutri,HistoricoProgresso,PerfilNutri,PesquisaInicial]:
             self.assertEqual(self.contar(modelo),1,modelo.__name__)
         with SessionLocal() as db:

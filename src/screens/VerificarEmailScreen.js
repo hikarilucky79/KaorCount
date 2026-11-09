@@ -7,11 +7,12 @@
 // credenciais pendentes (só em memória) e é enviado ao criar a conta no fim
 // do quiz.
 // ───────────────────────────────────────────────────────────────
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertCircle, MailCheck } from 'lucide-react-native';
 import * as authApi from '../api/authApi';
@@ -42,10 +43,10 @@ export default function VerificarEmailScreen({ navigation }) {
 
   const email = cadastroPendente?.email;
 
-  // Sem credenciais pendentes (ex.: recarregou a página), volta ao cadastro.
-  useEffect(() => {
+  // A verificação pode continuar montada atrás do quiz; só redireciona quando está em foco.
+  useFocusEffect(useCallback(() => {
     if (!email) navigation.replace('Auth');
-  }, [email, navigation]);
+  }, [email, navigation]));
 
   useEffect(() => {
     if (espera <= 0) return undefined;
